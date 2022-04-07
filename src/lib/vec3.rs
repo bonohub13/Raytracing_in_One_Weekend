@@ -71,6 +71,17 @@ impl ops::Sub for Vec3 {
 }
 
 // Vec * f64
+impl ops::MulAssign<i32> for Vec3 {
+    fn mul_assign(&mut self, rhs: i32) {
+        *self = Self {
+            e: [
+                self.e[0] * rhs as f64,
+                self.e[1] * rhs as f64,
+                self.e[2] * rhs as f64,
+            ],
+        }
+    }
+}
 impl ops::MulAssign<f64> for Vec3 {
     fn mul_assign(&mut self, rhs: f64) {
         *self = Self {
@@ -109,9 +120,47 @@ impl ops::Mul<Vec3> for f64 {
         }
     }
 }
+impl ops::Mul<i32> for Vec3 {
+    type Output = Vec3;
+
+    fn mul(self, rhs: i32) -> Self::Output {
+        Vec3 {
+            e: [
+                self.e[0] * rhs as f64,
+                self.e[1] * rhs as f64,
+                self.e[2] * rhs as f64,
+            ],
+        }
+    }
+}
+impl ops::Mul<Vec3> for i32 {
+    type Output = Vec3;
+
+    fn mul(self, rhs: Vec3) -> Self::Output {
+        Vec3 {
+            e: [
+                self as f64 * rhs.e[0],
+                self as f64 * rhs.e[1],
+                self as f64 * rhs.e[2],
+            ],
+        }
+    }
+}
+impl ops::DivAssign<i32> for Vec3 {
+    fn div_assign(&mut self, rhs: i32) {
+        *self *= 1.0 / rhs as f64
+    }
+}
 impl ops::DivAssign<f64> for Vec3 {
     fn div_assign(&mut self, rhs: f64) {
         *self *= 1.0 / rhs
+    }
+}
+impl ops::Div<i32> for Vec3 {
+    type Output = Vec3;
+
+    fn div(self, rhs: i32) -> Self::Output {
+        self * (1.0 / rhs as f64)
     }
 }
 impl ops::Div<f64> for Vec3 {
@@ -136,9 +185,10 @@ impl std::fmt::Display for Vec3 {
 }
 
 impl Vec3 {
-    pub fn new(e0: f64, e1: f64, e2: f64) -> Vec3 {
-        Vec3 { e: [e0, e1, e2] }
+    pub fn new(e0: f64, e1: f64, e2: f64) -> Self {
+        Self { e: [e0, e1, e2] }
     }
+    // Getters
     pub fn x(&self) -> f64 {
         self.e[0]
     }
@@ -148,29 +198,35 @@ impl Vec3 {
     pub fn z(&self) -> f64 {
         self.e[2]
     }
-    pub fn length_squared(&self) -> f64 {
-        self.e[0] * self.e[0] + self.e[1] * self.e[1] + self.e[2] * self.e[2]
-    }
+    // Methods
+    // Returns length of 3D Vector
     pub fn length(&self) -> f64 {
         self.length_squared().sqrt()
     }
-    pub fn dot(&self, rhs: Vec3) -> f64 {
-        self.e[0] * rhs.e[0] + self.e[1] * rhs.e[1] + self.e[2] * rhs.e[2]
-    }
-    pub fn cross(&self, rhs: Vec3) -> Vec3 {
-        Vec3 {
-            e: [
-                self.e[1] * rhs.e[2] - self.e[2] * rhs.e[1],
-                self.e[2] * rhs.e[0] - self.e[0] * rhs.e[2],
-                self.e[0] * rhs.e[1] - self.e[1] * rhs.e[0],
-            ],
-        }
-    }
-    pub fn unit_vector(rhs: Vec3) -> Vec3 {
-        rhs / rhs.length()
+    // Returns squared size of 3D Vector
+    pub fn length_squared(&self) -> f64 {
+        self.e[0] * self.e[0] + self.e[1] * self.e[1] + self.e[2] * self.e[2]
     }
 }
 
+pub fn dot(v: &Vec3, rhs: &Vec3) -> f64 {
+    v.e[0] * rhs.e[0] + v.e[1] * rhs.e[1] + v.e[2] * rhs.e[2]
+}
+
+pub fn cross(v: &Vec3, rhs: &Vec3) -> Vec3 {
+    Vec3 {
+        e: [
+            v.e[1] * rhs.e[2] - v.e[2] * rhs.e[1],
+            v.e[2] * rhs.e[0] - v.e[0] * rhs.e[2],
+            v.e[0] * rhs.e[1] - v.e[1] * rhs.e[0],
+        ],
+    }
+}
+
+pub fn unit_vector(v: &Vec3) -> Vec3 {
+    *v / v.length()
+}
+
 // Aliases
-pub use self::Vec3 as Points;
+pub use self::Vec3 as Point3;
 pub use self::Vec3 as Color;
