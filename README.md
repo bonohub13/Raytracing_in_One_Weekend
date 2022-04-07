@@ -13,5 +13,9 @@ by Peter Shirley
 (Listing4 thru Listing7 in the book)
 - Initialized repository on Github and initial commit
 
+2022/4/7
+- Finished chapter 6 "Surface Normals and Multiple Objects"
+- Updated rt\_utils library corresponding to the book
+
 ## References
 [Peter Shirley, Raytracing in One Weekend, 2020-12-07](https://github.com/RayTracing/raytracing.github.io)
