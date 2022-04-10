@@ -8,8 +8,11 @@ fn main() {
 
     // Image
     const ASPECT_RATIO: f64 = 16.0 / 9.0;
-    const IMAGE_WIDTH: u32 = 1280;
+    // const IMAGE_WIDTH: u32 = 1280;
+    const IMAGE_WIDTH: u32 = 400;
     const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f64 / ASPECT_RATIO) as u32;
+    const SAMPLES_PER_PIXELS: u32 = 100;
+    const MAX_DEPTH: i32 = 50;
 
     // World
     let mut world = rt_utils::HittableList::default();
@@ -23,34 +26,23 @@ fn main() {
     )));
 
     // Camera
-    let viewport_height = 2.0;
-    let viewport_width = ASPECT_RATIO * viewport_height;
-    let focal_length = 1.0;
+    let cam = rt_utils::Camera::default();
 
-    let origin = rt_utils::Point3::new(0.0, 0.0, 0.0);
-    let horizontal = rt_utils::Vec3::new(viewport_width, 0.0, 0.0);
-    let vertical = rt_utils::Vec3::new(0.0, viewport_height, 0.0);
-    let lower_left_corner =
-        origin - horizontal / 2 - vertical / 2 - rt_utils::Vec3::new(0.0, 0.0, focal_length);
-
+    // Render
     println!("P3\n{} {}\n255", IMAGE_WIDTH, IMAGE_HEIGHT);
 
     for j in (0..IMAGE_HEIGHT).rev() {
         eprint!("\rScanlines remaining: {} ", j);
         stdout().flush().ok().expect("Could not flush stdout");
         for i in 0..IMAGE_WIDTH {
-            // Rust loses digits when converted to f64
-            // e.g. 1/2 as f64 returns 0 instead of 0.5
-            // Need to create a variable to temporarily hold converted f64 values
-            let u = i as f64 / (IMAGE_WIDTH - 1) as f64;
-            let v = j as f64 / (IMAGE_HEIGHT - 1) as f64;
-            let r = rt_utils::Ray::new(
-                origin,
-                lower_left_corner + u * horizontal + v * vertical - origin,
-            );
-            let pixel_color = rt_utils::ray_color(&r, &world);
-
-            rt_utils::write_color(pixel_color);
+            let mut pixel_color = rt_utils::Color::new(0.0, 0.0, 0.0);
+            for _ in 0..SAMPLES_PER_PIXELS {
+                let u = ((i as f64) + rt_utils::random_f64()) / (IMAGE_WIDTH - 1) as f64;
+                let v = ((j as f64) + rt_utils::random_f64()) / (IMAGE_HEIGHT - 1) as f64;
+                let r = cam.get_ray(u, v);
+                pixel_color += rt_utils::ray_color(&r, &world, MAX_DEPTH);
+            }
+            rt_utils::write_color_spp(pixel_color, SAMPLES_PER_PIXELS as i32);
         }
     }
 

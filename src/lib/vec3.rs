@@ -1,3 +1,4 @@
+use crate::{rand_f64_in_range, random_f64};
 use std::ops;
 
 #[derive(Clone, Copy)]
@@ -207,6 +208,18 @@ impl Vec3 {
     pub fn length_squared(&self) -> f64 {
         self.e[0] * self.e[0] + self.e[1] * self.e[1] + self.e[2] * self.e[2]
     }
+
+    pub fn random() -> Self {
+        Self::new(random_f64(), random_f64(), random_f64())
+    }
+
+    pub fn random_in_range(min: f64, max: f64) -> Self {
+        Self::new(
+            rand_f64_in_range(min, max),
+            rand_f64_in_range(min, max),
+            rand_f64_in_range(min, max),
+        )
+    }
 }
 
 pub fn dot(v: &Vec3, rhs: &Vec3) -> f64 {
@@ -225,6 +238,16 @@ pub fn cross(v: &Vec3, rhs: &Vec3) -> Vec3 {
 
 pub fn unit_vector(v: &Vec3) -> Vec3 {
     *v / v.length()
+}
+
+pub fn random_in_unit_sphere() -> Vec3 {
+    loop {
+        let p = Vec3::random_in_range(-1.0, 1.0);
+        if p.length_squared() > 1.0 {
+            continue;
+        }
+        return p;
+    }
 }
 
 // Aliases

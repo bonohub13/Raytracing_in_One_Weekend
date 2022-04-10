@@ -17,5 +17,9 @@ by Peter Shirley
 - Finished chapter 6 "Surface Normals and Multiple Objects"
 - Updated rt\_utils library corresponding to the book
 
+2022/4/10
+- Finished chapter 8.3 "Using Gamma Correction for Accurate Color Intensity"
+- Updated rt\_utils library corresponding to the book
+
 ## References
 [Peter Shirley, Raytracing in One Weekend, 2020-12-07](https://github.com/RayTracing/raytracing.github.io)
