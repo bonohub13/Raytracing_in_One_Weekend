@@ -5,6 +5,7 @@ by Peter Shirley
 
 ## UPDATES
 2022/4/5
+- Finished chapter 4, "Rays, a Simple Camera, and Background"
 
 ## References
 [Peter Shirley, Raytracing in One Weekend, 2020-12-07](https://github.com/RayTracing/raytracing.github.io)
