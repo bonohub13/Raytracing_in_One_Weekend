@@ -1,4 +1,4 @@
-package vec3
+package rtweekendlib
 
 import (
 	"fmt"
@@ -73,5 +73,5 @@ func Cross(v *Vec3, u *Vec3) *Vec3 {
 }
 
 func UnitVector(v *Vec3) *Vec3 {
-	return v.Divide(v.length())
+	return v.Divide(v.Length())
 }

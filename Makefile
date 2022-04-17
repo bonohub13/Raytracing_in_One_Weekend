@@ -1,6 +1,8 @@
 COMPILER := $(shell which go)
-DIRECTORIES := $(shell find -type f -name "*.go" | sed "s;/[A-Z|a-z|0-9]*\.go;;" | uniq)
+DIRECTORIES := $(shell find -type f -name "*.go" | sed "s;/[A-Z|a-z|0-9|_]*\.go;;" | uniq)
 BIN_DIR := ./rtweekend
+
+all: build
 
 fmt:
 	for dir in $(DIRECTORIES); do \

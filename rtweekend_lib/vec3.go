@@ -1,4 +1,4 @@
-package vec3
+package rtweekendlib
 
 import (
 	"math"
@@ -50,7 +50,7 @@ func (v *Vec3) DivToThis(gain float64) {
 	v.MultToThis(1 / gain)
 }
 
-func (v *Vec3) length_squared() float64 {
+func (v *Vec3) LengthSquared() float64 {
 	retval := 0.0
 
 	for i := 0; i < 3; i++ {
@@ -60,8 +60,8 @@ func (v *Vec3) length_squared() float64 {
 	return retval
 }
 
-func (v *Vec3) length() float64 {
-	return math.Sqrt(v.length_squared())
+func (v *Vec3) Length() float64 {
+	return math.Sqrt(v.LengthSquared())
 }
 
 func NewVec3(e0, e1, e2 float64) *Vec3 {
