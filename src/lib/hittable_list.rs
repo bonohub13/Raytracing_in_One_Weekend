@@ -1,23 +1,38 @@
-use crate::{HitRecord, Hittable};
+use crate::hittable::*;
+use crate::Material;
+use std::marker::PhantomData;
 
-pub struct HittableList {
-    objects: Vec<Box<dyn Hittable>>,
+pub struct HittableList<M: Material, H: Hittable<M>> {
+    objects: Vec<H>,
+    phantom: PhantomData<M>,
 }
 
-impl HittableList {
-    pub fn new(obj: Box<dyn Hittable>) -> Self {
-        HittableList { objects: vec![obj] }
+impl<M: Material, H: Hittable<M>> HittableList<M, H> {
+    pub fn new(obj: H) -> Self
+    where
+        H: Hittable<M>,
+    {
+        HittableList::<M, H> {
+            objects: vec![obj],
+            phantom: PhantomData,
+        }
     }
     pub fn clear(&mut self) {
         self.objects.clear();
     }
-    pub fn add(&mut self, obj: Box<dyn Hittable>) {
+    pub fn add(&mut self, obj: H)
+    where
+        H: Hittable<M>,
+    {
         self.objects.push(obj)
     }
 }
 
-impl Hittable for HittableList {
-    fn hit(&self, r: &crate::Ray, t_min: f64, t_max: f64, rec: &mut HitRecord) -> bool {
+impl<M: Material, H: Hittable<M>> Hittable<M> for HittableList<M, H> {
+    fn hit(&self, r: &crate::Ray, t_min: f64, t_max: f64, rec: &mut HitRecord<M>) -> bool
+    where
+        M: Material,
+    {
         let mut hit_anything = false;
         let mut closest_so_far = t_max;
         let mut temp_rec = HitRecord::default();
@@ -37,8 +52,11 @@ impl Hittable for HittableList {
     }
 }
 
-impl Default for HittableList {
+impl<M: Material, H: Hittable<M>> Default for HittableList<M, H> {
     fn default() -> Self {
-        Self { objects: vec![] }
+        Self {
+            objects: vec![],
+            phantom: PhantomData,
+        }
     }
 }

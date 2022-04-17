@@ -16,13 +16,30 @@ fn main() {
 
     // World
     let mut world = rt_utils::HittableList::default();
-    world.add(Box::new(rt_utils::Sphere::new(
-        rt_utils::Point3::new(0.0, 0.0, -1.0),
-        0.5,
-    )));
+    let material_ground = rt_utils::Lambertian::new(&rt_utils::Color::new(0.8, 0.8, 0.0));
+    let material_center = rt_utils::Lambertian::new(&rt_utils::Color::new(0.7, 0.3, 0.3));
+    let material_left = rt_utils::Lambertian::new(&rt_utils::Color::new(0.8, 0.8, 0.8));
+    let material_right = rt_utils::Lambertian::new(&rt_utils::Color::new(0.8, 0.6, 0.2));
+
     world.add(Box::new(rt_utils::Sphere::new(
         rt_utils::Point3::new(0.0, -100.5, -1.0),
         100.0,
+        &material_ground,
+    )));
+    world.add(Box::new(rt_utils::Sphere::new(
+        rt_utils::Point3::new(0.0, 0.0, -1.0),
+        0.5,
+        &material_center,
+    )));
+    world.add(Box::new(rt_utils::Sphere::new(
+        rt_utils::Point3::new(-1.0, 0.0, -1.0),
+        0.5,
+        &material_left,
+    )));
+    world.add(Box::new(rt_utils::Sphere::new(
+        rt_utils::Point3::new(1.0, 0.0, -1.0),
+        0.5,
+        &material_right,
     )));
 
     // Camera

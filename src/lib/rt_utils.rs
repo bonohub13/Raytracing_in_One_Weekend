@@ -2,16 +2,18 @@ pub mod camera;
 pub mod color;
 pub mod hittable;
 pub mod hittable_list;
+pub mod material;
 pub mod ray;
 pub mod sphere;
 pub mod vec3;
 
-pub use camera::Camera;
-pub use color::{write_color, write_color_spp};
-pub use hittable::{HitRecord, Hittable};
-pub use hittable_list::HittableList;
-pub use ray::Ray;
-pub use sphere::Sphere;
+pub use camera::*;
+pub use color::*;
+pub use hittable::*;
+pub use hittable_list::*;
+pub use material::*;
+pub use ray::*;
+pub use sphere::*;
 pub use vec3::*;
 
 pub const INFINITY: f64 = f64::INFINITY;
@@ -36,15 +38,25 @@ pub fn hit_sphere(center: &Point3, radius: f64, r: &Ray) -> f64 {
     }
 }
 
-pub fn ray_color(r: &Ray, world: &HittableList, depth: i32) -> Color {
+pub fn ray_color<T, H>(r: &Ray, world: &HittableList<T, H>, depth: i32) -> Color
+where
+    T: Material,
+    H: Hittable<T>,
+{
     let rec = &mut HitRecord::default();
 
     if depth <= 0 {
         return Color::new(0.0, 0.0, 0.0);
     }
     if world.hit(r, 0.001, INFINITY, rec) {
-        let target: Point3 = rec.p() + rec.normal() + random_in_unit_sphere();
-        return 0.5 * ray_color(&Ray::new(rec.p(), target - rec.p()), world, depth - 1);
+        let mut scattered = Ray::default();
+        let mut attenuation = Color::default();
+
+        if rec.mat()[0].scatter(r, rec, &mut attenuation, &mut scattered) {
+            return attenuation * ray_color::<T, H>(&scattered, world, depth - 1);
+        }
+
+        return Color::new(0.0, 0.0, 0.0);
     }
     let unit_direction = unit_vector(&r.direction());
     let t = 0.5 * (unit_direction.y() + 1.0);

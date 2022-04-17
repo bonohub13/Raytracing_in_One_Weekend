@@ -8,16 +8,17 @@ else
     PROJECT_DIR="$(echo "$PROJECT_DIR" | sed "s;Raytracing_in_One_Weekend/[A-Z|a-z|0-9|_]*;Raytracing_in_One_Weekend;")"
 fi
 
-echo "$PROJECT_DIR"
 EXISTING_IMAGE_FILES="$(find "${PROJECT_DIR}/images" -type f -name "*.ppm")"
-EXISTING_IMAGE_FILES_COUNT="$(echo "$EXISTING_IMAGE_FILES" | wc -l)"
+EXISTING_IMAGE_FILES_COUNT="$(echo "$EXISTING_IMAGE_FILES" | sed "/^$/d" | wc -l)"
 
-echo "======================= Pre-existing ppm files... ======================="
-echo "$EXISTING_IMAGE_FILES" | awk -F/ '{print $NF}'
-echo "========================================================================="
+if [ $EXISTING_IMAGE_FILES_COUNT -gt 0 ]; then
+    echo "===================== Pre-existing ppm files... ====================="
+    echo "$EXISTING_IMAGE_FILES" | awk -F/ '{print $NF}'
+    echo "====================================================================="
+fi
 
 echo "Running rtweekend..."
-echo "=== Enter filename for ppm file (file to save output from program): ==="
+echo "==== Enter filename for ppm file (file to save output from program): ===="
 read filename
 
 if echo "$EXISTING_IMAGE_FILES" | grep "${filename}\.ppm"; then

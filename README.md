@@ -21,5 +21,9 @@ by Peter Shirley
 - Finished chapter 8.3 "Using Gamma Correction for Accurate Color Intensity"
 - Updated rt\_utils library corresponding to the book
 
+2022/4/17
+- Completed chapter 8.6 ["An Alternative Diffuse Formulation"](https://raytracing.github.io/books/RayTracingInOneWeekend.html#diffusematerials/analternativediffuseformulation)
+- Failed to implement anything from chapter 9 ["Metal"](https://raytracing.github.io/books/RayTracingInOneWeekend.html#metal)
+
 ## References
 [Peter Shirley, Raytracing in One Weekend, 2020-12-07](https://github.com/RayTracing/raytracing.github.io)

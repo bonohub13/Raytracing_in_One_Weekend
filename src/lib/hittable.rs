@@ -1,15 +1,26 @@
 use crate::dot;
+use crate::Material;
 use crate::{Point3, Ray, Vec3};
 
-#[derive(Clone, Copy)]
-pub struct HitRecord {
+#[derive(Clone)]
+pub struct HitRecord<M: Material> {
     p: Point3,
     normal: Vec3,
+    mat: Vec<M>,
     t: f64,
     front_face: bool,
 }
 
-impl HitRecord {
+pub trait Hittable<M: Material> {
+    fn hit(&self, _r: &Ray, _t_min: f64, _t_max: f64, _rec: &mut HitRecord<M>) -> bool
+    where
+        M: Material,
+    {
+        return false;
+    }
+}
+
+impl<M: Material> HitRecord<M> {
     pub fn set_face_normal(&mut self, r: &Ray, outward_normal: &Vec3) {
         self.front_face = dot(&r.direction(), outward_normal) < 0.0;
         self.normal = if self.front_face {
@@ -31,6 +42,9 @@ impl HitRecord {
     pub fn front_face(&self) -> bool {
         self.front_face
     }
+    pub fn mat(&self) -> &Vec<M> {
+        &self.mat
+    }
     // Setters
     pub fn set_p(&mut self, p: &Point3) {
         self.p = *p;
@@ -44,19 +58,23 @@ impl HitRecord {
     pub fn set_front_face(&mut self, front_face: &bool) {
         self.front_face = *front_face
     }
+    pub fn set_mat(&mut self, mat: &Vec<M>)
+    where
+        M: Material,
+    {
+        self.mat = vec![];
+        self.mat.push(mat[0])
+    }
 }
 
-impl Default for HitRecord {
+impl<M: Material> Default for HitRecord<M> {
     fn default() -> Self {
         Self {
             p: Point3::default(),
             normal: Vec3::default(),
+            mat: vec![],
             t: 0.0,
             front_face: false,
         }
     }
-}
-
-pub trait Hittable {
-    fn hit(&self, r: &Ray, t_min: f64, t_max: f64, rec: &mut HitRecord) -> bool;
 }

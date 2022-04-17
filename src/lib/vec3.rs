@@ -220,6 +220,12 @@ impl Vec3 {
             rand_f64_in_range(min, max),
         )
     }
+
+    pub fn near_zero(&self) -> bool {
+        let s = 1e-8;
+
+        (self.e[0].abs() < s) && (self.e[1] < s) && (self.e[2].abs() < s)
+    }
 }
 
 pub fn dot(v: &Vec3, rhs: &Vec3) -> f64 {
@@ -240,7 +246,7 @@ pub fn unit_vector(v: &Vec3) -> Vec3 {
     *v / v.length()
 }
 
-pub fn random_in_unit_sphere() -> Vec3 {
+pub fn random_unit_sphere() -> Vec3 {
     loop {
         let p = Vec3::random_in_range(-1.0, 1.0);
         if p.length_squared() > 1.0 {
@@ -248,6 +254,24 @@ pub fn random_in_unit_sphere() -> Vec3 {
         }
         return p;
     }
+}
+
+pub fn random_unit_vector() -> Vec3 {
+    return unit_vector(&random_unit_sphere());
+}
+
+pub fn random_hemisphere(normal: &Vec3) -> Vec3 {
+    let in_unit_sphere = random_unit_sphere();
+
+    if dot(&in_unit_sphere, normal) > 0.0 {
+        return in_unit_sphere;
+    } else {
+        return -in_unit_sphere;
+    }
+}
+
+pub fn reflect(v: &Vec3, u: &Vec3) -> Vec3 {
+    *v - 2.0 * dot(v, u) * *u
 }
 
 // Aliases
