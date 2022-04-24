@@ -1,26 +1,33 @@
 use crate::dot;
 use crate::Material;
-use crate::{Point3, Ray, Vec3};
+use crate::{MaterialDef, Point3, Ray, Vec3};
+use std::rc::Rc;
 
 #[derive(Clone)]
-pub struct HitRecord<M: Material> {
+pub struct HitRecord {
     p: Point3,
     normal: Vec3,
-    mat: Vec<M>,
+    pub mat: Rc<dyn Material>,
     t: f64,
     front_face: bool,
 }
 
-pub trait Hittable<M: Material> {
-    fn hit(&self, _r: &Ray, _t_min: f64, _t_max: f64, _rec: &mut HitRecord<M>) -> bool
-    where
-        M: Material,
-    {
+pub trait Hittable {
+    fn hit(&self, _r: &Ray, _t_min: f64, _t_max: f64, _rec: &mut HitRecord) -> bool {
         return false;
     }
 }
 
-impl<M: Material> HitRecord<M> {
+impl HitRecord {
+    pub fn new(p: &Point3, normal: &Vec3, mat: Rc<dyn Material>, t: f64, front_face: bool) -> Self {
+        Self {
+            p: p.clone(),
+            normal: normal.clone(),
+            mat: mat.clone(),
+            t: t.clone(),
+            front_face: front_face.clone(),
+        }
+    }
     pub fn set_face_normal(&mut self, r: &Ray, outward_normal: &Vec3) {
         self.front_face = dot(&r.direction(), outward_normal) < 0.0;
         self.normal = if self.front_face {
@@ -42,8 +49,8 @@ impl<M: Material> HitRecord<M> {
     pub fn front_face(&self) -> bool {
         self.front_face
     }
-    pub fn mat(&self) -> &Vec<M> {
-        &self.mat
+    pub fn mat(&self) -> &dyn Material {
+        self.mat.as_ref()
     }
     // Setters
     pub fn set_p(&mut self, p: &Point3) {
@@ -58,21 +65,17 @@ impl<M: Material> HitRecord<M> {
     pub fn set_front_face(&mut self, front_face: &bool) {
         self.front_face = *front_face
     }
-    pub fn set_mat(&mut self, mat: &Vec<M>)
-    where
-        M: Material,
-    {
-        self.mat = vec![];
-        self.mat.push(mat[0])
+    pub fn set_mat(&mut self, mat: Rc<dyn Material>) {
+        self.mat = mat
     }
 }
 
-impl<M: Material> Default for HitRecord<M> {
+impl Default for HitRecord {
     fn default() -> Self {
         Self {
             p: Point3::default(),
             normal: Vec3::default(),
-            mat: vec![],
+            mat: Rc::new(MaterialDef {}),
             t: 0.0,
             front_face: false,
         }

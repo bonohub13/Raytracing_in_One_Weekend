@@ -1,5 +1,5 @@
-use std::io::stdout;
-use std::io::Write;
+use std::io::{stdout, Write};
+use std::rc::Rc;
 
 fn main() {
     // Original code
@@ -21,26 +21,31 @@ fn main() {
     let material_left = rt_utils::Lambertian::new(&rt_utils::Color::new(0.8, 0.8, 0.8));
     let material_right = rt_utils::Lambertian::new(&rt_utils::Color::new(0.8, 0.6, 0.2));
 
-    world.add(Box::new(rt_utils::Sphere::new(
+    let sphere_ground = rt_utils::Sphere::new(
         rt_utils::Point3::new(0.0, -100.5, -1.0),
         100.0,
-        &material_ground,
-    )));
-    world.add(Box::new(rt_utils::Sphere::new(
+        Rc::new(material_ground),
+    );
+    let sphere_center = rt_utils::Sphere::new(
         rt_utils::Point3::new(0.0, 0.0, -1.0),
         0.5,
-        &material_center,
-    )));
-    world.add(Box::new(rt_utils::Sphere::new(
+        Rc::new(material_center),
+    );
+    let sphere_left = rt_utils::Sphere::new(
         rt_utils::Point3::new(-1.0, 0.0, -1.0),
         0.5,
-        &material_left,
-    )));
-    world.add(Box::new(rt_utils::Sphere::new(
+        Rc::new(material_left),
+    );
+    let sphere_right = rt_utils::Sphere::new(
         rt_utils::Point3::new(1.0, 0.0, -1.0),
         0.5,
-        &material_right,
-    )));
+        Rc::new(material_right),
+    );
+
+    world.add(&sphere_ground);
+    world.add(&sphere_center);
+    world.add(&sphere_left);
+    world.add(&sphere_right);
 
     // Camera
     let cam = rt_utils::Camera::default();

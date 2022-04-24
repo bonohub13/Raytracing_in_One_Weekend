@@ -2,16 +2,13 @@ use crate::{dot, random_unit_vector, reflect, unit_vector};
 use crate::{Color, HitRecord, Ray};
 
 pub trait Material {
-    fn scatter<M>(
+    fn scatter(
         &self,
-        r_in: &Ray,
-        rec: &HitRecord<M>,
-        attenuation: &mut Color,
-        scattered: &mut Ray,
-    ) -> bool
-    where
-        M: Material,
-    {
+        _r_in: &Ray,
+        _rec: &HitRecord,
+        _attenuation: &mut Color,
+        _scattered: &mut Ray,
+    ) -> bool {
         return false;
     }
 }
@@ -27,27 +24,24 @@ pub struct Metal {
 }
 
 #[derive(Clone)]
-pub struct DefaultObject {}
+pub struct MaterialDef {}
 
 impl Material for Lambertian {
-    fn scatter<M>(
+    fn scatter(
         &self,
-        r_in: &Ray,
-        rec: &HitRecord<M>,
-        attenuation: &mut Color,
-        scattered: &mut Ray,
-    ) -> bool
-    where
-        M: Material,
-    {
+        _r_in: &Ray,
+        rec: &HitRecord,
+        mut _attenuation: &mut Color,
+        mut _scattered: &mut Ray,
+    ) -> bool {
         let mut scatter_direction = rec.normal() + random_unit_vector();
 
         if scatter_direction.near_zero() {
             scatter_direction = rec.normal();
         }
 
-        scattered = &mut Ray::new(rec.p(), scatter_direction);
-        attenuation = &mut self.albedo.clone();
+        *_attenuation = self.albedo.clone();
+        *_scattered = Ray::new(rec.p(), scatter_direction);
 
         true
     }
@@ -60,35 +54,29 @@ impl Lambertian {
 }
 
 impl Material for Metal {
-    fn scatter<M>(
+    fn scatter(
         &self,
         r_in: &Ray,
-        rec: &HitRecord<M>,
-        attenuation: &mut Color,
-        scattered: &mut Ray,
-    ) -> bool
-    where
-        M: Material,
-    {
+        rec: &HitRecord,
+        mut _attenuation: &mut Color,
+        mut _scattered: &mut Ray,
+    ) -> bool {
         let reflected = reflect(&unit_vector(&r_in.direction()), &rec.normal());
-        scattered = &mut Ray::new(rec.p(), reflected);
-        attenuation = &mut self.albedo.clone();
+        *_attenuation = self.albedo.clone();
+        *_scattered = Ray::new(rec.p(), reflected);
 
-        dot(&scattered.direction(), &rec.normal()) > 0.0
+        dot(&_scattered.direction(), &rec.normal()) > 0.0
     }
 }
 
-impl Material for DefaultObject {
-    fn scatter<M>(
+impl Material for MaterialDef {
+    fn scatter(
         &self,
-        r_in: &Ray,
-        rec: &HitRecord<M>,
-        attenuation: &mut Color,
-        scattered: &mut Ray,
-    ) -> bool
-    where
-        M: Material,
-    {
+        _r_in: &Ray,
+        _rec: &HitRecord,
+        _attenuation: &mut Color,
+        _scattered: &mut Ray,
+    ) -> bool {
         false
     }
 }

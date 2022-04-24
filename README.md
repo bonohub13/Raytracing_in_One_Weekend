@@ -3,6 +3,10 @@ Learning the basics of raytracing method and Rust programming language
 by rewriting every C++ source code in the book "Raytracing in One Weekend" written
 by Peter Shirley
 
+## Contents
+- [UPDATES](#UPDATES)
+- [References](#References)
+
 ## UPDATES
 2022/4/5
 - Started reading chapter 1\
@@ -24,6 +28,10 @@ by Peter Shirley
 2022/4/17
 - Completed chapter 8.6 ["An Alternative Diffuse Formulation"](https://raytracing.github.io/books/RayTracingInOneWeekend.html#diffusematerials/analternativediffuseformulation)
 - Failed to implement anything from chapter 9 ["Metal"](https://raytracing.github.io/books/RayTracingInOneWeekend.html#metal)
+
+2022/4/25
+- Succeeded to compile to the finish of chapter 9.5 ["A Scene with Metal Spheres"](https://raytracing.github.io/books/RayTracingInOneWeekend.html#metal/ascenewithmetalspheres)
+- Failed to implement metal reflections in chapter 9 ["Metal"](https://raytracing.github.io/books/RayTracingInOneWeekend.html#metal)
 
 ## References
 [Peter Shirley, Raytracing in One Weekend, 2020-12-07](https://github.com/RayTracing/raytracing.github.io)

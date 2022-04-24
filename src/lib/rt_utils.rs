@@ -38,11 +38,7 @@ pub fn hit_sphere(center: &Point3, radius: f64, r: &Ray) -> f64 {
     }
 }
 
-pub fn ray_color<T, H>(r: &Ray, world: &HittableList<T, H>, depth: i32) -> Color
-where
-    T: Material,
-    H: Hittable<T>,
-{
+pub fn ray_color(r: &Ray, world: &HittableList, depth: i32) -> Color {
     let rec = &mut HitRecord::default();
 
     if depth <= 0 {
@@ -52,8 +48,8 @@ where
         let mut scattered = Ray::default();
         let mut attenuation = Color::default();
 
-        if rec.mat()[0].scatter(r, rec, &mut attenuation, &mut scattered) {
-            return attenuation * ray_color::<T, H>(&scattered, world, depth - 1);
+        if rec.mat().scatter(r, rec, &mut attenuation, &mut scattered) {
+            return attenuation * ray_color(&scattered, world, depth - 1);
         }
 
         return Color::new(0.0, 0.0, 0.0);
