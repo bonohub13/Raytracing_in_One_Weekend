@@ -5,7 +5,10 @@ all: build
 clean:
 	$(COMPILER) clean
 
-build: clean
+fmt:
+	$(COMPILER) fmt
+
+build: clean fmt
 	$(COMPILER) build
 
 test: build
