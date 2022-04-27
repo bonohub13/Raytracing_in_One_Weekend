@@ -1,4 +1,4 @@
-package rtweekendlib
+package rtweekend
 
 import (
 	"fmt"

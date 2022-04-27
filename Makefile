@@ -1,6 +1,8 @@
 COMPILER := $(shell which go)
 DIRECTORIES := $(shell find -type f -name "*.go" | sed "s;/[A-Z|a-z|0-9|_]*\.go;;" | uniq)
-BIN_DIR := ./rtweekend
+SOURCE_DIR := ./rtweekend
+BIN_DIR := bin
+PROJECT_ROOT := $(shell pwd)
 
 all: build
 
@@ -12,5 +14,12 @@ fmt:
 tidy: fmt
 	$(COMPILER) mod tidy
 
-build: tidy
-	cd $(BIN_DIR) && go build ./
+clean:
+	$(COMPILER) clean
+
+build: clean tidy
+	mkdir -p $(PROJECT_ROOT)/$(BIN_DIR)
+	(cd $(SOURCE_DIR) && go build -o $(PROJECT_ROOT)/$(BIN_DIR) ./)
+
+run: build
+	$(PROJECT_ROOT)/$(BIN_DIR)/run.sh

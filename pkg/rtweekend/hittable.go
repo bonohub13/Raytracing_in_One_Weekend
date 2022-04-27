@@ -1,16 +1,17 @@
-package rtweekendlib
+package rtweekend
 
 import ()
+
+type Hittable interface {
+	Hit(r *Ray, t_min, t_max float64, rec *HitRecord) bool
+}
 
 type HitRecord struct {
 	p         Point3
 	normal    Vec3
+	material  interface{}
 	t         float64
 	frontFace bool
-}
-
-type Hittable interface {
-	Hit(r *Ray, t_min, t_max float64, rec *HitRecord) bool
 }
 
 func NewHitRecord(p Point3, normal Vec3, t float64, frontFace bool) *HitRecord {

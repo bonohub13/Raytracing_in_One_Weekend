@@ -1,4 +1,4 @@
-package rtweekendlib
+package rtweekend
 
 import ()
 
@@ -7,11 +7,11 @@ type Ray struct {
 	dir  Vec3
 }
 
-func NewRay(origin *Point3, direction *Vec3) *Ray {
+func NewRay(origin Point3, direction Vec3) *Ray {
 	ray := new(Ray)
 
-	ray.orig = *origin
-	ray.dir = *direction
+	ray.orig = origin
+	ray.dir = direction
 
 	return ray
 }
