@@ -74,6 +74,10 @@ func RandomFloat64InRange(min, max float64) float64 {
 	return min + (max-min)*RandomFloat64()
 }
 
+func RandomIntInRange(min, max int) int {
+	return int(RandomFloat64InRange(float64(min), float64(max)+1))
+}
+
 func Clamp(x, min, max float64) float64 {
 	if x < min {
 		return min

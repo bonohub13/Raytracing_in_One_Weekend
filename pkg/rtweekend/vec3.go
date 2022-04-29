@@ -96,8 +96,32 @@ func RandomInHemisphere(normal Vec3) *Vec3 {
 	}
 }
 
+func RandomInUnitDisk() *Vec3 {
+	for {
+		p := NewVec3(
+			RandomFloat64InRange(-1, 1),
+			RandomFloat64InRange(-1, 1),
+			0,
+		)
+
+		if p.LengthSquared() < 1 {
+			return p
+		}
+	}
+}
+
 func Reflect(v, n *Vec3) *Vec3 {
 	return v.Substract(n.Multiply(2 * Dot(v, n)))
+}
+
+func Refract(uv, n *Vec3, etaiOverEtat float64) *Vec3 {
+	cosTheta := math.Min(Dot(uv.Negative(), n), 1)
+	rOutPerp := uv.Add(n.Multiply(cosTheta)).Multiply(etaiOverEtat)
+	rOutParallel := n.Multiply(
+		-math.Sqrt(math.Abs(1 - rOutPerp.LengthSquared())),
+	)
+
+	return rOutPerp.Add(rOutParallel)
 }
 
 func (v *Vec3) X() float64 {

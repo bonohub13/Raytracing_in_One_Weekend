@@ -20,6 +20,14 @@ func NewSphere(center Point3, radius float64, material Material) *Sphere {
 	return sphere
 }
 
+func getSphereUV(p *Point3, u, v *float64) {
+	theta := math.Acos(-p.Y())
+	phi := math.Atan2(-p.Z(), p.X()) + PI
+
+	*u = phi / (2 * PI)
+	*v = theta / PI
+}
+
 func (s Sphere) Hit(r *Ray, t_min, t_max float64, rec *HitRecord) bool {
 	oc := r.Origin().Substract(&s.center)
 	a := r.Direction().LengthSquared()
@@ -33,6 +41,7 @@ func (s Sphere) Hit(r *Ray, t_min, t_max float64, rec *HitRecord) bool {
 		rec.p = *r.At(distance)
 		normal := rec.p.Substract(&s.center).Divide(s.radius)
 		rec.SetFaceNormal(r, normal)
+		getSphereUV(normal, &rec.u, &rec.v)
 		rec.material = s.material
 	}
 
@@ -58,4 +67,13 @@ func (s Sphere) Hit(r *Ray, t_min, t_max float64, rec *HitRecord) bool {
 	}
 
 	return false
+}
+
+func (s Sphere) BoundingBox(time0, time1 float64, outputBox *AABB) bool {
+	*outputBox = *NewAABB(
+		*s.center.Substract(NewVec3(s.radius, s.radius, s.radius)),
+		*s.center.Add(NewVec3(s.radius, s.radius, s.radius)),
+	)
+
+	return true
 }
