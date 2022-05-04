@@ -1,0 +1,1 @@
+/usr/bin/cc -rdynamic CMakeFiles/rtweekend.dir/main.c.o -o rtweekend 
