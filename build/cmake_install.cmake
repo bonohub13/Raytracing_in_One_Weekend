@@ -45,6 +45,7 @@ endif()
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
   include("/home/kensuke/workspace/GIT/Raytracing_in_One_Weekend/build/src/cmake_install.cmake")
+  include("/home/kensuke/workspace/GIT/Raytracing_in_One_Weekend/build/include/cmake_install.cmake")
 
 endif()
 

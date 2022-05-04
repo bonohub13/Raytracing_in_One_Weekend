@@ -129,6 +129,19 @@ rtweekend/fast:
 	$(MAKE) $(MAKESILENT) -f src/CMakeFiles/rtweekend.dir/build.make src/CMakeFiles/rtweekend.dir/build
 .PHONY : rtweekend/fast
 
+#=============================================================================
+# Target rules for targets named rt
+
+# Build rule for target.
+rt: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 rt
+.PHONY : rt
+
+# fast build rule for target.
+rt/fast:
+	$(MAKE) $(MAKESILENT) -f include/CMakeFiles/rt.dir/build.make include/CMakeFiles/rt.dir/build
+.PHONY : rt/fast
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -137,6 +150,7 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
+	@echo "... rt"
 	@echo "... rtweekend"
 .PHONY : help
 

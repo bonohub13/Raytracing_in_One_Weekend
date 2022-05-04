@@ -14,4 +14,12 @@ src/CMakeFiles/rtweekend.dir/main.c.o: \
  /usr/include/bits/types/__fpos64_t.h /usr/include/bits/types/__FILE.h \
  /usr/include/bits/types/FILE.h /usr/include/bits/types/struct_FILE.h \
  /usr/include/bits/stdio_lim.h /usr/include/bits/floatn.h \
- /usr/include/bits/floatn-common.h
+ /usr/include/bits/floatn-common.h \
+ /home/kensuke/workspace/GIT/Raytracing_in_One_Weekend/src/../include/rt.h \
+ /home/kensuke/workspace/GIT/Raytracing_in_One_Weekend/src/../include/ray/ray.h \
+ /home/kensuke/workspace/GIT/Raytracing_in_One_Weekend/src/../include/ray/../vec3/vec3.h \
+ /home/kensuke/workspace/GIT/Raytracing_in_One_Weekend/src/../include/vec3/vec3.h \
+ /home/kensuke/workspace/GIT/Raytracing_in_One_Weekend/src/../include/color/color.h \
+ /home/kensuke/workspace/GIT/Raytracing_in_One_Weekend/src/../include/color/../vec3/vec3.h \
+ /home/kensuke/workspace/GIT/Raytracing_in_One_Weekend/src/../include/ray/ray.h \
+ /home/kensuke/workspace/GIT/Raytracing_in_One_Weekend/src/../include/vec3/vec3.h

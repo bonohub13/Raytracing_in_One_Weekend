@@ -92,6 +92,7 @@ rtweekend_EXTERNAL_OBJECTS =
 
 src/rtweekend: src/CMakeFiles/rtweekend.dir/main.c.o
 src/rtweekend: src/CMakeFiles/rtweekend.dir/build.make
+src/rtweekend: include/librt.so
 src/rtweekend: src/CMakeFiles/rtweekend.dir/link.txt
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/kensuke/workspace/GIT/Raytracing_in_One_Weekend/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking C executable rtweekend"
 	cd /home/kensuke/workspace/GIT/Raytracing_in_One_Weekend/build/src && $(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/rtweekend.dir/link.txt --verbose=$(VERBOSE)

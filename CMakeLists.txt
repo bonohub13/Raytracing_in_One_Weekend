@@ -4,4 +4,4 @@ project(RaytracingInOneWeekend)
 add_subdirectory(src)
 
 # Something else you want to add in the project
-# add_subdirectory(include/)
+add_subdirectory(include/)

@@ -1,0 +1,1 @@
+/usr/bin/cc -fPIC -shared -Wl,-soname,librt.so -o librt.so CMakeFiles/rt.dir/rt.c.o CMakeFiles/rt.dir/color/color.c.o CMakeFiles/rt.dir/ray/ray.c.o CMakeFiles/rt.dir/vec3/vec3.c.o  -lm 
