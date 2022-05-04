@@ -2,7 +2,12 @@ package main
 
 import (
 	"fmt"
+	cam "github.com/bonohub13/Raytracing_in_One_Weekend/pkg/camera"
+	hit "github.com/bonohub13/Raytracing_in_One_Weekend/pkg/hittable"
+	mat "github.com/bonohub13/Raytracing_in_One_Weekend/pkg/material"
 	rt "github.com/bonohub13/Raytracing_in_One_Weekend/pkg/rtweekend"
+	tex "github.com/bonohub13/Raytracing_in_One_Weekend/pkg/texture"
+	"github.com/bonohub13/Raytracing_in_One_Weekend/pkg/vec3"
 	"log"
 )
 
@@ -15,35 +20,35 @@ const (
 	MAX_DEPTH         = 50
 )
 
-func randomScene() *rt.HittableList {
-	world := rt.NewHittableList()
+func randomScene() *hit.HittableList {
+	world := hit.NewHittableList()
 
-	checker := rt.NewCheckerTextureFromColor(
-		*rt.NewColor(0.2, 0.3, 0.1),
-		*rt.NewColor(0.9, 0.9, 0.9),
+	checker := tex.NewCheckerTextureFromColor(
+		*vec3.NewColor(0.2, 0.3, 0.1),
+		*vec3.NewColor(0.9, 0.9, 0.9),
 	)
-	materialGround := rt.NewLambertian(*checker)
-	sphereGround := rt.NewSphere(*rt.NewPoint3(0, -1000, 0), 1000, *materialGround)
+	materialGround := mat.NewLambertian(*checker)
+	sphereGround := hit.NewSphere(*vec3.NewPoint3(0, -1000, 0), 1000, *materialGround)
 	world.Add(*sphereGround)
 
 	for a := -11; a < 11; a++ {
 		for b := -11; b < 11; b++ {
 			chooseMat := rt.RandomFloat64()
-			center := rt.NewPoint3(
+			center := vec3.NewPoint3(
 				float64(a)+0.9*rt.RandomFloat64(),
 				0.2,
 				float64(b)+0.9*rt.RandomFloat64(),
 			)
 
-			if center.Substract(rt.NewPoint3(4, 0.2, 0)).Length() > 0.9 {
+			if center.Substract(vec3.NewPoint3(4, 0.2, 0)).Length() > 0.9 {
 				if chooseMat < 0.8 {
 					// diffuse
-					albedo := rt.RandomColor().MultiplyVertices(rt.RandomColor())
-					material := rt.NewLambertianFromColor(*albedo)
+					albedo := vec3.RandomColor().MultiplyVertices(vec3.RandomColor())
+					material := mat.NewLambertianFromColor(*albedo)
 					center2 := center.Add(
-						rt.NewVec3(0, rt.RandomFloat64InRange(0, 0.5), 0),
+						vec3.NewVec3(0, rt.RandomFloat64InRange(0, 0.5), 0),
 					)
-					sphere := rt.NewMovingSphere(
+					sphere := hit.NewMovingSphere(
 						*center, *center2,
 						0, 1,
 						0.2,
@@ -53,29 +58,29 @@ func randomScene() *rt.HittableList {
 					world.Add(*sphere)
 				} else if chooseMat < 0.95 {
 					// metal
-					albedo := rt.RandomColorInRange(0.5, 1)
+					albedo := vec3.RandomColorInRange(0.5, 1)
 					fuzz := rt.RandomFloat64InRange(0, 0.5)
-					material := rt.NewMetal(*albedo, fuzz)
-					sphere := rt.NewSphere(*center, 0.2, *material)
+					material := mat.NewMetal(*albedo, fuzz)
+					sphere := hit.NewSphere(*center, 0.2, *material)
 
 					world.Add(*sphere)
 				} else {
 					// glass
-					material := rt.NewDialectric(1.5)
-					sphere := rt.NewSphere(*center, 0.2, *material)
+					material := mat.NewDialectric(1.5)
+					sphere := hit.NewSphere(*center, 0.2, *material)
 
 					world.Add(*sphere)
 				}
 			}
 		}
 	}
-	material1 := rt.NewDialectric(1.5)
-	material2 := rt.NewLambertianFromColor(*rt.NewColor(0.4, 0.2, 0.1))
-	material3 := rt.NewMetal(*rt.NewColor(0.7, 0.6, 0.5), 0)
+	material1 := mat.NewDialectric(1.5)
+	material2 := mat.NewLambertianFromColor(*vec3.NewColor(0.4, 0.2, 0.1))
+	material3 := mat.NewMetal(*vec3.NewColor(0.7, 0.6, 0.5), 0)
 
-	sphere1 := rt.NewSphere(*rt.NewPoint3(0, 1, 0), 1, *material1)
-	sphere2 := rt.NewSphere(*rt.NewPoint3(-4, 1, 0), 1, *material2)
-	sphere3 := rt.NewSphere(*rt.NewPoint3(4, 1, 0), 1, *material3)
+	sphere1 := hit.NewSphere(*vec3.NewPoint3(0, 1, 0), 1, *material1)
+	sphere2 := hit.NewSphere(*vec3.NewPoint3(-4, 1, 0), 1, *material2)
+	sphere3 := hit.NewSphere(*vec3.NewPoint3(4, 1, 0), 1, *material3)
 
 	world.Add(*sphere1)
 	world.Add(*sphere2)
@@ -84,16 +89,16 @@ func randomScene() *rt.HittableList {
 	return world
 }
 
-func sceneWithTwoSpheres() *rt.HittableList {
-	objects := rt.NewHittableList()
+func sceneWithTwoSpheres() *hit.HittableList {
+	objects := hit.NewHittableList()
 
-	checker := rt.NewCheckerTextureFromColor(
-		*rt.NewColor(0.2, 0.3, 0.1),
-		*rt.NewColor(0.9, 0.9, 0.9),
+	checker := tex.NewCheckerTextureFromColor(
+		*vec3.NewColor(0.2, 0.3, 0.1),
+		*vec3.NewColor(0.9, 0.9, 0.9),
 	)
-	material := rt.NewLambertian(*checker)
-	sphereTop := rt.NewSphere(*rt.NewPoint3(0, 10, 0), 10, *material)
-	sphereBottom := rt.NewSphere(*rt.NewPoint3(0, -10, 0), 10, *material)
+	material := mat.NewLambertian(*checker)
+	sphereTop := hit.NewSphere(*vec3.NewPoint3(0, 10, 0), 10, *material)
+	sphereBottom := hit.NewSphere(*vec3.NewPoint3(0, -10, 0), 10, *material)
 
 	objects.Add(*sphereBottom)
 	objects.Add(*sphereTop)
@@ -101,14 +106,14 @@ func sceneWithTwoSpheres() *rt.HittableList {
 	return objects
 }
 
-func sceneWithTwoPerlinSpheres() *rt.HittableList {
-	objects := rt.NewHittableList()
+func sceneWithTwoPerlinSpheres() *hit.HittableList {
+	objects := hit.NewHittableList()
 
-	pertext := rt.NewNoiseTexture()
-	material := rt.NewLambertian(pertext)
+	pertext := tex.NewNoiseTexture(4)
+	material := mat.NewLambertian(pertext)
 
-	sphereGround := rt.NewSphere(*rt.NewPoint3(0, -1000, 0), 1000, *material)
-	sphere := rt.NewSphere(*rt.NewPoint3(0, 2, 0), 2, *material)
+	sphereGround := hit.NewSphere(*vec3.NewPoint3(0, -1000, 0), 1000, *material)
+	sphere := hit.NewSphere(*vec3.NewPoint3(0, 2, 0), 2, *material)
 
 	objects.Add(*sphereGround)
 	objects.Add(*sphere)
@@ -116,43 +121,63 @@ func sceneWithTwoPerlinSpheres() *rt.HittableList {
 	return objects
 }
 
+func imageImport() *hit.HittableList {
+	hl := hit.NewHittableList()
+
+	earthTexture, err := tex.LoadImageTexture("assets/earth.jpg")
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+	earthSurface := mat.NewLambertian(earthTexture)
+	earth := hit.NewSphere(*vec3.NewPoint3(0, 0, 0), 2, earthSurface)
+
+	hl.Add(*earth)
+
+	return hl
+}
+
 func main() {
 	// Initialize seed for random
 	rt.InitRandom()
 
 	// World
-	world := new(rt.HittableList)
+	world := new(hit.HittableList)
 
 	// Camera
-	lookFrom := new(rt.Point3)
-	lookAt := new(rt.Point3)
+	lookFrom := new(vec3.Point3)
+	lookAt := new(vec3.Point3)
 	vfov := 40.0
 	aperture := 0.0
 	distToFocus := 10.0
-	vup := rt.NewVec3(0, 1, 0)
+	vup := vec3.NewVec3(0, 1, 0)
 
 	switch v := 0; v {
 	case 1:
 		*world = *randomScene()
-		*lookFrom = *rt.NewPoint3(13, 2, 3)
-		*lookAt = *rt.NewPoint3(0, 0, 0)
+		*lookFrom = *vec3.NewPoint3(13, 2, 3)
+		*lookAt = *vec3.NewPoint3(0, 0, 0)
 		vfov = 20.0
 		aperture = 0.1
 	case 2:
 		*world = *sceneWithTwoSpheres()
-		*lookFrom = *rt.NewPoint3(13, 2, 3)
-		*lookAt = *rt.NewPoint3(0, 0, 0)
+		*lookFrom = *vec3.NewPoint3(13, 2, 3)
+		*lookAt = *vec3.NewPoint3(0, 0, 0)
 		vfov = 20.0
-	default:
-		fallthrough
 	case 3:
 		*world = *sceneWithTwoPerlinSpheres()
-		*lookFrom = *rt.NewPoint3(13, 2, 3)
-		*lookAt = *rt.NewPoint3(0, 0, 0)
+		*lookFrom = *vec3.NewPoint3(13, 2, 3)
+		*lookAt = *vec3.NewPoint3(0, 0, 0)
+		vfov = 20
+	default:
+		fallthrough
+	case 4:
+		*world = *imageImport()
+		*lookFrom = *vec3.NewPoint3(13, 2, 3)
+		*lookAt = *vec3.NewPoint3(0, 0, 0)
 		vfov = 20
 	}
 
-	cam := rt.NewCamera(
+	cam := cam.NewCamera(
 		*lookFrom, *lookAt,
 		*vup,
 		vfov,
@@ -168,7 +193,7 @@ func main() {
 	for j := IMAGE_HEIGHT - 1; j >= 0; j-- {
 		log.Printf("\rScanlines remaining: %d", j)
 		for i := 0; i < IMAGE_WIDTH; i++ {
-			pixelColor := rt.NewColor(0, 0, 0)
+			pixelColor := vec3.NewColor(0, 0, 0)
 			for s := 0; s < SAMPLES_PER_PIXEL; s++ {
 				u := (float64(i) + rt.RandomFloat64()) / float64(IMAGE_WIDTH-1)
 				v := (float64(j) + rt.RandomFloat64()) / float64(IMAGE_HEIGHT-1)

@@ -4,7 +4,7 @@ SOURCE_DIR := ./rtweekend
 BIN_DIR := bin
 PROJECT_ROOT := $(shell pwd)
 
-all: build
+all: build run
 
 fmt:
 	for dir in $(DIRECTORIES); do \
@@ -21,5 +21,5 @@ build: clean tidy
 	mkdir -p $(PROJECT_ROOT)/$(BIN_DIR)
 	(cd $(SOURCE_DIR) && go build -o $(PROJECT_ROOT)/$(BIN_DIR) ./)
 
-run: build
+run:
 	$(PROJECT_ROOT)/$(BIN_DIR)/run.sh

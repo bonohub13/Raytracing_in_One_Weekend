@@ -5,7 +5,7 @@ import (
 )
 
 type Perlin struct {
-	ranfloat            []float64
+	ranvec              []Vec3
 	permX, permY, permZ []int
 }
 
@@ -18,15 +18,14 @@ func (*Perlin) POINT_COUNT() int {
 func NewPerlin() *Perlin {
 	perlin := new(Perlin)
 
-	perlin.ranfloat = make([]float64, perlin.POINT_COUNT())
-
-	for i := 0; i < perlin.POINT_COUNT(); i++ {
-		perlin.ranfloat[i] = RandomFloat64()
-	}
-
+	perlin.ranvec = make([]Vec3, perlin.POINT_COUNT())
 	perlin.permX = perlin.perlinGeneratePerm()
 	perlin.permY = perlin.perlinGeneratePerm()
 	perlin.permZ = perlin.perlinGeneratePerm()
+
+	for i := 0; i < perlin.POINT_COUNT(); i++ {
+		perlin.ranvec[i] = *UnitVector(RandomVec3InRange(-1, 1))
+	}
 
 	return perlin
 }
@@ -42,16 +41,12 @@ func (p *Perlin) Noise(p_ *Point3) float64 {
 	i := int(math.Floor(p_.X()))
 	j := int(math.Floor(p_.Y()))
 	k := int(math.Floor(p_.Z()))
-	var c [2][2][2]float64
-
-	u = u * u * (3 - 2*u)
-	v = v * v * (3 - 2*v)
-	w = w * w * (3 - 2*w)
+	var c [2][2][2]Vec3
 
 	for di := 0; di < 2; di++ {
 		for dj := 0; dj < 2; dj++ {
 			for dk := 0; dk < 2; dk++ {
-				c[di][dj][dk] = p.ranfloat[p.permX[(i+di)&255]^
+				c[di][dj][dk] = p.ranvec[p.permX[(i+di)&255]^
 					p.permY[(j+dj)&255]^
 					p.permZ[(k+dk)&255]]
 			}
@@ -59,6 +54,26 @@ func (p *Perlin) Noise(p_ *Point3) float64 {
 	}
 
 	return p.trilinearInterp(&c, u, v, w)
+}
+
+func (perlin *Perlin) Turb(p Point3, depth ...int) float64 {
+	var depth_ int
+	accum := 0.0
+	weight := 1.0
+
+	if len(depth) == 1 {
+		depth_ = depth[0]
+	} else {
+		depth_ = 7
+	}
+
+	for i := 0; i < depth_; i++ {
+		accum += weight * perlin.Noise(&p)
+		weight *= 0.5
+		p.MultToThis(2)
+	}
+
+	return math.Abs(accum)
 }
 
 // Generate Perlin noise
@@ -94,15 +109,20 @@ func (p *Perlin) permute(p_ *[]int, n int) {
        v float64           Gain for y axis
        w float64           Gain for z axis
 */
-func (p *Perlin) trilinearInterp(c *[2][2][2]float64, u, v, w float64) float64 {
+func (p *Perlin) trilinearInterp(c *[2][2][2]Vec3, u, v, w float64) float64 {
 	accum := 0.0
+	uu := u * u * (3 - 2*u)
+	vv := v * v * (3 - 2*v)
+	ww := w * w * (3 - 2*w)
 
 	for i := 0; i < 2; i++ {
 		for j := 0; j < 2; j++ {
 			for k := 0; k < 2; k++ {
-				accum += (float64(i)*u + float64(1-i)*(1-u)) *
-					(float64(j)*v + float64(1-j)*(1-v)) *
-					(float64(k)*w + float64(1-k)*(1-w)) * (*c)[i][j][k]
+				weightV := NewVec3(u-float64(i), v-float64(j), w-float64(k))
+				accum += (float64(i)*uu + float64(1-i)*(1-uu)) *
+					(float64(j)*vv + float64(1-j)*(1-vv)) *
+					(float64(k)*ww + float64(1-k)*(1-ww)) *
+					Dot(&(*c)[i][j][k], weightV)
 			}
 		}
 	}

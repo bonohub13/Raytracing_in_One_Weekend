@@ -52,9 +52,9 @@ func (ms *MovingSphere) Center(time float64) *Point3 {
 }
 
 func (ms MovingSphere) Hit(r *Ray, t_min, t_max float64, rec *HitRecord) bool {
-	oc := r.orig.Substract(ms.Center(r.tm))
-	a := r.dir.LengthSquared()
-	halfB := Dot(oc, &r.dir)
+	oc := r.Origin().Substract(ms.Center(r.Time()))
+	a := r.Direction().LengthSquared()
+	halfB := Dot(oc, r.Direction())
 	c := oc.LengthSquared() - ms.radius*ms.radius
 	discriminant := halfB*halfB - a*c
 
@@ -62,7 +62,7 @@ func (ms MovingSphere) Hit(r *Ray, t_min, t_max float64, rec *HitRecord) bool {
 		*rec = HitRecord{}
 		rec.t = distance
 		rec.p = *r.At(rec.t)
-		outwardNormal := rec.p.Substract(ms.Center(r.tm)).Divide(ms.radius)
+		outwardNormal := rec.p.Substract(ms.Center(r.Time())).Divide(ms.radius)
 		rec.SetFaceNormal(r, outwardNormal)
 		rec.material = ms.material
 	}

@@ -70,7 +70,7 @@ func boxCompare(a, b *Hittable, axis int) bool {
 		log.Println("No bounding box in BVH_Node")
 	}
 
-	return boxA.minimum.e[axis] < boxA.minimum.e[axis]
+	return boxA.Min().E(axis) < boxA.Min().E(axis)
 }
 
 func BoxXCompare(a, b *Hittable) bool {

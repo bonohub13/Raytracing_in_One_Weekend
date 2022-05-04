@@ -31,7 +31,7 @@ func getSphereUV(p *Point3, u, v *float64) {
 func (s Sphere) Hit(r *Ray, t_min, t_max float64, rec *HitRecord) bool {
 	oc := r.Origin().Substract(&s.center)
 	a := r.Direction().LengthSquared()
-	halfB := Dot(oc, &r.dir)
+	halfB := Dot(oc, r.Direction())
 	c := oc.LengthSquared() - s.radius*s.radius
 	discriminant := halfB*halfB - a*c
 

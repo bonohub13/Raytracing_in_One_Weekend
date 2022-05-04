@@ -1,7 +1,5 @@
 package rtweekend
 
-import ()
-
 type Ray struct {
 	orig Point3
 	dir  Vec3
