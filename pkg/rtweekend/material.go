@@ -6,6 +6,7 @@ import (
 
 // Interface for material to raytrace
 type Material interface {
+    Emitted(u, v float64, p *Point3) *Color
 	Scatter(r_in *Ray, rec *HitRecord, attenuation *Color, scattered *Ray) bool
 }
 
@@ -61,6 +62,10 @@ func (d *Dialectric) reflectance(cosine, refIdx float64) float64 {
 	return r0 + (1-r0)*math.Pow((1-cosine), 5)
 }
 
+func (l Lambertian) Emitted(u, v float64, p *Point3) *Color {
+    return NewColor(0, 0, 0)
+}
+
 func (l Lambertian) Scatter(
 	r_in *Ray,
 	rec *HitRecord,
@@ -78,6 +83,10 @@ func (l Lambertian) Scatter(
 	return true
 }
 
+func (m Metal) Emitted(u, v float64, p *Point3) *Color {
+    return NewColor(0, 0, 0)
+}
+
 func (m Metal) Scatter(
 	r_in *Ray,
 	rec *HitRecord,
@@ -93,6 +102,10 @@ func (m Metal) Scatter(
 	*attenuation = m.albedo
 
 	return Dot(&scattered.dir, &rec.normal) > 0
+}
+
+func (d Dialectric) Emitted(u, v float64, p *Point3) *Color {
+    return NewColor(0, 0, 0)
 }
 
 func (d Dialectric) Scatter(
