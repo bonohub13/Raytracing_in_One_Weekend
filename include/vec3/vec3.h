@@ -27,6 +27,8 @@ void multToVec3(Vec3 *a, const double t);
 Vec3 divVec3(const Vec3 *a, const double t);
 void divToVec3(Vec3 *a, const double t);
 Vec3 mult2Vec3(const Vec3 *u, const Vec3 *v);
+Vec3 negVec3(const Vec3 *v);
+void neg(Vec3 *v);
 
 // methods
 double length(const Vec3 *v);

@@ -7,7 +7,7 @@
 
 // consts
 const double ASPECT_RATIO = 16.0 / 9.0;
-const int IMAGE_WIDTH = 256;
+const int IMAGE_WIDTH = 400;
 const int IMAGE_HEIGHT = (int)(IMAGE_WIDTH / ASPECT_RATIO);
 
 int main() {
@@ -15,6 +15,7 @@ int main() {
     double viewport_height = 2.0f;
     double viewport_width = ASPECT_RATIO * viewport_height;
     double focal_length = 1.0;
+
     Point3 origin = point3(0, 0, 0);
     Vec3 horizontal = vec3(viewport_width, 0, 0);
     Vec3 vertical = vec3(0, viewport_height, 0);
@@ -22,7 +23,6 @@ int main() {
     Vec3 half_v = divVec3(&vertical, 2);
     Vec3 _fl = vec3(0, 0, focal_length);
     Vec3 lower_left_corner = substractVec3(&origin, &half_h);
-
     substractFromVec3(&lower_left_corner, &half_v);
     substractFromVec3(&lower_left_corner, &_fl);
 

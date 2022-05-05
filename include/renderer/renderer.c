@@ -28,6 +28,7 @@ void render(
             Vec3 r_dir = addVec3(lower_left_corner, &tmp_h);
             addToVec3(&r_dir, &tmp_v);
             substractFromVec3(&r_dir, origin);
+
             Ray r = ray(origin, &r_dir);
             Color pixel_color = ray_color(&r);
             

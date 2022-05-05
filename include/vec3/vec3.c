@@ -98,6 +98,21 @@ Vec3 mult2Vec3(const Vec3 *u, const Vec3 *v) {
     return retval;
 }
 
+Vec3 negVec3(const Vec3 *v) {
+    Vec3 retval;
+    int i;
+
+    for (i=0; i<3; i++) retval.e[i] = -v->e[i];
+
+    return retval;
+}
+
+void neg(Vec3 *v) {
+    int i;
+
+    for (i=0; i<3; i++) v->e[i] = -v->e[i];
+}
+
 // Methods for Vec3, Point3, Color
 double length(const Vec3 *v) {
     return sqrt(lenght_squared(v));
