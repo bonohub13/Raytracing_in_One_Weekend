@@ -1,1 +1,0 @@
-/usr/bin/cc -rdynamic CMakeFiles/rtweekend.dir/main.c.o -o rtweekend  -Wl,-rpath,/home/kensuke/workspace/GIT/Raytracing_in_One_Weekend/build/include ../include/librt.so -lm 

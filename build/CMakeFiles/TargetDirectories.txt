@@ -1,8 +1,0 @@
-/home/kensuke/workspace/GIT/Raytracing_in_One_Weekend/build/CMakeFiles/edit_cache.dir
-/home/kensuke/workspace/GIT/Raytracing_in_One_Weekend/build/CMakeFiles/rebuild_cache.dir
-/home/kensuke/workspace/GIT/Raytracing_in_One_Weekend/build/src/CMakeFiles/rtweekend.dir
-/home/kensuke/workspace/GIT/Raytracing_in_One_Weekend/build/src/CMakeFiles/edit_cache.dir
-/home/kensuke/workspace/GIT/Raytracing_in_One_Weekend/build/src/CMakeFiles/rebuild_cache.dir
-/home/kensuke/workspace/GIT/Raytracing_in_One_Weekend/build/include/CMakeFiles/rt.dir
-/home/kensuke/workspace/GIT/Raytracing_in_One_Weekend/build/include/CMakeFiles/edit_cache.dir
-/home/kensuke/workspace/GIT/Raytracing_in_One_Weekend/build/include/CMakeFiles/rebuild_cache.dir
