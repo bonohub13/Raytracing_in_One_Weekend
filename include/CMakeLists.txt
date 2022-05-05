@@ -1,18 +1,12 @@
-add_library(rt
-  SHARED
-    rt.c
-    color/color.c
-    ray/ray.c
-    renderer/renderer.c
-    vec3/vec3.c
-)
+cmake_policy(SET CMP0076 NEW)
 
-target_link_libraries(rt m)
+add_subdirectory(color)
+add_subdirectory(ray)
+add_subdirectory(renderer)
+add_subdirectory(vec3)
 
-target_include_directories(rt
-  PUBLIC ${PROJECT_SOURCE_DIR}/include
-  PUBLIC ${PROJECT_SOURCE_DIR}/include/color
-  PUBLIC ${PROJECT_SOURCE_DIR}/include/ray
-  PUBLIC ${PROJECT_SOURCE_DIR}/include/renderer
-  PUBLIC ${PROJECT_SOURCE_DIR}/include/vec3
-)
+add_library(rt rt.c)
+target_sources(rt PUBLIC rt.h)
+target_include_directories(rt INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+
+target_link_libraries(rt m ray vec3)
