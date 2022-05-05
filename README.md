@@ -20,5 +20,8 @@ by Peter Shirley
 - Started the book ["Ray Tracing the Next Week"](https://raytracing.github.io/books/RayTracingTheNextWeek.html)
 - Finished chapter 5.3 ["Improvement with Hermitian Smoothing"](https://raytracing.github.io/books/RayTracingTheNextWeek.html#perlinnoise/improvementwithhermitiansmoothing)
 
+2022/5/6
+- Completed chapter 7.2 ["Adding Background Color to the Ray Color Function"](https://raytracing.github.io/books/RayTracingTheNextWeek.html#rectanglesandlights/addingbackgroundcolortotheraycolorfunction)
+
 ## References
 [Peter Shirley, Ray Tracing in One Weekend, 2020-12-07](https://github.com/RayTracing/raytracing.github.io)
