@@ -8,30 +8,9 @@ by Peter Shirley
 - [References](#References)
 
 ## UPDATES
-2022/4/5
-- Started reading chapter 1\
-(Listing1 thru Listing3 in the book)
-
-2022/4/6
-- Added the library (`rt_utils`) for vectors and formatting print\
-(Listing4 thru Listing7 in the book)
-- Initialized repository on Github and initial commit
-
-2022/4/7
-- Finished chapter 6 "Surface Normals and Multiple Objects"
-- Updated rt\_utils library corresponding to the book
-
-2022/4/10
-- Finished chapter 8.3 "Using Gamma Correction for Accurate Color Intensity"
-- Updated rt\_utils library corresponding to the book
-
-2022/4/17
-- Completed chapter 8.6 ["An Alternative Diffuse Formulation"](https://raytracing.github.io/books/RayTracingInOneWeekend.html#diffusematerials/analternativediffuseformulation)
-- Failed to implement anything from chapter 9 ["Metal"](https://raytracing.github.io/books/RayTracingInOneWeekend.html#metal)
-
-2022/4/25
-- Succeeded to compile to the finish of chapter 9.5 ["A Scene with Metal Spheres"](https://raytracing.github.io/books/RayTracingInOneWeekend.html#metal/ascenewithmetalspheres)
-- Failed to implement metal reflections in chapter 9 ["Metal"](https://raytracing.github.io/books/RayTracingInOneWeekend.html#metal)
+2022/5/31
+- Erased every past code in `rust` branch due to fatal flaw in code
+    - Backed previous codes to `rust_bak` branch
 
 ## References
 [Peter Shirley, Raytracing in One Weekend, 2020-12-07](https://github.com/RayTracing/raytracing.github.io)
