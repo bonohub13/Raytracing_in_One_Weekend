@@ -11,6 +11,7 @@ by Peter Shirley
 2022/5/31
 - Erased every past code in `rust` branch due to fatal flaw in code
     - Backed previous codes to `rust_bak` branch
+- Completed [2.2. Creating an Image File](https://raytracing.github.io/books/RayTracingInOneWeekend.html#outputanimage/creatinganimagefile)
 
 ## References
 [Peter Shirley, Raytracing in One Weekend, 2020-12-07](https://github.com/RayTracing/raytracing.github.io)
