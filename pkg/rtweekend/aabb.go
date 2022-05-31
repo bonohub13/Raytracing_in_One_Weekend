@@ -40,16 +40,16 @@ func SurroundingBox(box0, box1 *AABB) *AABB {
 }
 
 // Returns minimum coordinate of passing interval in AABB
-func (aabb *AABB) Min() *vec3.Point3 {
+func (aabb *AABB) Min() *Point3 {
 	return &aabb.minimum
 }
 
 // Returns maximum coordinate of passing interval in AABB
-func (aabb *AABB) Max() *vec3.Point3 {
+func (aabb *AABB) Max() *Point3 {
 	return &aabb.maximum
 }
 
-func (aabb AABB) Hit(r *ray.Ray, t_min, t_max float64, rec *HitRecord) bool {
+func (aabb AABB) Hit(r *Ray, t_min, t_max float64, rec *HitRecord) bool {
 	var t0, t1, invD float64
 
 	swap := func(t0, t1 *float64) {

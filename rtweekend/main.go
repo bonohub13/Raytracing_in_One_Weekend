@@ -24,10 +24,10 @@ func randomScene() *rt.HittableList {
 	)
 	materialGround := rt.NewLambertian(*checker)
 	sphereGround := rt.NewSphere(
-        *rt.NewPoint3(0, -1000, 0),
-        1000,
-        *materialGround,
-    )
+		*rt.NewPoint3(0, -1000, 0),
+		1000,
+		*materialGround,
+	)
 	world.Add(*sphereGround)
 
 	for a := -11; a < 11; a++ {
@@ -43,8 +43,8 @@ func randomScene() *rt.HittableList {
 				if chooseMat < 0.8 {
 					// diffuse
 					albedo := rt.RandomColor().MultiplyVertices(
-                        rt.RandomColor(),
-                    )
+						rt.RandomColor(),
+					)
 					material := rt.NewLambertianFromColor(*albedo)
 					center2 := center.Add(
 						rt.NewVec3(0, rt.RandomFloat64InRange(0, 0.5), 0),
@@ -149,7 +149,7 @@ func main() {
 	lookAt := new(rt.Point3)
 	vfov := 40.0
 	aperture := 0.0
-    background := rt.NewColor(0, 0, 0)
+	background := rt.NewColor(0, 0, 0)
 	distToFocus := 10.0
 	vup := rt.NewVec3(0, 1, 0)
 
@@ -160,30 +160,30 @@ func main() {
 		*lookAt = *rt.NewPoint3(0, 0, 0)
 		vfov = 20.0
 		aperture = 0.1
-        background = rt.NewColor(0.7, 0.8, 1)
+		background = rt.NewColor(0.7, 0.8, 1)
 	case 2:
 		*world = *sceneWithTwoSpheres()
-        background = rt.NewColor(0.7, 0.8, 1)
+		background = rt.NewColor(0.7, 0.8, 1)
 		*lookFrom = *rt.NewPoint3(13, 2, 3)
 		*lookAt = *rt.NewPoint3(0, 0, 0)
 		vfov = 20.0
 
 	case 3:
 		*world = *sceneWithTwoPerlinSpheres()
-        background = rt.NewColor(0.7, 0.8, 1)
+		background = rt.NewColor(0.7, 0.8, 1)
 		*lookFrom = *rt.NewPoint3(13, 2, 3)
 		*lookAt = *rt.NewPoint3(0, 0, 0)
 		vfov = 20
 	case 4:
 		*world = *imageImport()
-        background = rt.NewColor(0.7, 0.8, 1)
+		background = rt.NewColor(0.7, 0.8, 1)
 		*lookFrom = *rt.NewPoint3(13, 2, 3)
 		*lookAt = *rt.NewPoint3(0, 0, 0)
 		vfov = 20
 	default:
 		fallthrough
-    case 5:
-        break
+	case 5:
+		break
 	}
 
 	cam := rt.NewCamera(
@@ -209,8 +209,8 @@ func main() {
 				r := cam.GetRay(u, v)
 
 				pixelColor.AddToThis(
-                    rt.RayColor(r, background, world, MAX_DEPTH),
-                )
+					rt.RayColor(r, background, world, MAX_DEPTH),
+				)
 			}
 
 			rt.WriteColor(pixelColor, SAMPLES_PER_PIXEL)

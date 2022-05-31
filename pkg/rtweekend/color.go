@@ -46,18 +46,18 @@ func RayColor(r *Ray, background *Color, world Hittable, depth int) *Color {
 	if world.Hit(r, 0.001, math.Inf(1), rec) {
 		scattered := Ray{}
 		attenuation := Color{}
-        emitted := rec.material.(Material).Emitted(rec.u, rec.v, &rec.p)
+		emitted := rec.material.(Material).Emitted(rec.u, rec.v, &rec.p)
 
 		if rec.material.(Material).Scatter(r, rec, &attenuation, &scattered) {
-            return emitted.Add(
-                attenuation.MultiplyVertices(
-                    RayColor(&scattered, background, world, depth-1),
-                ),
-            )
-        } else {
-            return emitted
-        }
-    } else {
-        return background
-    }
+			return emitted.Add(
+				attenuation.MultiplyVertices(
+					RayColor(&scattered, background, world, depth-1),
+				),
+			)
+		} else {
+			return emitted
+		}
+	} else {
+		return background
+	}
 }

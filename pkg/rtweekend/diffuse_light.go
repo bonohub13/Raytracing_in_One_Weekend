@@ -1,32 +1,32 @@
 package rtweekend
 
 type DiffuseLight struct {
-    emit interface{}
+	emit interface{}
 }
 
 func NewDiffuseLight(emit Texture) *DiffuseLight {
-    dl := new(DiffuseLight)
+	dl := new(DiffuseLight)
 
-    dl.emit = emit
+	dl.emit = emit
 
-    return dl
+	return dl
 }
 
 func NewDiffuseLightFromColor(c Color) *DiffuseLight {
-    sc := NewSolidColor(c)
+	sc := NewSolidColor(c)
 
-    return &DiffuseLight{*sc}
+	return &DiffuseLight{*sc}
 }
 
 func (dl DiffuseLight) Emitted(u, v float64, p *Point3) *Color {
-    return dl.emit.(Texture).Value(u, v, p)
+	return dl.emit.(Texture).Value(u, v, p)
 }
 
 func (dl DiffuseLight) Scatter(
-    r_in *Ray,
-    rec *HitRecord,
-    attenuation *Color,
-    scattered *Ray,
+	r_in *Ray,
+	rec *HitRecord,
+	attenuation *Color,
+	scattered *Ray,
 ) bool {
-    return false
+	return false
 }
