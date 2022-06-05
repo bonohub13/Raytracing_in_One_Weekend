@@ -1,6 +1,6 @@
 COMPILER := $(shell which cargo)
 
-all: build
+all: build run
 
 clean:
 	$(COMPILER) clean
@@ -14,5 +14,5 @@ build: clean fmt
 test: build
 	$(COMPILER) run > /dev/null
 
-run: build
+run:
 	./bin/run.sh

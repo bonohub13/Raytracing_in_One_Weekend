@@ -15,3 +15,4 @@ by Peter Shirley
 
 ## References
 [Peter Shirley, Raytracing in One Weekend, 2020-12-07](https://github.com/RayTracing/raytracing.github.io)
+[render.rs from ebkalderon for multi-threaded rendering](https://github.com/ebkaderon/ray-tracing-in-one-weekend/blob/master/src/render.rs)
