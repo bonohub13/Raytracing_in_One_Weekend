@@ -14,7 +14,7 @@ by Peter Shirley
 - Completed [2.2. Creating an Image File](https://raytracing.github.io/books/RayTracingInOneWeekend.html#outputanimage/creatinganimagefile)
 
 2022/6/5
-- Completed [9.5. A Scene with Metal Spheres](https://raytracing.github.io/books/RayTracingInOneWeekend.html#metal/ascenewithmetalspheres)
+- Completed [12 Defocus Blur](https://raytracing.github.io/books/RayTracingInOneWeekend.html#defocusblur)
 
 ## References
 [Peter Shirley, Raytracing in One Weekend, 2020-12-07](https://github.com/RayTracing/raytracing.github.io)

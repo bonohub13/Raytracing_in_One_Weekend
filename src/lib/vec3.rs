@@ -107,6 +107,33 @@ pub fn reflect(v: &Vec3, n: &Vec3) -> Vec3 {
     *v - 2.0 * dot(v, n) * *n
 }
 
+pub fn refract(uv: &Vec3, n: &Vec3, etai_over_etat: f64) -> Vec3 {
+    let mut cos_theta = dot(&-*uv, n);
+
+    if cos_theta > 1.0 {
+        cos_theta = 1.0;
+    }
+
+    let r_out_perp = etai_over_etat * (*uv + cos_theta * *n);
+    let r_out_parallel = -(1.0 - r_out_perp.length_squared()).abs().sqrt() * *n;
+
+    r_out_perp + r_out_parallel
+}
+
+pub fn random_in_unit_disk() -> Vec3 {
+    loop {
+        let p = Vec3::new(
+            random_f64_in_range(-1., 1.),
+            random_f64_in_range(-1., 1.),
+            0.,
+        );
+
+        if p.length_squared() < 1. {
+            return p;
+        }
+    }
+}
+
 impl Default for Vec3 {
     fn default() -> Self {
         Self::new(0.0, 0.0, 0.0)
