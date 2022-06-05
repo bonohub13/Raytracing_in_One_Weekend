@@ -13,6 +13,9 @@ by Peter Shirley
     - Backed previous codes to `rust_bak` branch
 - Completed [2.2. Creating an Image File](https://raytracing.github.io/books/RayTracingInOneWeekend.html#outputanimage/creatinganimagefile)
 
+2022/6/5
+- Completed [9.5. A Scene with Metal Spheres](https://raytracing.github.io/books/RayTracingInOneWeekend.html#metal/ascenewithmetalspheres)
+
 ## References
 [Peter Shirley, Raytracing in One Weekend, 2020-12-07](https://github.com/RayTracing/raytracing.github.io)
 [render.rs from ebkalderon for multi-threaded rendering](https://github.com/ebkaderon/ray-tracing-in-one-weekend/blob/master/src/render.rs)
