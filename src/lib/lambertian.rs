@@ -1,31 +1,28 @@
 use crate::random_unit_vector;
-use crate::Material;
 use crate::{Color, HitRecord, Ray};
+use crate::{Material, Texture};
 
-pub struct Lambertian {
-    albedo: Color,
+pub struct Lambertian<T: Texture> {
+    pub albedo: T,
 }
 
-impl Lambertian {
-    pub fn new(albedo: Color) -> Self {
+impl<T: Texture> Lambertian<T> {
+    #[inline]
+    pub fn new(albedo: T) -> Self {
         Self { albedo }
     }
-
-    pub fn albedo(&self) -> Color {
-        self.albedo
-    }
 }
 
-impl Material for Lambertian {
-    fn scatter(&self, _r_in: &Ray, rec: &HitRecord) -> Option<(Ray, Color)> {
+impl<T: Texture> Material for Lambertian<T> {
+    fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Ray, Color)> {
         let mut scatter_direction = rec.normal() + random_unit_vector();
 
         if scatter_direction.is_near_zero() {
             scatter_direction = rec.normal();
         }
 
-        let scatter = Ray::new(rec.p(), scatter_direction);
-        let attenuation = self.albedo;
+        let scatter = Ray::new(rec.p(), scatter_direction, r_in.time());
+        let attenuation = self.albedo.value(rec.u(), rec.v(), &rec.p());
 
         Some((scatter, attenuation))
     }

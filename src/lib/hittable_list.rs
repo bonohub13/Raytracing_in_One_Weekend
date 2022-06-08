@@ -1,4 +1,6 @@
-use crate::{HitRecord, Hittable, Ray};
+use crate::surrounding_box;
+use crate::Hittable;
+use crate::{Aabb, HitRecord, Ray};
 
 #[derive(Default)]
 pub struct HittableList {
@@ -25,5 +27,27 @@ impl Hittable for HittableList {
         }
 
         hit_anything
+    }
+
+    fn bounding_box(&self, time0: f64, time1: f64) -> Option<Aabb> {
+        let mut first_box = true;
+        let mut output_box: Option<Aabb> = None;
+
+        if !self.list.is_empty() {
+            for h in self.list.iter() {
+                if let Some(bounding_box) = h.bounding_box(time0, time1) {
+                    output_box = if first_box {
+                        Some(bounding_box)
+                    } else {
+                        Some(surrounding_box(output_box.unwrap(), bounding_box))
+                    };
+                    first_box = false;
+                }
+            }
+
+            output_box
+        } else {
+            None
+        }
     }
 }

@@ -1,28 +1,33 @@
 use crate::{random_f64, random_f64_in_range};
 use std::ops;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Vec3 {
     pub e: [f64; 3],
 }
 
 impl Vec3 {
+    #[inline]
     pub fn new(e0: f64, e1: f64, e2: f64) -> Self {
         Self { e: [e0, e1, e2] }
     }
 
+    #[inline]
     pub fn x(&self) -> f64 {
         self.e[0]
     }
 
+    #[inline]
     pub fn y(&self) -> f64 {
         self.e[1]
     }
 
+    #[inline]
     pub fn z(&self) -> f64 {
         self.e[2]
     }
 
+    #[inline]
     pub fn length_squared(&self) -> f64 {
         let mut length_squared = 0.0;
 
@@ -33,14 +38,17 @@ impl Vec3 {
         length_squared
     }
 
+    #[inline]
     pub fn length(&self) -> f64 {
         self.length_squared().sqrt()
     }
 
+    #[inline]
     pub fn random() -> Self {
         Self::new(random_f64(), random_f64(), random_f64())
     }
 
+    #[inline]
     pub fn random_in_range(min: f64, max: f64) -> Self {
         Self::new(
             random_f64_in_range(min, max),
@@ -49,6 +57,7 @@ impl Vec3 {
         )
     }
 
+    #[inline]
     pub fn is_near_zero(&self) -> bool {
         const S: f64 = 1e-8;
 
@@ -56,6 +65,7 @@ impl Vec3 {
     }
 }
 
+#[inline]
 pub fn dot(u: &Vec3, v: &Vec3) -> f64 {
     let mut dot = 0.0;
 
@@ -66,6 +76,7 @@ pub fn dot(u: &Vec3, v: &Vec3) -> f64 {
     dot
 }
 
+#[inline]
 pub fn cross(u: &Vec3, v: &Vec3) -> Vec3 {
     let mut cross = Vec3::default();
 
@@ -76,10 +87,12 @@ pub fn cross(u: &Vec3, v: &Vec3) -> Vec3 {
     cross
 }
 
+#[inline]
 pub fn unit_vector(v: &Vec3) -> Vec3 {
     *v / v.length()
 }
 
+#[inline]
 pub fn random_in_unit_sphere() -> Vec3 {
     loop {
         let p = Vec3::random_in_range(-1.0, 1.0);
@@ -89,10 +102,12 @@ pub fn random_in_unit_sphere() -> Vec3 {
     }
 }
 
+#[inline]
 pub fn random_unit_vector() -> Vec3 {
     unit_vector(&random_in_unit_sphere())
 }
 
+#[inline]
 pub fn random_in_hemisphere(normal: &Vec3) -> Vec3 {
     let in_unit_sphere = random_in_unit_sphere();
 
@@ -103,10 +118,12 @@ pub fn random_in_hemisphere(normal: &Vec3) -> Vec3 {
     }
 }
 
+#[inline]
 pub fn reflect(v: &Vec3, n: &Vec3) -> Vec3 {
     *v - 2.0 * dot(v, n) * *n
 }
 
+#[inline]
 pub fn refract(uv: &Vec3, n: &Vec3, etai_over_etat: f64) -> Vec3 {
     let mut cos_theta = dot(&-*uv, n);
 
@@ -120,6 +137,7 @@ pub fn refract(uv: &Vec3, n: &Vec3, etai_over_etat: f64) -> Vec3 {
     r_out_perp + r_out_parallel
 }
 
+#[inline]
 pub fn random_in_unit_disk() -> Vec3 {
     loop {
         let p = Vec3::new(

@@ -8,16 +8,19 @@ pub struct Dielectric {
 }
 
 impl Dielectric {
+    #[inline]
     pub fn new(index_of_refraction: f64) -> Self {
         Self {
             index_of_refraction,
         }
     }
 
+    #[inline]
     pub fn index_of_refraction(&self) -> f64 {
         self.index_of_refraction
     }
 
+    #[inline]
     fn reflectance(&self, cosine: f64, ref_idx: f64) -> f64 {
         let r0 = (1.0 - ref_idx) / (1.0 + ref_idx);
 
@@ -48,7 +51,7 @@ impl Material for Dielectric {
             refract(&unit_direction, &rec.normal(), refraction_ratio)
         };
 
-        let scattered = Ray::new(rec.p(), direction);
+        let scattered = Ray::new(rec.p(), direction, r_in.time());
 
         Some((scattered, attenuation))
     }
