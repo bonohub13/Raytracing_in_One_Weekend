@@ -29,6 +29,9 @@ impl Dielectric {
 }
 
 impl Material for Dielectric {
+    fn emitted(&self, _u: f64, _v: f64, _p: &Color) -> Color {
+        Color::default()
+    }
     fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Ray, Color)> {
         let attenuation = Color::new(1., 1., 1.);
         let refraction_ratio = if rec.front_face() {

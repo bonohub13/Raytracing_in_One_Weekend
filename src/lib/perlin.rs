@@ -55,6 +55,21 @@ impl Perlin {
     }
 
     #[inline]
+    pub fn turbulence(&self, p: &Point3, depth: Option<i32>) -> f64 {
+        let mut accum = 0.;
+        let mut tmp_p = *p;
+        let mut weight = 1.;
+
+        for _ in 0..depth.unwrap_or(7) {
+            accum += weight * self.noise(&tmp_p);
+            weight *= 0.5;
+            tmp_p *= 2.;
+        }
+
+        accum.abs()
+    }
+
+    #[inline]
     fn perlin_generate_perm() -> [i32; POINT_COUNT] {
         let mut p: [i32; POINT_COUNT] = [0; POINT_COUNT];
 

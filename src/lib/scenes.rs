@@ -1,7 +1,7 @@
 use crate::{random_f64, random_f64_in_range};
 use crate::{
-    CheckerTexture, Color, Dielectric, HittableList, Lambertian, Metal, MovingSphere, NoiseTexture,
-    Point3, SolidColor, Sphere, Vec3,
+    CheckerTexture, Color, Dielectric, DiffuseLight, HittableList, Lambertian, Metal, MovingSphere,
+    NoiseTexture, Point3, RectXY, SolidColor, Sphere, Vec3,
 };
 
 pub fn random_scene() -> HittableList {
@@ -97,6 +97,26 @@ pub fn two_perlin_spheres() -> HittableList {
         2.,
         Lambertian::new(pertext),
     ));
+
+    world
+}
+
+pub fn simple_light() -> HittableList {
+    let mut world = HittableList::default();
+    let pertext = NoiseTexture::new(4.);
+    let diff_light = DiffuseLight::new(SolidColor::new(Color::new(4., 4., 4.)));
+
+    world.push(Sphere::new(
+        Point3::new(0., -1e3, 0.),
+        1e3,
+        Lambertian::new(pertext),
+    ));
+    world.push(Sphere::new(
+        Point3::new(0., 2., 0.),
+        2.,
+        Lambertian::new(pertext),
+    ));
+    world.push(RectXY::new(3., 5., 1., 3., -2., diff_light));
 
     world
 }

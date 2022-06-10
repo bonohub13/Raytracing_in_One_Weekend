@@ -12,6 +12,7 @@ pub fn render(
     image_height: i32,
     samples_per_pixel: i32,
     depth: i32,
+    background: &Color,
     world: &HittableList,
     cam: &Camera,
 ) {
@@ -37,7 +38,7 @@ pub fn render(
                         let v = (j as f64 + random_f64()) / (image_height as f64 - 1.0);
                         let r = cam.get_ray(u, v);
 
-                        col += ray_color(&r, world, depth);
+                        col += ray_color(&r, background, world, depth);
                     }
 
                     write_color(col, samples_per_pixel)

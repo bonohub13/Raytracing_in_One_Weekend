@@ -28,6 +28,9 @@ impl Metal {
 }
 
 impl Material for Metal {
+    fn emitted(&self, _u: f64, _v: f64, _p: &Color) -> Color {
+        Color::default()
+    }
     fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Ray, Color)> {
         let reflected = reflect(&unit_vector(&r_in.direction()), &rec.normal());
         let scattered = Ray::new(

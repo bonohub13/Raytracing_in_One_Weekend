@@ -14,6 +14,9 @@ impl<T: Texture> Lambertian<T> {
 }
 
 impl<T: Texture> Material for Lambertian<T> {
+    fn emitted(&self, _u: f64, _v: f64, _p: &Color) -> Color {
+        Color::default()
+    }
     fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Ray, Color)> {
         let mut scatter_direction = rec.normal() + random_unit_vector();
 

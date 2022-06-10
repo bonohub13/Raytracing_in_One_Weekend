@@ -4,6 +4,7 @@ mod camera;
 mod checker_texture;
 mod color;
 mod dielectric;
+mod diffuse_light;
 mod hittable;
 mod hittable_list;
 mod lambertian;
@@ -13,6 +14,7 @@ mod moving_sphere;
 mod noise_texture;
 mod perlin;
 mod ray;
+mod rect_xy;
 mod renderer;
 mod scenes;
 mod solid_color;
@@ -27,6 +29,7 @@ pub use camera::*;
 pub use checker_texture::*;
 pub use color::*;
 pub use dielectric::*;
+pub use diffuse_light::*;
 pub use hittable::*;
 pub use hittable_list::*;
 pub use lambertian::*;
@@ -36,6 +39,7 @@ pub use moving_sphere::*;
 pub use noise_texture::*;
 pub use perlin::*;
 pub use ray::*;
+pub use rect_xy::*;
 pub use renderer::*;
 pub use scenes::*;
 pub use solid_color::*;
@@ -116,21 +120,20 @@ pub fn hit_sphere(center: &Point3, radius: f64, r: &Ray) -> f64 {
 }
 
 #[inline]
-pub fn ray_color(r: &Ray, world: &HittableList, depth: i32) -> Color {
+pub fn ray_color(r: &Ray, background: &Color, world: &HittableList, depth: i32) -> Color {
     if depth <= 0 {
         return Color::default();
     }
 
     if let Some(hit) = world.hit(r, 0.001, INFINITY) {
+        let emitted = hit.material.emitted(hit.u(), hit.v(), &hit.p());
+
         if let Some((scattered, attenuation)) = hit.material.scatter(r, &hit) {
-            return attenuation * ray_color(&scattered, world, depth - 1);
+            emitted + attenuation * ray_color(&scattered, background, world, depth - 1)
         } else {
-            return Color::default();
+            emitted
         }
+    } else {
+        *background
     }
-
-    let unit_direction = unit_vector(&r.direction());
-    let t = 0.5 * (unit_direction.y() + 1.0);
-
-    (1.0 - t) * Color::new(1.0, 1.0, 1.0) + t * Color::new(0.5, 0.7, 1.0)
 }
