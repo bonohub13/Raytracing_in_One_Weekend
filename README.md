@@ -16,5 +16,5 @@ by Peter Shirley
 - Parallelized the rendering process
 
 ## References
-[Peter Shirley, Ray Tracing in One Weekend, 2020-12-07](https://github.com/RayTracing/raytracing.github.io)
-[Parallization of rendering process](https://github.com/i-am-g2/Tr/tree/master/tr)
+- [Peter Shirley, Ray Tracing in One Weekend, 2020-12-07](https://github.com/RayTracing/raytracing.github.io)
+- [Parallization of rendering process](https://github.com/i-am-g2/Tr/tree/master/tr)
