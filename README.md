@@ -8,20 +8,13 @@ by Peter Shirley
 - [References](#references)
 
 ## UPDATES
-2022/4/5
-- Finished chapter 4, "Rays, a Simple Camera, and Background"
+2022/6/10
+- Deprecated old code to refactor
 
-2022/4/27
-- Finished chapter 9.5 ["A Scene with Metal Spheres"](https://raytracing.github.io/books/RayTracingInOneWeekend.html#metal/ascenewithmetalspheres)
-- Moved packages to pkg/rtweekend
-
-2022/4/29
-- Completed the book ["Ray Tracing in One Weekend"](https://raytracing.github.io/books/RayTracingInOneWeekend.html)
-- Started the book ["Ray Tracing the Next Week"](https://raytracing.github.io/books/RayTracingTheNextWeek.html)
-- Finished chapter 5.3 ["Improvement with Hermitian Smoothing"](https://raytracing.github.io/books/RayTracingTheNextWeek.html#perlinnoise/improvementwithhermitiansmoothing)
-
-2022/5/6
-- Completed chapter 7.2 ["Adding Background Color to the Ray Color Function"](https://raytracing.github.io/books/RayTracingTheNextWeek.html#rectanglesandlights/addingbackgroundcolortotheraycolorfunction)
+2022/6/11
+- Completed [8.3 Using Gamma Correction for Accurate Color Intensity](https://raytracing.github.io/books/RayTracingInOneWeekend.html#diffusematerials/usinggammacorrectionforaccuratecolorintensity) from Ray Tracing in One Weekend
+- Parallelized the rendering process
 
 ## References
 [Peter Shirley, Ray Tracing in One Weekend, 2020-12-07](https://github.com/RayTracing/raytracing.github.io)
+[Parallization of rendering process](https://github.com/i-am-g2/Tr/tree/master/tr)
