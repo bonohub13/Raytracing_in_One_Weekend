@@ -2,6 +2,7 @@ use crate::random_unit_vector;
 use crate::{Color, HitRecord, Ray};
 use crate::{Material, Texture};
 
+#[derive(Clone, Copy)]
 pub struct Lambertian<T: Texture> {
     pub albedo: T,
 }

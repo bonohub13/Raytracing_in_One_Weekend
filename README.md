@@ -19,6 +19,9 @@ by Peter Shirley
 2022/6/8
 - Completed [5.5. Using Random Vectors in the Lattice Points](https://raytracing.github.io/books/RayTracingTheNextWeek.html#perlinnoise/usingrandomvectorsonthelatticepoints)
 
+2022/6/11
+- Completed [7 Rectangles and Lights](https://raytracing.github.io/books/RayTracingTheNextWeek.html#rectanglesandlights)
+
 ## References
 1. [Peter Shirley, Raytracing in One Weekend, 2020-12-07](https://github.com/RayTracing/raytracing.github.io)
 2. [render.rs from ebkalderon for multi-threaded rendering](https://github.com/ebkalderon/ray-tracing-in-one-weekend/blob/master/src/render.rs)

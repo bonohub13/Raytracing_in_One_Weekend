@@ -1,7 +1,7 @@
 use crate::{random_f64, random_f64_in_range};
 use crate::{
     CheckerTexture, Color, Dielectric, DiffuseLight, HittableList, Lambertian, Metal, MovingSphere,
-    NoiseTexture, Point3, RectXY, SolidColor, Sphere, Vec3,
+    NoiseTexture, Point3, RectXY, RectXZ, RectYZ, SolidColor, Sphere, Vec3,
 };
 
 pub fn random_scene() -> HittableList {
@@ -117,6 +117,24 @@ pub fn simple_light() -> HittableList {
         Lambertian::new(pertext),
     ));
     world.push(RectXY::new(3., 5., 1., 3., -2., diff_light));
+
+    world
+}
+
+pub fn cornell_box() -> HittableList {
+    let mut world = HittableList::default();
+
+    let red = Lambertian::new(SolidColor::new(Color::new(0.65, 0.05, 0.05)));
+    let white = Lambertian::new(SolidColor::new(Color::new(0.73, 0.73, 0.73)));
+    let green = Lambertian::new(SolidColor::new(Color::new(0.12, 0.45, 0.15)));
+    let light = DiffuseLight::new(SolidColor::new(Color::new(15., 15., 15.)));
+
+    world.push(RectYZ::new(0., 555., 0., 555., 555., green));
+    world.push(RectYZ::new(0., 555., 0., 555., 0., red));
+    world.push(RectXZ::new(213., 343., 227., 332., 554., light));
+    world.push(RectXZ::new(0., 555., 0., 555., 0., white));
+    world.push(RectXZ::new(0., 555., 0., 555., 555., white));
+    world.push(RectXY::new(0., 555., 0., 555., 555., white));
 
     world
 }

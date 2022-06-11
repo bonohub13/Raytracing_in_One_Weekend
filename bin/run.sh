@@ -35,3 +35,6 @@ fi
 (cd "$PROJECT_DIR" \
     && cargo run | tee "${PROJECT_DIR}/images/${filename}.ppm" > /dev/null \
     && mogrify -format jpg ${PROJECT_DIR}/images/*.ppm)
+
+#: clean up
+find "{PROJECT_DIR}/images" -type f | grep '~' | xargs rm
