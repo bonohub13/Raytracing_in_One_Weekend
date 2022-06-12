@@ -1,4 +1,5 @@
 mod aabb;
+mod block;
 mod bvh;
 mod camera;
 mod checker_texture;
@@ -18,14 +19,17 @@ mod rect_xy;
 mod rect_xz;
 mod rect_yz;
 mod renderer;
+mod rotate_y;
 mod scenes;
 mod solid_color;
 mod sphere;
 mod texture;
+mod translate;
 mod vec3;
 mod vec3_utils;
 
 pub use aabb::*;
+pub use block::*;
 pub use bvh::*;
 pub use camera::*;
 pub use checker_texture::*;
@@ -45,10 +49,12 @@ pub use rect_xy::*;
 pub use rect_xz::*;
 pub use rect_yz::*;
 pub use renderer::*;
+pub use rotate_y::*;
 pub use scenes::*;
 pub use solid_color::*;
 pub use sphere::*;
 pub use texture::*;
+pub use translate::*;
 pub use vec3::*;
 pub use vec3_utils::*;
 

@@ -69,6 +69,36 @@ impl<'a> HitRecord<'a> {
     }
 
     #[inline]
+    pub fn set_p(&mut self, p: Point3) {
+        self.p = p
+    }
+
+    #[inline]
+    pub fn set_normal(&mut self, normal: Vec3) {
+        self.normal = normal
+    }
+
+    #[inline]
+    pub fn set_t(&mut self, t: f64) {
+        self.t = t
+    }
+
+    #[inline]
+    pub fn set_u(&mut self, u: f64) {
+        self.u = u
+    }
+
+    #[inline]
+    pub fn set_v(&mut self, v: f64) {
+        self.v = v
+    }
+
+    #[inline]
+    pub fn set_front_face(&mut self, front_face: bool) {
+        self.front_face = front_face
+    }
+
+    #[inline]
     pub fn set_face_normal(&mut self, r: &Ray, outward_normal: &Vec3) {
         self.front_face = dot(&r.direction(), outward_normal) < 0.;
         self.normal = if self.front_face {

@@ -1,7 +1,8 @@
 use crate::{random_f64, random_f64_in_range};
 use crate::{
-    CheckerTexture, Color, Dielectric, DiffuseLight, HittableList, Lambertian, Metal, MovingSphere,
-    NoiseTexture, Point3, RectXY, RectXZ, RectYZ, SolidColor, Sphere, Vec3,
+    Box, CheckerTexture, Color, Dielectric, DiffuseLight, HittableList, Lambertian, Metal,
+    MovingSphere, NoiseTexture, Point3, RectXY, RectXZ, RectYZ, RotateY, SolidColor, Sphere,
+    Translate, Vec3,
 };
 
 pub fn random_scene() -> HittableList {
@@ -135,6 +136,32 @@ pub fn cornell_box() -> HittableList {
     world.push(RectXZ::new(0., 555., 0., 555., 0., white));
     world.push(RectXZ::new(0., 555., 0., 555., 555., white));
     world.push(RectXY::new(0., 555., 0., 555., 555., white));
+
+    let box1 = Translate::new(
+        Vec3::new(265., 0., 295.),
+        RotateY::new(
+            Box::new(
+                Point3::new(0., 0., 0.),
+                Point3::new(165., 330., 165.),
+                white,
+            ),
+            15.,
+        ),
+    );
+    let box2 = Translate::new(
+        Vec3::new(130., 0., 65.),
+        RotateY::new(
+            Box::new(
+                Point3::new(0., 0., 0.),
+                Point3::new(165., 165., 165.),
+                white,
+            ),
+            -18.,
+        ),
+    );
+
+    world.push(box1);
+    world.push(box2);
 
     world
 }
