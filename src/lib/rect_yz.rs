@@ -35,7 +35,8 @@ impl<M: Material> Hittable for RectYZ<M> {
                 let u = (y - self.y0) / (self.y1 - self.y0);
                 let v = (z - self.z0) / (self.z0 - self.z1);
                 let outward_normal = Vec3::new(1., 0., 0.);
-                let mut hit = HitRecord::new(r.at(t), outward_normal, t, u, v, &self.material);
+                let mut hit =
+                    HitRecord::new(r.at(t), outward_normal, t, u, v, None, &self.material);
 
                 hit.set_face_normal(r, &outward_normal);
 

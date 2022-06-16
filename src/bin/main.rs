@@ -38,7 +38,7 @@ fn main() {
             look_at = rt_utils::Point3::new(0., 2., 0.);
             rt_utils::simple_light()
         }
-        5 | _ => {
+        5 => {
             aspect_ratio = 1.0;
             image_width = 600;
             image_height = (image_width as f64 / aspect_ratio) as i32;
@@ -47,6 +47,16 @@ fn main() {
             look_at = rt_utils::Point3::new(278., 278., 0.);
             vfov = 40.0;
             rt_utils::cornell_box()
+        }
+        6 | _ => {
+            aspect_ratio = 1.;
+            image_width = 600;
+            image_height = (image_width as f64 / aspect_ratio) as i32;
+            samples_per_pixel = 200;
+            look_from = rt_utils::Point3::new(278., 278., -800.);
+            look_at = rt_utils::Point3::new(278., 278., 0.);
+            vfov = 40.;
+            rt_utils::cornell_smoke()
         }
     };
 

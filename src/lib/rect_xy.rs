@@ -39,6 +39,7 @@ impl<M: Material> Hittable for RectXY<M> {
                     t,
                     (x - self.x0) / (self.x1 - self.x0),
                     (y - self.y0) / (self.y1 - self.y0),
+                    None,
                     &self.material,
                 );
                 rec.set_face_normal(r, &outward_normal);

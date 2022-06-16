@@ -14,7 +14,9 @@ pub struct HitRecord<'a> {
 
 pub trait Hittable: Send + Sync {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord>;
-    fn bounding_box(&self, time0: f64, time1: f64) -> Option<Aabb>;
+    fn bounding_box(&self, _time0: f64, _time1: f64) -> Option<Aabb> {
+        None
+    }
 }
 
 impl<'a> HitRecord<'a> {
@@ -25,6 +27,7 @@ impl<'a> HitRecord<'a> {
         t: f64,
         u: f64,
         v: f64,
+        front_face: Option<bool>,
         material: &'a dyn Material,
     ) -> Self {
         Self {
@@ -33,7 +36,7 @@ impl<'a> HitRecord<'a> {
             t,
             u,
             v,
-            front_face: false,
+            front_face: front_face.unwrap_or(false),
             material,
         }
     }

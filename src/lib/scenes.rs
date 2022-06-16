@@ -1,8 +1,8 @@
 use crate::{random_f64, random_f64_in_range};
 use crate::{
-    Box, CheckerTexture, Color, Dielectric, DiffuseLight, HittableList, Lambertian, Metal,
-    MovingSphere, NoiseTexture, Point3, RectXY, RectXZ, RectYZ, RotateY, SolidColor, Sphere,
-    Translate, Vec3,
+    Box, CheckerTexture, Color, ConstantMedium, Dielectric, DiffuseLight, HittableList, Isotropic,
+    Lambertian, Metal, MovingSphere, NoiseTexture, Point3, RectXY, RectXZ, RectYZ, RotateY,
+    SolidColor, Sphere, Translate, Vec3,
 };
 
 pub fn random_scene() -> HittableList {
@@ -162,6 +162,56 @@ pub fn cornell_box() -> HittableList {
 
     world.push(box1);
     world.push(box2);
+
+    world
+}
+
+pub fn cornell_smoke() -> HittableList {
+    let mut world = HittableList::default();
+
+    let red = Lambertian::new(SolidColor::new(Color::new(0.65, 0.05, 0.05)));
+    let white = Lambertian::new(SolidColor::new(Color::new(0.73, 0.73, 0.73)));
+    let green = Lambertian::new(SolidColor::new(Color::new(0.12, 0.45, 0.15)));
+    let light = DiffuseLight::new(SolidColor::new(Color::new(7., 7., 7.)));
+    let box1 = Translate::new(
+        Vec3::new(265., 0., 295.),
+        RotateY::new(
+            Box::new(
+                Point3::new(0., 0., 0.),
+                Point3::new(165., 330., 165.),
+                white,
+            ),
+            15.,
+        ),
+    );
+    let box2 = Translate::new(
+        Vec3::new(130., 0., 65.),
+        RotateY::new(
+            Box::new(
+                Point3::new(0., 0., 0.),
+                Point3::new(165., 165., 165.),
+                white,
+            ),
+            -18.,
+        ),
+    );
+
+    world.push(RectYZ::new(0., 555., 0., 555., 555., green));
+    world.push(RectYZ::new(0., 555., 0., 555., 0., red));
+    world.push(RectXZ::new(113., 443., 127., 432., 554., light));
+    world.push(RectXZ::new(0., 555., 0., 555., 555., white));
+    world.push(RectXZ::new(0., 555., 0., 555., 0., white));
+    world.push(RectXY::new(0., 555., 0., 555., 555., white));
+    world.push(ConstantMedium::new(
+        box1,
+        SolidColor::new(Color::new(0., 0., 0.)),
+        0.01,
+    ));
+    world.push(ConstantMedium::new(
+        box2,
+        SolidColor::new(Color::new(1., 1., 1.)),
+        0.01,
+    ));
 
     world
 }

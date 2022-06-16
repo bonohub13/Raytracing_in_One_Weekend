@@ -37,4 +37,4 @@ fi
     && mogrify -format jpg ${PROJECT_DIR}/images/*.ppm)
 
 #: clean up
-find "{PROJECT_DIR}/images" -type f | grep '~' | xargs rm
+find "${PROJECT_DIR}/images" -type f | grep '~' | xargs rm

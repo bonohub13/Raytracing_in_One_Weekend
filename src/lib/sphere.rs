@@ -37,8 +37,15 @@ impl<M: Material> Hittable for Sphere<M> {
                 let normal = (p - self.center) / self.radius;
                 let theta = -p.y().acos();
                 let phi = -p.z().atan2(p.x()) + PI;
-                let mut rec =
-                    HitRecord::new(p, normal, root, phi / (2. * PI), theta / PI, &self.material);
+                let mut rec = HitRecord::new(
+                    p,
+                    normal,
+                    root,
+                    phi / (2. * PI),
+                    theta / PI,
+                    None,
+                    &self.material,
+                );
 
                 rec.set_face_normal(r, &normal);
 
@@ -52,8 +59,15 @@ impl<M: Material> Hittable for Sphere<M> {
                 let normal = (p - self.center) / self.radius;
                 let theta = -p.y().acos();
                 let phi = -p.z().atan2(p.x()) + PI;
-                let mut rec =
-                    HitRecord::new(p, normal, root, phi / (2. * PI), theta / PI, &self.material);
+                let mut rec = HitRecord::new(
+                    p,
+                    normal,
+                    root,
+                    phi / (2. * PI),
+                    theta / PI,
+                    None,
+                    &self.material,
+                );
 
                 rec.set_face_normal(r, &normal);
 
