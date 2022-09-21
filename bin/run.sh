@@ -33,7 +33,7 @@ fi
 
 #: Contain in subshell
 (cd "$PROJECT_DIR" \
-    && cargo run | tee "${PROJECT_DIR}/images/${filename}.ppm" > /dev/null \
+    && ./bin/rtweekend | tee "${PROJECT_DIR}/images/${filename}.ppm" > /dev/null \
     && mogrify -format jpg ${PROJECT_DIR}/images/*.ppm)
 
 #: clean up
