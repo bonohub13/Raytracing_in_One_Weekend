@@ -5,11 +5,11 @@ edition = "2021"
 
 [[bin]]
 name = "rtweekend"
-path = "src/bin/main.rs"
+path = "src/main.rs"
 
 [lib]
-name = "rt_utils"
-path = "lib/rt_utils.rs"
+name = "vk_utils"
+path = "lib/vk_utils/mod.rs"
 crate-type = ["lib"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -17,6 +17,7 @@ crate-type = ["lib"]
 [dependencies]
 ash = { version = ">= 0.37.0", default_features = false, features = ["linked", "debug"] }
 ash-window = ">= 0.11.0"
+raw-window-handle = "0.5.0"
 winit = ">= 0.26"
 num = "0.4.0"
 memoffset = ">= 0.6.5"

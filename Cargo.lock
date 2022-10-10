@@ -1144,6 +1144,7 @@ dependencies = [
  "metal",
  "num",
  "objc",
+ "raw-window-handle 0.5.0",
  "tobj",
  "winapi",
  "winit",
