@@ -27,12 +27,12 @@ build: fmt clean
 
 run:
 	[ -d "/tmp" ] \
-		&& ([ -d "/tmp/rt_weekend" ] || mkdir "/tmp/rt_weekend") \
-		&& OBS_VKCAPTURE=0 ENABLE_VKBASALT=0 MANGOHUD=0 ./bin/rt_weekend 2>&1 \
-			| tee "/tmp/rt_weekend/$(shell date +'%Y%m%d-%H%M%S').log"
+		&& ([ -d "/tmp/rtweekend" ] || mkdir "/tmp/rtweekend") \
+		&& OBS_VKCAPTURE=0 ENABLE_VKBASALT=0 MANGOHUD=0 ./bin/rtweekend 2>&1 \
+			| tee "/tmp/rtweekend/$(shell date +'%Y%m%d-%H%M%S').log"
 
 run-with-mangohud:
-	OBS_VKCAPTURE=0 ENABLE_VKBASALT=0 MANGOHUD=1 ./bin/rt_weekend 2>&1 | tee "/tmp/$(shell date +'%Y%m%d-%H%M%S').log"
+	OBS_VKCAPTURE=0 ENABLE_VKBASALT=0 MANGOHUD=1 ./bin/rtweekend 2>&1 | tee "/tmp/$(shell date +'%Y%m%d-%H%M%S').log"
 
 rebuild-win64-image:
 	docker build . -t ofv/windows -f docker/Dockerfile.windows --no-cache
@@ -47,4 +47,4 @@ rebuild-all-images: rebuild-linux-image
 docker-build: build-shader clean
 	mkdir -p bin
 	docker run --rm -it -v $(shell pwd):/app ofv/linux
-	cp ./target/debug/rt_weekend bin
+	cp ./target/debug/rtweekend bin
