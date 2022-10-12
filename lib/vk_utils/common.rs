@@ -45,6 +45,8 @@ mod _common {
             return Err(String::from(extension_names.err().unwrap().to_string()));
         }
 
+        let mut debug_utils_create_info = vk_debug::populate_debug_messenger_create_info();
+
         let mut extension_names = extension_names.unwrap().to_vec();
 
         extension_names.push(DebugUtils::name().as_ptr());
@@ -79,6 +81,7 @@ mod _common {
 
         let create_info = if VK_VALIDATION_LAYER_NAMES.is_enable {
             vk::InstanceCreateInfo::builder()
+                .push_next(&mut debug_utils_create_info)
                 .application_info(&app_info)
                 .enabled_layer_names(&raw_layer_names)
                 .enabled_extension_names(&extension_names)

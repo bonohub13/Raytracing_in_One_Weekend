@@ -55,12 +55,14 @@ mod appbase {
 }
 
 mod rt_in_one_weekend {
-    use winit::window::Window;
+    use vk_utils::queue::QueueFamilyIndices;
 
     use ash::{
         extensions::{ext::DebugUtils, khr::Surface},
         vk,
     };
+
+    use winit::window::Window;
 
     pub struct RayTracingInOneWeekend {
         _entry: ash::Entry,
@@ -73,6 +75,12 @@ mod rt_in_one_weekend {
         surface: vk::SurfaceKHR,
 
         physical_device: vk::PhysicalDevice,
+        msaa_samples: vk::SampleCountFlags,
+        physical_device_memory_properties: vk::PhysicalDeviceMemoryProperties,
+
+        device: ash::Device,
+
+        queue_family: QueueFamilyIndices,
     }
 
     impl RayTracingInOneWeekend {
@@ -91,6 +99,17 @@ mod rt_in_one_weekend {
             let physical_device =
                 vk_utils::device::pick_physical_device(&instance, &surface_info).unwrap();
 
+            let msaa_samples =
+                vk_utils::device::get_max_usable_sample_count(&instance, physical_device);
+            let physical_device_memory_properties =
+                vk_utils::device::get_memory_property(&instance, physical_device);
+            let physical_device_properties =
+                vk_utils::device::get_property(&instance, physical_device);
+
+            let (device, family_indices) =
+                vk_utils::device::create_logical_device(&instance, physical_device, &surface_info)
+                    .unwrap();
+
             Self {
                 _entry: entry,
                 instance,
@@ -102,6 +121,12 @@ mod rt_in_one_weekend {
                 surface: surface_info.surface,
 
                 physical_device,
+                msaa_samples,
+                physical_device_memory_properties,
+
+                device,
+
+                queue_family: family_indices,
             }
         }
     }
@@ -111,6 +136,8 @@ mod rt_in_one_weekend {
             use vk_utils::constants::VK_VALIDATION_LAYER_NAMES;
 
             unsafe {
+                self.device.destroy_device(None);
+
                 self.surface_loader.destroy_surface(self.surface, None);
 
                 if VK_VALIDATION_LAYER_NAMES.is_enable {

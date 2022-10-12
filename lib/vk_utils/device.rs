@@ -33,6 +33,98 @@ mod _physical_device {
         }
     }
 
+    pub fn find_queue_family(
+        instance: &ash::Instance,
+        physical_device: vk::PhysicalDevice,
+        surface_info: &VkSurfaceInfo,
+    ) -> Result<QueueFamilyIndices, String> {
+        let queue_families =
+            unsafe { instance.get_physical_device_queue_family_properties(physical_device) };
+
+        let mut queue_family_indices = QueueFamilyIndices::new(None, None);
+        let mut index: u32 = 0;
+
+        for queue_family in queue_families.iter() {
+            if queue_family.queue_count > 0
+                && queue_family.queue_flags.contains(vk::QueueFlags::GRAPHICS)
+            {
+                queue_family_indices.graphics_family = Some(index);
+            }
+
+            let is_present_support = unsafe {
+                surface_info
+                    .surface_loader
+                    .get_physical_device_surface_support(
+                        physical_device,
+                        index,
+                        surface_info.surface,
+                    )
+            };
+
+            if is_present_support.is_err() {
+                return Err(is_present_support.err().unwrap().to_string());
+            }
+
+            if queue_family.queue_count > 0 && is_present_support.unwrap() {
+                queue_family_indices.present_family = Some(index);
+            }
+
+            if queue_family_indices.is_complete() {
+                break;
+            }
+
+            index += 1;
+        }
+
+        Ok(queue_family_indices)
+    }
+
+    pub fn get_max_usable_sample_count(
+        instance: &ash::Instance,
+        physical_device: vk::PhysicalDevice,
+    ) -> vk::SampleCountFlags {
+        let physical_device_properties =
+            unsafe { instance.get_physical_device_properties(physical_device) };
+        let counts = std::cmp::min(
+            physical_device_properties
+                .limits
+                .framebuffer_color_sample_counts,
+            physical_device_properties
+                .limits
+                .framebuffer_depth_sample_counts,
+        );
+
+        if counts.contains(vk::SampleCountFlags::TYPE_64) {
+            vk::SampleCountFlags::TYPE_64
+        } else if counts.contains(vk::SampleCountFlags::TYPE_32) {
+            vk::SampleCountFlags::TYPE_32
+        } else if counts.contains(vk::SampleCountFlags::TYPE_16) {
+            vk::SampleCountFlags::TYPE_16
+        } else if counts.contains(vk::SampleCountFlags::TYPE_8) {
+            vk::SampleCountFlags::TYPE_8
+        } else if counts.contains(vk::SampleCountFlags::TYPE_4) {
+            vk::SampleCountFlags::TYPE_4
+        } else if counts.contains(vk::SampleCountFlags::TYPE_2) {
+            vk::SampleCountFlags::TYPE_2
+        } else {
+            vk::SampleCountFlags::TYPE_1
+        }
+    }
+
+    pub fn get_memory_property(
+        instance: &ash::Instance,
+        physical_device: vk::PhysicalDevice,
+    ) -> vk::PhysicalDeviceMemoryProperties {
+        unsafe { instance.get_physical_device_memory_properties(physical_device) }
+    }
+
+    pub fn get_property(
+        instance: &ash::Instance,
+        physical_device: vk::PhysicalDevice,
+    ) -> vk::PhysicalDeviceProperties {
+        unsafe { instance.get_physical_device_properties(physical_device) }
+    }
+
     fn check_device_suitable(
         instance: &ash::Instance,
         physical_device: vk::PhysicalDevice,
@@ -112,52 +204,99 @@ mod _physical_device {
 
         Ok(required_extensions.is_empty())
     }
+}
 
-    fn find_queue_family(
+mod _device {
+    use super::_physical_device::find_queue_family;
+    use crate::{queue::QueueFamilyIndices, surface::VkSurfaceInfo};
+    use ash::vk;
+
+    pub fn create_logical_device(
         instance: &ash::Instance,
         physical_device: vk::PhysicalDevice,
         surface_info: &VkSurfaceInfo,
-    ) -> Result<QueueFamilyIndices, String> {
-        let queue_families =
-            unsafe { instance.get_physical_device_queue_family_properties(physical_device) };
+    ) -> Result<(ash::Device, QueueFamilyIndices), String> {
+        use crate::constants::VK_VALIDATION_LAYER_NAMES;
+        use ash::extensions::khr::Swapchain;
+        #[cfg(any(target_os = "macos", target_os = "ios"))]
+        use ash::vk::KhrPortabilitySubsetFn;
+        use std::{collections::HashSet, ffi::CString, os::raw::c_char};
 
-        let mut queue_family_indices = QueueFamilyIndices::new(None, None);
-        let mut index: u32 = 0;
+        let indices = find_queue_family(instance, physical_device, surface_info);
 
-        for queue_family in queue_families.iter() {
-            if queue_family.queue_count > 0
-                && queue_family.queue_flags.contains(vk::QueueFlags::GRAPHICS)
-            {
-                queue_family_indices.graphics_family = Some(index);
-            }
-
-            let is_present_support = unsafe {
-                surface_info
-                    .surface_loader
-                    .get_physical_device_surface_support(
-                        physical_device,
-                        index,
-                        surface_info.surface,
-                    )
-            };
-
-            if is_present_support.is_err() {
-                return Err(is_present_support.err().unwrap().to_string());
-            }
-
-            if queue_family.queue_count > 0 && is_present_support.unwrap() {
-                queue_family_indices.present_family = Some(index);
-            }
-
-            if queue_family_indices.is_complete() {
-                break;
-            }
-
-            index += 1;
+        if indices.is_err() {
+            return Err(indices.err().unwrap());
         }
 
-        Ok(queue_family_indices)
+        let indices = indices.unwrap();
+        let mut unique_queue_families = HashSet::new();
+
+        unique_queue_families.insert(indices.graphics_family.unwrap());
+        unique_queue_families.insert(indices.present_family.unwrap());
+
+        let queue_priorities = [1.0_f32];
+        let queue_create_infos: Vec<vk::DeviceQueueCreateInfo> = unique_queue_families
+            .iter()
+            .map(|&queue_family| {
+                vk::DeviceQueueCreateInfo::builder()
+                    .queue_family_index(queue_family)
+                    .queue_priorities(&queue_priorities)
+                    .build()
+            })
+            .collect();
+
+        let device_features = vk::PhysicalDeviceFeatures::builder()
+            .sampler_anisotropy(true)
+            .sample_rate_shading(true)
+            .shader_clip_distance(true)
+            .build();
+        let mut required_validation_layers_raw = Vec::<CString>::new();
+        for &layer_name in VK_VALIDATION_LAYER_NAMES.required_validation_layers.iter() {
+            let layer_name_raw = CString::new(layer_name);
+
+            if layer_name_raw.is_err() {
+                return Err(String::from(
+                    "failed to convert Vulkan Validation Layer name into raw cstring.",
+                ));
+            }
+
+            required_validation_layers_raw.push(layer_name_raw.unwrap());
+        }
+
+        let enabled_layer_names: Vec<*const c_char> = required_validation_layers_raw
+            .iter()
+            .map(|layer_name| layer_name.as_ptr())
+            .collect();
+
+        let device_extensions = [
+            Swapchain::name().as_ptr(),
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            KhrPortabilitySubsetFn::name().as_ptr(),
+        ];
+        let create_info = if VK_VALIDATION_LAYER_NAMES.is_enable {
+            vk::DeviceCreateInfo::builder()
+                .queue_create_infos(&queue_create_infos)
+                .enabled_features(&device_features)
+                .enabled_layer_names(&enabled_layer_names)
+                .enabled_extension_names(&device_extensions)
+        } else {
+            vk::DeviceCreateInfo::builder()
+                .queue_create_infos(&queue_create_infos)
+                .enabled_features(&device_features)
+                .enabled_extension_names(&device_extensions)
+        };
+
+        let device = unsafe { instance.create_device(physical_device, &create_info, None) };
+
+        match device {
+            Ok(device) => Ok((device, indices)),
+            Err(_) => Err(String::from("failed to create logical device!")),
+        }
     }
 }
 
-pub use _physical_device::pick_physical_device;
+pub use _physical_device::{
+    get_max_usable_sample_count, get_memory_property, get_property, pick_physical_device,
+};
+
+pub use _device::create_logical_device;

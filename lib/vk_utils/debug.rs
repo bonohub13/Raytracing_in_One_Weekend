@@ -101,18 +101,7 @@ mod _debug {
         let debug_utils_loader = DebugUtils::new(&entry, &instance);
 
         if VK_VALIDATION_LAYER_NAMES.is_enable {
-            let debug_info = vk::DebugUtilsMessengerCreateInfoEXT::builder()
-                .message_severity(
-                    vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-                        | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
-                        | vk::DebugUtilsMessageSeverityFlagsEXT::INFO,
-                )
-                .message_type(
-                    vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
-                        | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION
-                        | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE,
-                )
-                .pfn_user_callback(Some(vulkan_debug_callback));
+            let debug_info = populate_debug_messenger_create_info();
             let debug_callback =
                 unsafe { debug_utils_loader.create_debug_utils_messenger(&debug_info, None) };
 
@@ -125,6 +114,26 @@ mod _debug {
             Ok((debug_utils_loader, vk::DebugUtilsMessengerEXT::null()))
         }
     }
+
+    pub fn populate_debug_messenger_create_info() -> vk::DebugUtilsMessengerCreateInfoEXT {
+        vk::DebugUtilsMessengerCreateInfoEXT::builder()
+            .message_severity(
+                vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
+                    | vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE
+                    | vk::DebugUtilsMessageSeverityFlagsEXT::INFO
+                    | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,
+            )
+            .message_type(
+                vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
+                    | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION
+                    | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE,
+            )
+            .pfn_user_callback(Some(vulkan_debug_callback))
+            .build()
+    }
 }
 
-pub use _debug::{check_validation_layer_support, setup_debug_callback, vulkan_debug_callback};
+pub use _debug::{
+    check_validation_layer_support, populate_debug_messenger_create_info, setup_debug_callback,
+    vulkan_debug_callback,
+};
