@@ -1,6 +1,7 @@
 SHELL := bash
 CC := $(shell which cargo)
 PWD := $(shell pwd)
+DOCKER_IMAGE_NAME := rt_in_one_weekend-vk
 
 all: docker-build run
 
@@ -34,17 +35,14 @@ run:
 run-with-mangohud:
 	OBS_VKCAPTURE=0 ENABLE_VKBASALT=0 MANGOHUD=1 ./bin/rtweekend 2>&1 | tee "/tmp/$(shell date +'%Y%m%d-%H%M%S').log"
 
-rebuild-win64-image:
-	docker build . -t ofv/windows -f docker/Dockerfile.windows --no-cache
-
 rebuild-linux-image:
 	cp Cargo.toml docker
-	docker build . -t ofv/linux -f docker/Dockerfile.linux --no-cache
+	docker build . -t ${DOCKER_IMAGE_NAME}/linux -f docker/Dockerfile.linux --no-cache
 	rm docker/Cargo.toml
 
 rebuild-all-images: rebuild-linux-image
 
 docker-build: build-shader clean
 	mkdir -p bin
-	docker run --rm -it -v $(shell pwd):/app ofv/linux
+	docker run --rm -it -v $(shell pwd):/app ${DOCKER_IMAGE_NAME}/linux
 	cp ./target/debug/rtweekend bin
