@@ -1,5 +1,5 @@
 mod _physical_device {
-    use crate::{queue::QueueFamilyIndices, surface::VkSurfaceInfo};
+    use crate::{queue::QueueFamilyIndices, surface::VkSurfaceInfo, swapchain::VkSwapchainDetail};
     use ash::vk;
 
     pub fn pick_physical_device(
@@ -143,7 +143,7 @@ mod _physical_device {
         }
 
         let swapchain_support =
-            crate::swapchain::query_swapchain_support(physical_device, surface_info);
+            VkSwapchainDetail::query_swapchain_support(physical_device, surface_info);
 
         if swapchain_support.is_err() {
             return Err(swapchain_support.err().unwrap());
