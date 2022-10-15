@@ -19,6 +19,9 @@ mod _constants {
 
     pub const ENGINE_NAME: &str = "NO ENGINE";
     pub const ENGINE_VERSION: u32 = make_api_version(0, 1, 0, 0);
+
+    pub const VERT_SHADER_PATH: &str = "";
+    pub const FRAG_SHADER_PATH: &str = "";
 }
 
 pub use _constants::{
@@ -44,4 +47,10 @@ pub use _constants::{
     // Engine stuff
     ENGINE_NAME,    //Engine name
     ENGINE_VERSION, // Engine version
+};
+
+pub use _constants::{
+    FRAG_SHADER_PATH, // Fragment shader
+    // Shader stuff
+    VERT_SHADER_PATH, // Vertex shader
 };

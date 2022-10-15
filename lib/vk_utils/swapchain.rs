@@ -145,3 +145,48 @@ pub fn create_swapchain(
         swapchain_extent: extent,
     })
 }
+
+pub fn find_supported_format(
+    instance: &ash::Instance,
+    physical_device: ash::vk::PhysicalDevice,
+    candidates: &Vec<ash::vk::Format>,
+    tiling: ash::vk::ImageTiling,
+    features: ash::vk::FormatFeatureFlags,
+) -> Result<ash::vk::Format, String> {
+    use ash::vk;
+
+    for &format in candidates.iter() {
+        let props =
+            unsafe { instance.get_physical_device_format_properties(physical_device, format) };
+
+        if (tiling == vk::ImageTiling::LINEAR && props.linear_tiling_features.contains(features))
+            || (tiling == vk::ImageTiling::OPTIMAL
+                && props.optimal_tiling_features.contains(features))
+        {
+            return Ok(format);
+        }
+    }
+
+    Err(String::from("failed to find supported format!"))
+}
+
+pub fn find_depth_format(
+    instance: &ash::Instance,
+    physical_device: ash::vk::PhysicalDevice,
+) -> Result<ash::vk::Format, String> {
+    use ash::vk;
+
+    let formats = vec![
+        vk::Format::D32_SFLOAT,
+        vk::Format::D32_SFLOAT_S8_UINT,
+        vk::Format::D24_UNORM_S8_UINT,
+    ];
+
+    find_supported_format(
+        instance,
+        physical_device,
+        &formats,
+        vk::ImageTiling::OPTIMAL,
+        vk::FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT,
+    )
+}

@@ -78,11 +78,23 @@ pub struct RayTracingInOneWeekend {
     _swapchain_format: ash::vk::Format,
     _swapchain_extent: ash::vk::Extent2D,
     swapchain_image_views: Vec<ash::vk::ImageView>,
+
+    render_pass: ash::vk::RenderPass,
+
+    descriptor_set_layout: ash::vk::DescriptorSetLayout,
+
+    vertex3d_pipeline_layout: ash::vk::PipelineLayout,
+    vertex3d_graphics_pipeline: ash::vk::Pipeline,
 }
 
 impl RayTracingInOneWeekend {
     pub fn new(window: &winit::window::Window) -> Self {
-        use vk_utils::debug as vk_debug;
+        use std::path::Path;
+        use vk_utils::{
+            attributes::*,
+            constants::{FRAG_SHADER_PATH, VERT_SHADER_PATH},
+            debug as vk_debug, types as vk_types,
+        };
 
         let entry = ash::Entry::linked();
         let instance = vk_utils::create_instance(&entry, window).unwrap();
@@ -122,6 +134,31 @@ impl RayTracingInOneWeekend {
         )
         .unwrap();
 
+        let render_pass = vk_utils::render_pass::create_render_pass(
+            &instance,
+            physical_device,
+            msaa_samples,
+            &device,
+            swapchain_info.swapchain_format,
+        )
+        .unwrap();
+
+        let descriptor_set_layout = vk_utils::Descriptor::set_layout(&device).unwrap();
+
+        let vert_shader_path = Path::new(VERT_SHADER_PATH);
+        let frag_shader_path = Path::new(FRAG_SHADER_PATH);
+
+        let (graphics_pipeline, pipeline_layout) = vk_types::Vertex3D::create_graphics_pipeline(
+            &device,
+            msaa_samples,
+            swapchain_info.swapchain_extent,
+            render_pass,
+            descriptor_set_layout,
+            &vert_shader_path,
+            &frag_shader_path,
+        )
+        .unwrap();
+
         Self {
             _entry: entry,
             instance,
@@ -148,7 +185,46 @@ impl RayTracingInOneWeekend {
             _swapchain_format: swapchain_info.swapchain_format,
             _swapchain_extent: swapchain_info.swapchain_extent,
             swapchain_image_views,
+
+            render_pass,
+            descriptor_set_layout,
+
+            vertex3d_pipeline_layout: pipeline_layout,
+            vertex3d_graphics_pipeline: graphics_pipeline,
         }
+    }
+
+    fn cleanup_swapchain(&self) {
+        unsafe {
+            self.device
+                .destroy_pipeline(self.vertex3d_graphics_pipeline, None);
+            self.device
+                .destroy_pipeline_layout(self.vertex3d_pipeline_layout, None);
+
+            self.device.destroy_render_pass(self.render_pass, None);
+
+            for &swapchain_image_view in self.swapchain_image_views.iter() {
+                self.device.destroy_image_view(swapchain_image_view, None);
+            }
+            for &swapchain_image in self.swapchain_images.iter() {
+                self.device.destroy_image(swapchain_image, None);
+            }
+
+            self.swapchain_loader
+                .destroy_swapchain(self.swapchain, None);
+        }
+    }
+
+    fn recreate_swapchain(&mut self) -> Result<(), String> {
+        let result = unsafe { self.device.device_wait_idle() };
+
+        if result.is_err() {
+            return Err(String::from("failed to wait device idle!"));
+        }
+
+        self.cleanup_swapchain();
+
+        Ok(())
     }
 }
 
@@ -157,14 +233,7 @@ impl Drop for RayTracingInOneWeekend {
         use vk_utils::constants::VK_VALIDATION_LAYER_NAMES;
 
         unsafe {
-            for &swapchain_image_view in self.swapchain_image_views.iter() {
-                self.device.destroy_image_view(swapchain_image_view, None);
-            }
-            for &swapchain_image in self.swapchain_images.iter() {
-                self.device.destroy_image(swapchain_image, None);
-            }
-            self.swapchain_loader
-                .destroy_swapchain(self.swapchain, None);
+            self.cleanup_swapchain();
 
             self.device.destroy_device(None);
 

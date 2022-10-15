@@ -102,4 +102,38 @@ mod _common {
     }
 }
 
+pub struct Descriptor;
+
+impl Descriptor {
+    #[inline]
+    pub fn set_layout(device: &ash::Device) -> Result<ash::vk::DescriptorSetLayout, String> {
+        use ash::vk;
+
+        let ubo_layout_binding = [
+            vk::DescriptorSetLayoutBinding::builder()
+                .binding(0)
+                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                .descriptor_count(1)
+                .stage_flags(vk::ShaderStageFlags::VERTEX)
+                .build(),
+            vk::DescriptorSetLayoutBinding::builder()
+                .binding(1)
+                .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+                .descriptor_count(1)
+                .stage_flags(vk::ShaderStageFlags::FRAGMENT)
+                .build(),
+        ];
+
+        let layout_info =
+            vk::DescriptorSetLayoutCreateInfo::builder().bindings(&ubo_layout_binding);
+
+        let result = unsafe { device.create_descriptor_set_layout(&layout_info, None) };
+
+        match result {
+            Ok(descriptor_set_layout) => Ok(descriptor_set_layout),
+            Err(_) => Err(String::from("failed to create descriptor set layout")),
+        }
+    }
+}
+
 pub use _common::create_instance;
