@@ -77,6 +77,7 @@ pub struct RayTracingInOneWeekend {
     swapchain_images: Vec<ash::vk::Image>,
     _swapchain_format: ash::vk::Format,
     _swapchain_extent: ash::vk::Extent2D,
+    swapchain_image_views: Vec<ash::vk::ImageView>,
 }
 
 impl RayTracingInOneWeekend {
@@ -114,6 +115,12 @@ impl RayTracingInOneWeekend {
             &family_indices,
         )
         .unwrap();
+        let swapchain_image_views = vk_utils::image::create_image_views(
+            &device,
+            swapchain_info.swapchain_format,
+            &swapchain_info.swapchain_images,
+        )
+        .unwrap();
 
         Self {
             _entry: entry,
@@ -140,6 +147,7 @@ impl RayTracingInOneWeekend {
             swapchain_images: swapchain_info.swapchain_images,
             _swapchain_format: swapchain_info.swapchain_format,
             _swapchain_extent: swapchain_info.swapchain_extent,
+            swapchain_image_views,
         }
     }
 }
@@ -149,6 +157,9 @@ impl Drop for RayTracingInOneWeekend {
         use vk_utils::constants::VK_VALIDATION_LAYER_NAMES;
 
         unsafe {
+            for &swapchain_image_view in self.swapchain_image_views.iter() {
+                self.device.destroy_image_view(swapchain_image_view, None);
+            }
             for &swapchain_image in self.swapchain_images.iter() {
                 self.device.destroy_image(swapchain_image, None);
             }

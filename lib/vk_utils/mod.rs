@@ -5,6 +5,7 @@ pub mod debug;
 pub mod tools;
 
 pub mod device;
+pub mod image;
 pub mod queue;
 pub mod surface;
 pub mod swapchain;
