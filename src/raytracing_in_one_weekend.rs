@@ -81,7 +81,7 @@ pub struct RayTracingInOneWeekend {
 
     render_pass: ash::vk::RenderPass,
 
-    descriptor_set_layout: ash::vk::DescriptorSetLayout,
+    _descriptor_set_layout: ash::vk::DescriptorSetLayout,
 
     vertex3d_pipeline_layout: ash::vk::PipelineLayout,
     vertex3d_graphics_pipeline: ash::vk::Pipeline,
@@ -187,7 +187,7 @@ impl RayTracingInOneWeekend {
             swapchain_image_views,
 
             render_pass,
-            descriptor_set_layout,
+            _descriptor_set_layout: descriptor_set_layout,
 
             vertex3d_pipeline_layout: pipeline_layout,
             vertex3d_graphics_pipeline: graphics_pipeline,
@@ -215,6 +215,7 @@ impl RayTracingInOneWeekend {
         }
     }
 
+    #[allow(dead_code)]
     fn recreate_swapchain(&mut self) -> Result<(), String> {
         let result = unsafe { self.device.device_wait_idle() };
 

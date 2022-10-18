@@ -20,8 +20,8 @@ mod _constants {
     pub const ENGINE_NAME: &str = "NO ENGINE";
     pub const ENGINE_VERSION: u32 = make_api_version(0, 1, 0, 0);
 
-    pub const VERT_SHADER_PATH: &str = "";
-    pub const FRAG_SHADER_PATH: &str = "";
+    pub const VERT_SHADER_PATH: &str = "shaders/spv/vertex3d_vert.spv";
+    pub const FRAG_SHADER_PATH: &str = "shaders/spv/vertex3d_frag.spv";
 }
 
 pub use _constants::{
