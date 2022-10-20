@@ -148,16 +148,17 @@ impl RayTracingInOneWeekend {
         let vert_shader_path = Path::new(VERT_SHADER_PATH);
         let frag_shader_path = Path::new(FRAG_SHADER_PATH);
 
-        let (graphics_pipeline, pipeline_layout) = vk_types::Vertex3D::create_graphics_pipeline(
-            &device,
-            msaa_samples,
-            swapchain_info.swapchain_extent,
-            render_pass,
-            descriptor_set_layout,
-            &vert_shader_path,
-            &frag_shader_path,
-        )
-        .unwrap();
+        let (vertex3d_graphics_pipeline, vertex3d_pipeline_layout) =
+            vk_types::Vertex3D::create_graphics_pipeline(
+                &device,
+                msaa_samples,
+                swapchain_info.swapchain_extent,
+                render_pass,
+                descriptor_set_layout,
+                &vert_shader_path,
+                &frag_shader_path,
+            )
+            .unwrap();
 
         Self {
             _entry: entry,
@@ -189,8 +190,8 @@ impl RayTracingInOneWeekend {
             render_pass,
             _descriptor_set_layout: descriptor_set_layout,
 
-            vertex3d_pipeline_layout: pipeline_layout,
-            vertex3d_graphics_pipeline: graphics_pipeline,
+            vertex3d_pipeline_layout,
+            vertex3d_graphics_pipeline,
         }
     }
 
