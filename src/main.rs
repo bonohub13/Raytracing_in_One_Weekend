@@ -1,13 +1,27 @@
-mod raytracing_in_one_weekend;
+use chrono::prelude::Local;
+use logger::Logger;
+use std::path::Path;
 
-use raytracing_in_one_weekend::{AppBase, RayTracingInOneWeekend};
-use winit::event_loop::EventLoop;
+fn main() -> Result<(), String> {
+    let mut logger = Logger::new();
+    let now = Local::now();
+    let filename = format!("./log/rtweekend_{}.log", now.format("%Y-%m-%d_%H-%M-%S"));
 
-fn main() {
-    let event_loop = EventLoop::new();
-    let window = AppBase::init_window(&event_loop).unwrap();
+    logger.create_logfile(Path::new(filename.as_str()))?;
+    logger.init().unwrap();
 
-    let app = RayTracingInOneWeekend::new(&window);
+    let config = vk_utils::window::WindowConfig {
+        title: "Vulkan Window",
+        width: 800,
+        height: 600,
+        fullscreen: false,
+        resizable: true,
+    };
 
-    AppBase::main_loop(event_loop);
+    let mut window = vk_utils::window::Window::new(&config)?;
+    let vk_app = vk_utils::application::App::new(&window, true)?;
+
+    window.run();
+
+    Ok(())
 }

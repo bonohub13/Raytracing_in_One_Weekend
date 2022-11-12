@@ -1,0 +1,22 @@
+[package]
+name = "vk_utils"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ash = { version = ">= 0.37.0", default_features = false, features = ["linked", "debug"] }
+ash-window = ">= 0.12.0"
+scopeguard = ">= 1.1.0"
+winit = ">= 0.27.4"
+raw-window-handle = ">= 0.5.0"
+log = ">= 0.4.17"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+metal = ">= 0.17.0"
+cocoa = ">= 0.18.4"
+objc = ">= 0.2.5"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+winapi = { version = ">= 0.3.5", features = ["windef", "libloaderapi"] }

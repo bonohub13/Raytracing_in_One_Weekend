@@ -1,0 +1,24 @@
+15:20:06 [INFO] creating window
+15:20:06 [TRACE] (1) mio::poll: [/home/kensuke/.cargo/registry/src/github.com-1ecc6299db9ec823/mio-0.8.4/src/poll.rs:521] registering event source with poller: token=Token(0), interests=READABLE
+15:20:06 [INFO] Guessed window scale factor: 1.5
+15:20:06 [DEBUG] (1) winit::platform_impl::platform::x11::window: Calculated physical dimensions: 1200x900
+15:20:06 [DEBUG] (1) winit::platform_impl::platform::x11::ime: failed to create IME context without preedit support.
+15:20:06 [INFO] created window
+15:20:06 [INFO] creating Instance
+15:20:06 [INFO] checking minimum Vulkan version
+15:20:06 [INFO] found required minimum version of Vulkan
+15:20:06 [INFO] checking for available vulkan validation layers
+15:20:06 [INFO] checking existance for validation layer: VK_LAYER_KHRONOS_validation
+15:20:06 [INFO] found validation layer: VK_LAYER_KHRONOS_validation
+15:20:06 [INFO] creating instance
+15:20:06 [INFO] created instance
+15:20:06 [INFO] enumerating physical devices
+15:20:06 [INFO] found physical devices
+15:20:06 [INFO] enumerating instance layer properties
+15:20:06 [INFO] found layer properties
+15:20:06 [INFO] enumerating instance extension properties
+15:20:06 [INFO] found extensions
+15:20:06 [INFO] creating DebugUtilsMessenger
+15:20:06 [INFO] created DebugUtils loader
+15:20:06 [INFO] creating debug callback
+15:20:06 [INFO] created debug callback

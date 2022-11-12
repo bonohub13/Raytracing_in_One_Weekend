@@ -1,10 +1,14 @@
 SHELL := bash
 CC := $(shell which cargo)
 PWD := $(shell pwd)
-DOCKER_IMAGE_NAME := rt_in_one_weekend-vk
-BIN_NAME := rtweekend
+PROJECT_NAME := $(shell pwd | sed "s#.*/##")
+DOCKER_IMAGE_NAME := $(shell pwd | sed "s#.*/##" | tr [:upper:] [:lower:])
+BIN := rtweekend
+SRC_DIR := src
+LIB_DIR := lib
+CARGO_TOML := Cargo.toml
 
-all: docker-build run
+all: build-shader build run
 
 # Shader code
 clean-shader:
@@ -17,7 +21,9 @@ build-shader: clean-shader
 
 # Rust code
 clean:
-	$(CC) clean
+	find -type d -name target | while read d; do \
+		rm -rvf $$d; \
+	done
 
 fmt:
 	$(CC) fmt
@@ -25,28 +31,28 @@ fmt:
 build: fmt clean
 	mkdir -p bin
 	$(CC) build
-	cp ./target/debug/${BIN_NAME} bin
+	cp ./target/debug/${BIN} bin
+
+debug:
+	RUST_BACKTRACE=1 OBS_VKCAPTURE=0 ENABLE_VKBASALT=0 MANGOHUD=0 ./bin/${BIN}
+
+debug-full:
+	RUST_BACKTRACE=full OBS_VKCAPTURE=0 ENABLE_VKBASALT=0 MANGOHUD=0 ./bin/${BIN}
 
 run:
-	[ -d "/tmp" ] \
-		&& ([ -d "/tmp/${BIN_NAME}" ] || mkdir "/tmp/${BIN_NAME}") \
-		&& OBS_VKCAPTURE=0 ENABLE_VKBASALT=0 MANGOHUD=0 ./bin/${BIN_NAME} 2>&1 \
-			| tee "/tmp/${BIN_NAME}/$(shell date +'%Y%m%d-%H%M%S').log"
+	./bin/${BIN}
 
-run-with-mangohud:
-	[ -d "/tmp" ] \
-		&& ([ -d "/tmp/${BIN_NAME}" ] || mkdir "/tmp/${BIN_NAME}") \
-		&& OBS_VKCAPTURE=0 ENABLE_VKBASALT=0 MANGOHUD=1 ./bin/${BIN_NAME} 2>&1 \
-			| tee "/tmp/${BIN_NAME}/$(shell date +'%Y%m%d-%H%M%S').log"
+build-linux-image:
+	tar cvf docker/build.tar ${SRC_DIR} ${CARGO_TOML} ${LIB_DIR}
+	docker build . -t ${DOCKER_IMAGE_NAME}/linux -f docker/Dockerfile.linux
+	rm docker/build.tar
 
 rebuild-linux-image:
-	cp Cargo.toml docker
+	tar cvf docker/build.tar ${SRC_DIR} ${CARGO_TOML} ${LIB_DIR}
 	docker build . -t ${DOCKER_IMAGE_NAME}/linux -f docker/Dockerfile.linux --no-cache
-	rm docker/Cargo.toml
+	rm docker/build.tar
 
-rebuild-all-images: rebuild-linux-image
-
-docker-build: build-shader clean
+docker-build: fmt clean
 	mkdir -p bin
 	docker run --rm -it -v $(shell pwd):/app ${DOCKER_IMAGE_NAME}/linux
-	cp ./target/debug/${BIN_NAME} bin
+	cp ./target/debug/${BIN} bin
