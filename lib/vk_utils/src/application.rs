@@ -1,11 +1,12 @@
 pub struct App {
-    entry: ash::Entry,
     instance: crate::Instance,
     debug_utils_messenger: crate::DebugUtilsMessenger,
+    surface: crate::Surface,
 }
 
 impl App {
     pub fn new(
+        appbase: &crate::AppBase,
         window: &crate::window::Window,
         enable_validation_layers: bool,
     ) -> Result<Self, String> {
@@ -25,29 +26,30 @@ impl App {
             .map(|layer| layer.as_ptr())
             .collect();
 
-        let entry = ash::Entry::linked();
         let instance = crate::Instance::new(
-            &entry,
+            appbase,
             window,
             &raw_validation_layers,
             ash::vk::API_VERSION_1_2,
         )?;
         let debug_utils_messenger = if enable_validation_layers {
             crate::DebugUtilsMessenger::new(
-                &entry,
+                &appbase.entry,
                 &instance,
                 vk::DebugUtilsMessageSeverityFlagsEXT::INFO
                     | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
                     | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,
             )?
         } else {
-            crate::DebugUtilsMessenger::null(&entry, &instance)
+            crate::DebugUtilsMessenger::null(&appbase.entry, &instance)
         };
 
+        let surface = crate::Surface::new(appbase, &instance, window)?;
+
         Ok(Self {
-            entry,
             instance,
             debug_utils_messenger,
+            surface,
         })
     }
 
@@ -66,11 +68,8 @@ impl App {
 
 impl Drop for App {
     fn drop(&mut self) {
-        unsafe {
-            self.debug_utils_messenger
-                .debug_utils_loader
-                .destroy_debug_utils_messenger(self.debug_utils_messenger.debug_callback, None);
-            self.instance.instance.destroy_instance(None);
-        }
+        crate::Surface::cleanup(&mut self.surface);
+        crate::debug::DebugUtilsMessenger::cleanup(&mut self.debug_utils_messenger);
+        crate::Instance::cleanup(&mut self.instance);
     }
 }

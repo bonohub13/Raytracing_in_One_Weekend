@@ -18,10 +18,12 @@ fn main() -> Result<(), String> {
         resizable: true,
     };
 
-    let mut window = vk_utils::window::Window::new(&config)?;
-    let vk_app = vk_utils::application::App::new(&window, true)?;
+    let mut app_base = vk_utils::AppBase::new();
 
-    window.run();
+    let window = vk_utils::window::Window::new(&app_base, &config)?;
+    let vk_app = vk_utils::application::App::new(&app_base, &window, true)?;
+
+    app_base.run(&window);
 
     Ok(())
 }

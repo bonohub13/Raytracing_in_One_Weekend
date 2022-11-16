@@ -8,7 +8,7 @@ pub struct Instance {
 
 impl Instance {
     pub fn new<'a>(
-        entry: &ash::Entry,
+        appbase: &crate::AppBase,
         window: &'a crate::window::Window,
         validation_layers: &Vec<*const std::os::raw::c_char>,
         vulkan_version: u32,
@@ -23,14 +23,14 @@ impl Instance {
 
         log::info!("creating Instance");
 
-        Self::check_vulkan_minimum_version(&entry, vulkan_version)?;
+        Self::check_vulkan_minimum_version(&appbase.entry, vulkan_version)?;
 
         let mut extensions: Vec<*const i8> =
             ash_window::enumerate_required_extensions(window.raw_display_handle())
                 .map_err(|_| String::from("failed to enumerate required extensions"))?
                 .to_vec();
 
-        Self::check_vulkan_validation_layer_support(&entry, validation_layers)?;
+        Self::check_vulkan_validation_layer_support(&appbase.entry, validation_layers)?;
 
         if !validation_layers.is_empty() {
             extensions.push(DebugUtils::name().as_ptr());
@@ -65,7 +65,8 @@ impl Instance {
 
         let instance_sg = {
             let instance = unsafe {
-                entry
+                appbase
+                    .entry
                     .create_instance(&create_info, None)
                     .map_err(|_| String::from("failed to create instance"))?
             };
@@ -82,8 +83,8 @@ impl Instance {
         log::info!("created instance");
 
         let physical_devices = Self::get_vulkan_physical_devices(&instance_sg)?;
-        let layers = Self::get_vulkan_layers(entry)?;
-        let extensions = Self::get_vulkan_extensions(entry)?;
+        let layers = Self::get_vulkan_layers(&appbase.entry)?;
+        let extensions = Self::get_vulkan_extensions(&appbase.entry)?;
 
         Ok(Self {
             instance: ScopeGuard::into_inner(instance_sg),
@@ -106,6 +107,75 @@ impl Instance {
         self.physical_devices.clone()
     }
 
+    pub fn supported_physical_device(&self) -> Result<ash::vk::PhysicalDevice, String> {
+        use crate::utils::vk_to_string;
+        use ash::{extensions::khr::RayTracingPipeline, vk};
+
+        let physical_devices = self.physical_devices();
+
+        let result = physical_devices.iter().find(|&physical_device| {
+            log::info!("checking geometry shader support for device");
+
+            let device_features = self.get_physical_device_features(*physical_device);
+            let geometry_shader_supported = if device_features.geometry_shader > 0 {
+                true
+            } else {
+                log::warn!("geometry shader not supported");
+
+                false
+            };
+
+            log::info!("checking ray tracing support for device");
+
+            let extensions = self
+                .enumerate_device_extension_properties(*physical_device)
+                .unwrap_or(vec![]);
+            let ray_tracing_supported = match extensions.iter().find(|&extension| {
+                extension.extension_name.as_ptr() == RayTracingPipeline::name().as_ptr()
+            }) {
+                Some(_) => true,
+                None => {
+                    log::warn!("ray tracing not supported");
+
+                    false
+                }
+            };
+
+            log::info!("checking for graphics queue in device");
+
+            let queue_families = self.get_physical_device_queue_family_properties(*physical_device);
+            let graphics_queue_supported = match queue_families.iter().find(|&queue_family| {
+                queue_family.queue_count > 0
+                    && queue_family.queue_flags.contains(vk::QueueFlags::GRAPHICS)
+            }) {
+                Some(_) => true,
+                None => {
+                    log::warn!("graphics queue not supported");
+
+                    false
+                }
+            };
+
+            geometry_shader_supported && ray_tracing_supported && graphics_queue_supported
+        });
+
+        match result {
+            Some(physical_device) => {
+                let mut device_properties = vk::PhysicalDeviceProperties2::default();
+                unsafe {
+                    self.instance
+                        .get_physical_device_properties2(*physical_device, &mut device_properties);
+                }
+
+                let device_name = vk_to_string(&device_properties.properties.device_name)?;
+                log::info!("Setting device [{}]", device_name);
+
+                Ok(*physical_device)
+            }
+            None => Err(String::from("failed to find a suitable device")),
+        }
+    }
+
     pub fn validation_layers(&self) -> Vec<*const std::os::raw::c_char> {
         self.validation_layers.clone()
     }
@@ -126,6 +196,34 @@ impl Instance {
                 }
             }
             Err(_) => Err(String::from("failed to enumerate Vulkan physical devices")),
+        }
+    }
+
+    pub fn get_physical_device_features(
+        &self,
+        physical_device: ash::vk::PhysicalDevice,
+    ) -> ash::vk::PhysicalDeviceFeatures {
+        unsafe { self.instance.get_physical_device_features(physical_device) }
+    }
+
+    pub fn get_physical_device_queue_family_properties(
+        &self,
+        physical_device: ash::vk::PhysicalDevice,
+    ) -> Vec<ash::vk::QueueFamilyProperties> {
+        unsafe {
+            self.instance
+                .get_physical_device_queue_family_properties(physical_device)
+        }
+    }
+
+    pub fn enumerate_device_extension_properties(
+        &self,
+        physical_device: ash::vk::PhysicalDevice,
+    ) -> Result<Vec<ash::vk::ExtensionProperties>, String> {
+        unsafe {
+            self.instance
+                .enumerate_device_extension_properties(physical_device)
+                .map_err(|_| String::from("failed to enumerate device extension properties"))
         }
     }
 
@@ -221,5 +319,13 @@ impl Instance {
         }
 
         Ok(())
+    }
+
+    pub fn cleanup(instance: &mut Self) {
+        log::info!("performing cleanup for Instance");
+
+        unsafe {
+            instance.instance.destroy_instance(None);
+        }
     }
 }

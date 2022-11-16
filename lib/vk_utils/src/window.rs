@@ -9,21 +9,18 @@ pub struct WindowConfig {
 
 pub struct Window {
     config: WindowConfig,
-    event_loop: winit::event_loop::EventLoop<()>,
     pub window: winit::window::Window,
 }
 
 impl Window {
-    pub fn new(config: &WindowConfig) -> Result<Self, String> {
+    pub fn new(appbase: &crate::AppBase, config: &WindowConfig) -> Result<Self, String> {
         use winit::{
             dpi::LogicalSize,
-            event_loop::EventLoop,
             window::{Fullscreen, WindowBuilder},
         };
 
         log::info!("creating window");
 
-        let event_loop = EventLoop::new();
         let window = WindowBuilder::new()
             .with_title(config.title)
             .with_inner_size(LogicalSize::new(config.width, config.height))
@@ -34,14 +31,13 @@ impl Window {
                 None
             })
             .with_resizable(config.resizable)
-            .build(&event_loop)
+            .build(&appbase.event_loop)
             .map_err(|_| String::from("failed to create window"))?;
 
         log::info!("created window");
 
         Ok(Self {
             config: config.clone(),
-            event_loop,
             window,
         })
     }
@@ -91,32 +87,5 @@ impl Window {
         let window_size = self.window_size();
 
         window_size.width == 0 && window_size.height == 0
-    }
-
-    pub fn run(&mut self) {
-        use winit::platform::run_return::EventLoopExtRunReturn;
-
-        self.event_loop.run_return(|event, _, control_flow| {
-            use winit::event::{Event, WindowEvent};
-
-            control_flow.set_poll();
-
-            match event {
-                Event::WindowEvent { event, .. } => match event {
-                    WindowEvent::CloseRequested => control_flow.set_exit(),
-                    _ => {}
-                },
-                Event::MainEventsCleared => {
-                    // Do not do anything if window is minimized
-                    // Could not use self.is_minimized() due to event_loop
-                    // being borrowed once as mutable
-                    if self.window.inner_size().width == 0 && self.window.inner_size().height == 0 {
-                        return;
-                    }
-                    // Draw here
-                }
-                _ => {}
-            }
-        });
     }
 }

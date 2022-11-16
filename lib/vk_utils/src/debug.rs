@@ -111,4 +111,14 @@ impl DebugUtilsMessenger {
             debug_callback: vk::DebugUtilsMessengerEXT::null(),
         }
     }
+
+    pub fn cleanup(debug_utils: &mut Self) {
+        log::info!("performing cleanup for DebugUtilsMessenger");
+
+        unsafe {
+            debug_utils
+                .debug_utils_loader
+                .destroy_debug_utils_messenger(debug_utils.debug_callback, None);
+        }
+    }
 }
