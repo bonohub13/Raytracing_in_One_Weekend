@@ -7,9 +7,9 @@ pub struct Instance {
 }
 
 impl Instance {
-    pub fn new<'a>(
+    pub fn new(
         appbase: &crate::AppBase,
-        window: &'a crate::window::Window,
+        window: &crate::window::Window,
         validation_layers: &Vec<*const std::os::raw::c_char>,
         vulkan_version: u32,
     ) -> Result<Self, String> {
@@ -107,7 +107,10 @@ impl Instance {
         self.physical_devices.clone()
     }
 
-    pub fn supported_physical_device(&self) -> Result<ash::vk::PhysicalDevice, String> {
+    pub fn supported_physical_device(
+        &self,
+        enabled_physical_device_features: Option<&PhysicalDeviceRequiredFeatures>,
+    ) -> Result<ash::vk::PhysicalDevice, String> {
         use crate::utils::vk_to_string;
         use ash::{extensions::khr::RayTracingPipeline, vk};
 
@@ -116,47 +119,105 @@ impl Instance {
         let result = physical_devices.iter().find(|&physical_device| {
             log::info!("checking geometry shader support for device");
 
-            let device_features = self.get_physical_device_features(*physical_device);
-            let geometry_shader_supported = if device_features.geometry_shader > 0 {
-                true
-            } else {
-                log::warn!("geometry shader not supported");
+            match enabled_physical_device_features {
+                Some(features) => {
+                    let geometry_shader_supported = if features.geometry_shader_support {
+                        let device_features = self.get_physical_device_features(*physical_device);
+                        if device_features.geometry_shader > 0 {
+                            true
+                        } else {
+                            log::warn!("geometry shader not supported");
 
-                false
-            };
+                            false
+                        }
+                    } else {
+                        true
+                    };
 
-            log::info!("checking ray tracing support for device");
+                    let ray_tracing_supported = if features.ray_tracing_support {
+                        let extensions = self
+                            .enumerate_device_extension_properties(*physical_device)
+                            .unwrap_or(vec![]);
+                        match extensions.iter().find(|&extension| {
+                            extension.extension_name.as_ptr() == RayTracingPipeline::name().as_ptr()
+                        }) {
+                            Some(_) => true,
+                            None => {
+                                log::warn!("ray tracing not supported");
 
-            let extensions = self
-                .enumerate_device_extension_properties(*physical_device)
-                .unwrap_or(vec![]);
-            let ray_tracing_supported = match extensions.iter().find(|&extension| {
-                extension.extension_name.as_ptr() == RayTracingPipeline::name().as_ptr()
-            }) {
-                Some(_) => true,
-                None => {
-                    log::warn!("ray tracing not supported");
+                                false
+                            }
+                        }
+                    } else {
+                        true
+                    };
 
-                    false
+                    let graphics_queue_supported = if features.graphics_queue_support {
+                        let queue_families =
+                            self.get_physical_device_queue_family_properties(*physical_device);
+                        match queue_families.iter().find(|&queue_family| {
+                            queue_family.queue_count > 0
+                                && queue_family.queue_flags.contains(vk::QueueFlags::GRAPHICS)
+                        }) {
+                            Some(_) => true,
+                            None => {
+                                log::warn!("graphics queue not supported");
+
+                                false
+                            }
+                        }
+                    } else {
+                        true
+                    };
+
+                    geometry_shader_supported && ray_tracing_supported && graphics_queue_supported
                 }
-            };
-
-            log::info!("checking for graphics queue in device");
-
-            let queue_families = self.get_physical_device_queue_family_properties(*physical_device);
-            let graphics_queue_supported = match queue_families.iter().find(|&queue_family| {
-                queue_family.queue_count > 0
-                    && queue_family.queue_flags.contains(vk::QueueFlags::GRAPHICS)
-            }) {
-                Some(_) => true,
                 None => {
-                    log::warn!("graphics queue not supported");
+                    let device_features = self.get_physical_device_features(*physical_device);
+                    let geometry_shader_supported = if device_features.geometry_shader > 0 {
+                        true
+                    } else {
+                        log::warn!("geometry shader not supported");
 
-                    false
+                        false
+                    };
+
+                    log::info!("checking ray tracing support for device");
+
+                    let extensions = self
+                        .enumerate_device_extension_properties(*physical_device)
+                        .unwrap_or(vec![]);
+                    let ray_tracing_supported = match extensions.iter().find(|&extension| {
+                        extension.extension_name.as_ptr() == RayTracingPipeline::name().as_ptr()
+                    }) {
+                        Some(_) => true,
+                        None => {
+                            log::warn!("ray tracing not supported");
+
+                            false
+                        }
+                    };
+
+                    log::info!("checking for graphics queue in device");
+
+                    let queue_families =
+                        self.get_physical_device_queue_family_properties(*physical_device);
+                    let graphics_queue_supported =
+                        match queue_families.iter().find(|&queue_family| {
+                            queue_family.queue_count > 0
+                                && queue_family.queue_flags.contains(vk::QueueFlags::GRAPHICS)
+                        }) {
+                            Some(_) => true,
+                            None => {
+                                log::warn!("graphics queue not supported");
+
+                                false
+                            }
+                        };
+
+                    geometry_shader_supported && ray_tracing_supported && graphics_queue_supported
                 }
-            };
-
-            geometry_shader_supported && ray_tracing_supported && graphics_queue_supported
+            }
         });
 
         match result {
@@ -199,6 +260,19 @@ impl Instance {
         }
     }
 
+    pub fn create_device(
+        &self,
+        physical_device: ash::vk::PhysicalDevice,
+        create_info: &ash::vk::DeviceCreateInfo,
+        allocation_callback: Option<&ash::vk::AllocationCallbacks>,
+    ) -> Result<ash::Device, String> {
+        unsafe {
+            self.instance
+                .create_device(physical_device, create_info, allocation_callback)
+                .map_err(|_| String::from("failed to create device"))
+        }
+    }
+
     pub fn get_physical_device_features(
         &self,
         physical_device: ash::vk::PhysicalDevice,
@@ -213,6 +287,27 @@ impl Instance {
         unsafe {
             self.instance
                 .get_physical_device_queue_family_properties(physical_device)
+        }
+    }
+
+    pub fn get_physical_device_memory_properties(
+        &self,
+        physical_device: ash::vk::PhysicalDevice,
+    ) -> ash::vk::PhysicalDeviceMemoryProperties {
+        unsafe {
+            self.instance
+                .get_physical_device_memory_properties(physical_device)
+        }
+    }
+
+    pub fn get_physical_device_format_properties(
+        &self,
+        physical_device: ash::vk::PhysicalDevice,
+        format: ash::vk::Format,
+    ) -> ash::vk::FormatProperties {
+        unsafe {
+            self.instance
+                .get_physical_device_format_properties(physical_device, format)
         }
     }
 
@@ -326,6 +421,22 @@ impl Instance {
 
         unsafe {
             instance.instance.destroy_instance(None);
+        }
+    }
+}
+
+pub struct PhysicalDeviceRequiredFeatures {
+    pub geometry_shader_support: bool,
+    pub ray_tracing_support: bool,
+    pub graphics_queue_support: bool,
+}
+
+impl Default for PhysicalDeviceRequiredFeatures {
+    fn default() -> Self {
+        Self {
+            geometry_shader_support: true,
+            ray_tracing_support: true,
+            graphics_queue_support: true,
         }
     }
 }

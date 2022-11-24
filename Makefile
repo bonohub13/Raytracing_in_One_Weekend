@@ -8,7 +8,7 @@ SRC_DIR := src
 LIB_DIR := lib
 CARGO_TOML := Cargo.toml
 
-all: build-shader build run
+all: build-shader docker-build debug
 
 # Shader code
 clean-shader:

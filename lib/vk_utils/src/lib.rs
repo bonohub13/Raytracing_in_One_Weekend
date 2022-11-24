@@ -6,19 +6,53 @@ pub mod constants {
     // Engine stuff
     pub const ENGINE_NAME: &str = "No Engine";
     pub const ENGINE_VERSION: u32 = ash::vk::make_api_version(0, 1, 0, 0);
+
+    pub const VULKAN_VERSION: u32 = ash::vk::API_VERSION_1_2;
 }
 
 pub mod application;
+pub mod assets;
 pub mod utils;
 pub mod window;
 
+mod buffer;
+mod command_buffer;
+mod command_pool;
 mod debug;
+mod depth_buffer;
+mod descriptor_binding;
+mod descriptor_pool;
+mod descriptor_set_layout;
+mod descriptor_set_manager;
+mod descriptor_sets;
+mod device;
+mod device_memory;
+mod fence;
+mod graphics_pipeline;
+mod image;
+mod image_view;
 mod instance;
+mod semaphore;
 mod surface;
+mod swapchain;
 
+pub use buffer::Buffer;
+pub use command_buffer::CommandBuffers;
+pub use command_pool::CommandPool;
 pub use debug::{vulkan_debug_callback, DebugUtilsMessenger};
-pub use instance::Instance;
+pub use depth_buffer::DepthBuffer;
+pub use descriptor_binding::DescriptorBinding;
+pub use descriptor_pool::DescriptorPool;
+pub use descriptor_set_layout::DescriptorSetLayout;
+pub use device::{Device, QueueFamilyIndices};
+pub use device_memory::DeviceMemory;
+pub use fence::Fence;
+pub use image::Image;
+pub use image_view::ImageView;
+pub use instance::{Instance, PhysicalDeviceRequiredFeatures};
+pub use semaphore::Semaphore;
 pub use surface::Surface;
+pub use swapchain::{SupportDetails, SwapChain};
 
 pub struct AppBase {
     pub entry: ash::Entry,
