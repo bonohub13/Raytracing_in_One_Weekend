@@ -24,17 +24,21 @@ clean:
 	find -type d -name target | while read d; do \
 		rm -rvf $$d; \
 	done
+	sleep 1
 
 fmt:
 	$(CC) fmt
 
-build: fmt clean
+build: clean fmt
 	mkdir -p bin
 	$(CC) build
 	cp ./target/debug/${BIN} bin
 
 debug:
 	RUST_BACKTRACE=1 OBS_VKCAPTURE=0 ENABLE_VKBASALT=0 MANGOHUD=0 ./bin/${BIN}
+
+debug-radv:
+	RUST_BACKTRACE=1 OBS_VKCAPTURE=0 ENABLE_VKBASALT=0 MANGOHUD=0 AMD_VULKAN_ICD=RADV ./bin/${BIN}
 
 debug-full:
 	RUST_BACKTRACE=full OBS_VKCAPTURE=0 ENABLE_VKBASALT=0 MANGOHUD=0 ./bin/${BIN}
@@ -52,7 +56,7 @@ rebuild-linux-image:
 	docker build . -t ${DOCKER_IMAGE_NAME}/linux -f docker/Dockerfile.linux --no-cache
 	rm docker/build.tar
 
-docker-build: fmt clean
+docker-build: fmt
 	mkdir -p bin
 	docker run --rm -it -v $(shell pwd):/app ${DOCKER_IMAGE_NAME}/linux
 	cp ./target/debug/${BIN} bin

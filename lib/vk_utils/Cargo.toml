@@ -6,13 +6,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ash = { version = ">= 0.37.0", default_features = false, features = ["linked", "debug"] }
+ash = { version = ">= 0.37.1", default_features = false, features = ["linked", "debug"] }
 ash-window = ">= 0.12.0"
 scopeguard = ">= 1.1.0"
 winit = ">= 0.27.4"
 raw-window-handle = ">= 0.5.0"
 log = ">= 0.4.17"
 cgmath = ">= 0.18.0"
+rand = ">= 0.8.5"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 metal = ">= 0.17.0"

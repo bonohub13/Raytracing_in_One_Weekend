@@ -10,7 +10,6 @@ path = "src/main.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ash = { version = ">= 0.37.0", default_features = false, features = ["linked", "debug"] }
 chrono      = ">= 0.4.22"
 logger      = {path = "./lib/logger"}
 vk_utils    = {path = "./lib/vk_utils"}
