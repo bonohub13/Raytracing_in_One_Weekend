@@ -11,6 +11,13 @@ pub struct Engine {
 
     present_complete: ash::vk::Semaphore,
     render_complete: ash::vk::Semaphore,
+
+    command_pool: ash::vk::CommandPool,
+    command_buffer: ash::vk::CommandBuffer,
+
+    compute_command_pool: ash::vk::CommandPool,
+    compute_command_buffer: ash::vk::CommandBuffer,
+    compute_fence: ash::vk::Fence,
 }
 
 impl Engine {
@@ -33,6 +40,7 @@ impl Engine {
         window: &crate::window::Window,
     ) -> Result<Engine, String> {
         use crate::vk_init;
+        use ash::vk;
         use std::ffi::CStr;
 
         let validation_layers: Vec<*const i8> =
@@ -85,6 +93,22 @@ impl Engine {
         let present_complete = vk_init::create_semaphore(&device, "present complete")?;
         let render_complete = vk_init::create_semaphore(&device, "render complete")?;
 
+        let command_pool = vk_init::create_command_pool(
+            &device,
+            queue_family_indices.graphics_family_index,
+            "graphics family",
+        )?;
+        let command_buffer = vk_init::create_command_buffer(&device, &command_pool)?;
+
+        let compute_command_pool = vk_init::create_command_pool(
+            &device,
+            queue_family_indices.compute_family_index,
+            "compute family",
+        )?;
+        let compute_command_buffer =
+            vk_init::create_command_buffer(&device, &compute_command_pool)?;
+        let compute_fence = vk_init::create_fence(&device, Some(vk::FenceCreateFlags::SIGNALED))?;
+
         Ok(Self {
             instance,
             surface,
@@ -97,6 +121,11 @@ impl Engine {
             swapchain,
             present_complete,
             render_complete,
+            command_pool,
+            command_buffer,
+            compute_command_pool,
+            compute_command_buffer,
+            compute_fence,
         })
     }
 
@@ -123,6 +152,14 @@ impl Drop for Engine {
         log::info!("performing cleanup for Engine");
 
         unsafe {
+            self.device.destroy_fence(self.compute_fence, None);
+            self.device
+                .free_command_buffers(self.compute_command_pool, &[self.compute_command_buffer]);
+            self.device
+                .destroy_command_pool(self.compute_command_pool, None);
+            self.device
+                .free_command_buffers(self.command_pool, &[self.command_buffer]);
+            self.device.destroy_command_pool(self.command_pool, None);
             self.device.destroy_semaphore(self.render_complete, None);
             self.device.destroy_semaphore(self.present_complete, None);
         }

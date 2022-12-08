@@ -12,10 +12,10 @@ mod surface;
 mod swapchain;
 
 pub use buffer::create_buffer;
-pub use command::create_command_pool;
+pub use command::{create_command_buffer, create_command_pool};
 pub use debug::DebugUtils;
 pub use descriptor::{create_descriptor_pool, create_descriptor_set_layout};
-pub use device::{create_logical_device, get_device_queue};
+pub use device::{create_fence, create_logical_device, get_device_queue};
 pub use image::{create_image, create_image_view};
 pub use instance::{create_instance, find_queue_families, pick_physical_device};
 pub use pixel_color::create_summed_pixel_color_image;
@@ -23,8 +23,8 @@ pub use render::create_render_call_info_buffer;
 pub use semaphore::create_semaphore;
 pub use surface::create_surface;
 pub use swapchain::{
-    choose_swapchain_format, choose_swapchain_present_mode, choose_swapchain_transform,
-    create_swapchain,
+    choose_swapchain_composite, choose_swapchain_format, choose_swapchain_present_mode,
+    choose_swapchain_transform, create_swapchain,
 };
 
 fn find_memory_type_index(

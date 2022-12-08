@@ -9,7 +9,6 @@ pub fn create_logical_device(
 
     log::info!("creating logical device");
 
-    let mut count_queue_types = 0;
     let mut queue_indices: Vec<u32> = vec![];
     for queue_index in vec![
         queue_family_indices.compute_family_index,
@@ -77,6 +76,44 @@ pub fn create_logical_device(
             present: present_queue,
         },
     ))
+}
+
+pub fn create_fence(
+    device: &ash::Device,
+    flags: Option<ash::vk::FenceCreateFlags>,
+) -> Result<ash::vk::Fence, String> {
+    use ash::vk;
+    use scopeguard::{guard, ScopeGuard};
+
+    log::info!("creating fence");
+
+    let create_info = vk::FenceCreateInfo::builder()
+        .flags(if let Some(fence_flags) = flags {
+            fence_flags
+        } else {
+            vk::FenceCreateFlags::empty()
+        })
+        .build();
+
+    let fence_sg = {
+        let fence = unsafe {
+            device
+                .create_fence(&create_info, None)
+                .map_err(|_| format!("failed to create fence (flags: {:?})", create_info.flags))?
+        };
+
+        guard(fence, |fence| {
+            log::warn!("fence scopeguard");
+
+            unsafe {
+                device.destroy_fence(fence, None);
+            }
+        })
+    };
+
+    log::info!("created fence");
+
+    Ok(ScopeGuard::into_inner(fence_sg))
 }
 
 pub fn get_device_queue(device: &ash::Device, queue_family: u32) -> ash::vk::Queue {
