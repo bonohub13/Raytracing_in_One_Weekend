@@ -8,6 +8,9 @@ pub struct Engine {
     graphics_queue: ash::vk::Queue,
     present_queue: ash::vk::Queue,
     swapchain: crate::VkSwapchain,
+
+    present_complete: ash::vk::Semaphore,
+    render_complete: ash::vk::Semaphore,
 }
 
 impl Engine {
@@ -79,6 +82,9 @@ impl Engine {
             &surface_format,
         )?;
 
+        let present_complete = vk_init::create_semaphore(&device, "present complete")?;
+        let render_complete = vk_init::create_semaphore(&device, "render complete")?;
+
         Ok(Self {
             instance,
             surface,
@@ -89,6 +95,8 @@ impl Engine {
             graphics_queue: queues.graphics,
             present_queue: queues.present,
             swapchain,
+            present_complete,
+            render_complete,
         })
     }
 
@@ -114,6 +122,10 @@ impl Drop for Engine {
     fn drop(&mut self) {
         log::info!("performing cleanup for Engine");
 
+        unsafe {
+            self.device.destroy_semaphore(self.render_complete, None);
+            self.device.destroy_semaphore(self.present_complete, None);
+        }
         crate::VkSwapchain::cleanup(&self.device, &mut self.swapchain);
         unsafe {
             self.device.destroy_device(None);

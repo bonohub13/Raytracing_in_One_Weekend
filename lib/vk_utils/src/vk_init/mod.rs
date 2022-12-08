@@ -7,6 +7,7 @@ mod image;
 mod instance;
 mod pixel_color;
 mod render;
+mod semaphore;
 mod surface;
 mod swapchain;
 
@@ -19,6 +20,7 @@ pub use image::{create_image, create_image_view};
 pub use instance::{create_instance, find_queue_families, pick_physical_device};
 pub use pixel_color::create_summed_pixel_color_image;
 pub use render::create_render_call_info_buffer;
+pub use semaphore::create_semaphore;
 pub use surface::create_surface;
 pub use swapchain::{
     choose_swapchain_format, choose_swapchain_present_mode, choose_swapchain_transform,
