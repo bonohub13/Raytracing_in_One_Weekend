@@ -47,6 +47,7 @@ impl VkBuffer {
 pub struct VkImage {
     pub image: ash::vk::Image,
     pub memory: ash::vk::DeviceMemory,
+    pub sampler: ash::vk::Sampler,
     pub image_view: ash::vk::ImageView,
 }
 
@@ -56,6 +57,7 @@ impl VkImage {
 
         unsafe {
             device.destroy_image_view(image.image_view, None);
+            device.destroy_sampler(image.sampler, None);
             device.destroy_image(image.image, None);
             device.free_memory(image.memory, None);
         }

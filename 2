@@ -1,4 +1,6 @@
 pub fn create_image(
+    instance: &ash::Instance,
+    physical_device: ash::vk::PhysicalDevice,
     device: &ash::Device,
     format: ash::vk::Format,
     format_properties: &ash::vk::FormatProperties,
@@ -188,109 +190,4 @@ pub fn create_image_view(
     log::info!("created image view");
 
     Ok(ScopeGuard::into_inner(iv_sg))
-}
-
-pub fn transition_image(
-    device: &ash::Device,
-    queue: ash::vk::Queue,
-    command_buffer: ash::vk::CommandBuffer,
-    image: ash::vk::Image,
-    old_layout: ash::vk::ImageLayout,
-    new_layout: ash::vk::ImageLayout,
-) -> Result<(), String> {
-    use ash::vk;
-
-    log::info!("trasitioning image");
-
-    let (src_access_mask, dst_access_mask, src_stage, dst_stage) = if old_layout
-        == vk::ImageLayout::UNDEFINED
-        && new_layout == vk::ImageLayout::TRANSFER_DST_OPTIMAL
-    {
-        (
-            vk::AccessFlags::empty(),
-            vk::AccessFlags::TRANSFER_WRITE,
-            vk::PipelineStageFlags::TOP_OF_PIPE,
-            vk::PipelineStageFlags::TRANSFER,
-        )
-    } else if old_layout == vk::ImageLayout::TRANSFER_DST_OPTIMAL
-        && new_layout == vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
-    {
-        (
-            vk::AccessFlags::TRANSFER_WRITE,
-            vk::AccessFlags::SHADER_READ,
-            vk::PipelineStageFlags::TRANSFER,
-            vk::PipelineStageFlags::FRAGMENT_SHADER,
-        )
-    } else {
-        (
-            vk::AccessFlags::default(),
-            vk::AccessFlags::default(),
-            vk::PipelineStageFlags::ALL_COMMANDS,
-            vk::PipelineStageFlags::ALL_COMMANDS,
-        )
-    };
-    let barrier = vk::ImageMemoryBarrier::builder()
-        .old_layout(old_layout)
-        .new_layout(new_layout)
-        .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
-        .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
-        .image(image)
-        .subresource_range(vk::ImageSubresourceRange {
-            base_mip_level: 0,
-            level_count: 1,
-            base_array_layer: 0,
-            layer_count: 1,
-            aspect_mask: vk::ImageAspectFlags::COLOR,
-        })
-        .src_access_mask(src_access_mask)
-        .dst_access_mask(dst_access_mask)
-        .build();
-
-    let begin_info = vk::CommandBufferBeginInfo::default();
-
-    unsafe {
-        device
-            .begin_command_buffer(command_buffer, &begin_info)
-            .map_err(|_| String::from("failed to begin command buffer"))?;
-    }
-
-    unsafe {
-        device.cmd_pipeline_barrier(
-            command_buffer,
-            src_stage,
-            dst_stage,
-            vk::DependencyFlags::empty(),
-            &[],
-            &[],
-            &[barrier],
-        );
-
-        device
-            .end_command_buffer(command_buffer)
-            .map_err(|_| String::from("failed to end command buffer"))?;
-    }
-
-    let submit_info = vk::SubmitInfo::builder()
-        .command_buffers(&[command_buffer])
-        .build();
-    let fence = crate::vk_init::create_fence(device, None).map_err(|err| {
-        log::error!("{}", err);
-
-        String::from("failed to create fence while trasitioning image")
-    })?;
-
-    unsafe {
-        device
-            .queue_submit(queue, &[submit_info], fence)
-            .map_err(|_| String::from("failed to submit queue"))?;
-        device
-            .wait_for_fences(&[fence], true, u64::MAX)
-            .map_err(|_| String::from("failed to wait for fences"))?;
-
-        device.destroy_fence(fence, None);
-    }
-
-    log::info!("trasitioned image");
-
-    Ok(())
 }

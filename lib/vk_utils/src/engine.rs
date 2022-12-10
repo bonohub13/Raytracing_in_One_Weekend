@@ -18,6 +18,7 @@ pub struct Engine {
     compute_command_pool: ash::vk::CommandPool,
     compute_command_buffer: ash::vk::CommandBuffer,
     compute_fence: ash::vk::Fence,
+    compute_image: crate::VkImage,
 }
 
 impl Engine {
@@ -72,10 +73,17 @@ impl Engine {
             &Self::REQUIRED_DEVICE_EXTENSIONS,
         )?;
 
+        let memory_properties =
+            vk_init::get_physical_device_memory_properties(&instance, physical_device);
         let present_modes = surface.get_physical_device_surface_present_modes(physical_device)?;
         let present_mode = vk_init::choose_swapchain_present_mode(&present_modes);
         let surface_formats = surface.get_physical_device_surface_formats(physical_device)?;
         let surface_format = vk_init::choose_swapchain_format(&surface_formats)?;
+        let format_properties = vk_init::get_physical_device_format_properties(
+            &instance,
+            physical_device,
+            surface_format.format,
+        );
         let surface_capabilities =
             surface.get_physical_device_surface_capabilities(physical_device)?;
         let swapchain = vk_init::create_swapchain(
@@ -108,6 +116,24 @@ impl Engine {
         let compute_command_buffer =
             vk_init::create_command_buffer(&device, &compute_command_pool)?;
         let compute_fence = vk_init::create_fence(&device, Some(vk::FenceCreateFlags::SIGNALED))?;
+        let compute_image = vk_init::create_image(
+            &device,
+            surface_format.format,
+            &format_properties,
+            &memory_properties,
+            vk::MemoryPropertyFlags::DEVICE_LOCAL,
+            1024,
+            1024,
+        )?;
+
+        vk_init::transition_image(
+            &device,
+            queues.graphics,
+            command_buffer,
+            compute_image.image,
+            vk::ImageLayout::UNDEFINED,
+            vk::ImageLayout::GENERAL,
+        )?;
 
         Ok(Self {
             instance,
@@ -126,24 +152,8 @@ impl Engine {
             compute_command_pool,
             compute_command_buffer,
             compute_fence,
+            compute_image,
         })
-    }
-
-    fn create_summed_pixel_color_image(
-        settings: &crate::VkSettings,
-        instance: &ash::Instance,
-        physical_device: ash::vk::PhysicalDevice,
-        device: &ash::Device,
-    ) -> Result<crate::VkImage, String> {
-        use crate::vk_init;
-
-        vk_init::create_summed_pixel_color_image(
-            settings,
-            instance,
-            physical_device,
-            device,
-            Self::SUMMED_PIXEL_COLOR_IMAGE_FORMAT,
-        )
     }
 }
 
@@ -151,6 +161,7 @@ impl Drop for Engine {
     fn drop(&mut self) {
         log::info!("performing cleanup for Engine");
 
+        crate::VkImage::cleanup(&self.device, &mut self.compute_image);
         unsafe {
             self.device.destroy_fence(self.compute_fence, None);
             self.device

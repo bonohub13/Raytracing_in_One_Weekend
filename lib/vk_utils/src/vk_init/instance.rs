@@ -200,6 +200,25 @@ pub fn find_queue_families(
     }
 }
 
+pub fn get_physical_device_format_properties(
+    instance: &ash::Instance,
+    physical_device: ash::vk::PhysicalDevice,
+    format: ash::vk::Format,
+) -> ash::vk::FormatProperties {
+    log::info!("finding format properties for physical device");
+
+    unsafe { instance.get_physical_device_format_properties(physical_device, format) }
+}
+
+pub fn get_physical_device_memory_properties(
+    instance: &ash::Instance,
+    physical_device: ash::vk::PhysicalDevice,
+) -> ash::vk::PhysicalDeviceMemoryProperties {
+    log::info!("finding memory properties for physical device");
+
+    unsafe { instance.get_physical_device_memory_properties(physical_device) }
+}
+
 fn check_vulkan_validation_layer_support(
     entry: &ash::Entry,
     validation_layers: &Vec<*const std::os::raw::c_char>,

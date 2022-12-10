@@ -38,15 +38,8 @@ pub fn create_buffer(
     log::info!("created buffer");
 
     let memory_requirements = unsafe { device.get_buffer_memory_requirements(*buffer_sg) };
-    let memory_type_index = crate::vk_init::find_memory_type_index(
-        instance,
-        physical_device,
-        memory_requirements.memory_type_bits,
-        memory_property,
-    )?;
     let alloc_info = vk::MemoryAllocateInfo::builder()
         .allocation_size(memory_requirements.size)
-        .memory_type_index(memory_type_index)
         .build();
 
     log::info!("creating memory");
