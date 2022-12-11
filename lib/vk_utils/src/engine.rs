@@ -22,6 +22,10 @@ pub struct Engine {
 
     ubo: crate::types::UniformBufferObject,
     ubo_buffer: crate::VkBuffer,
+
+    compute_descriptor_set_layout: ash::vk::DescriptorSetLayout,
+    compute_descriptor_pool: ash::vk::DescriptorPool,
+    compute_descriptor_set: ash::vk::DescriptorSet,
 }
 
 impl Engine {
@@ -135,22 +139,17 @@ impl Engine {
             vk::ImageLayout::GENERAL,
         )?;
 
-        let ubo = UniformBufferObject {
-            image_width: 1024.0,
-            image_height: 1024.0,
-            viewport_width: 2.0,
-            viewport_height: 2.0,
-            focal_length: 1.0,
-        };
-        let ubo_buffer = vk_init::create_buffer(
+        let (ubo_buffer, ubo) = Self::create_ubo(&device, &memory_properties)?;
+
+        let (compute_descriptor_set_layout, compute_descriptor_pool, compute_descriptor_set) =
+            Self::create_compute_descriptor(&device)?;
+        Self::update_compute_descriptor_sets(
             &device,
-            &memory_properties,
-            size_of_val(&ubo) as u64,
-            vk::BufferUsageFlags::UNIFORM_BUFFER,
-            vk::MemoryPropertyFlags::DEVICE_LOCAL | vk::MemoryPropertyFlags::HOST_COHERENT,
-        )?;
-        let mut ubo_ptr = vk_init::map_buffer(&device, &ubo_buffer)? as *mut UniformBufferObject;
-        ubo_ptr = vk_init::copy_to_mapped_memory::<UniformBufferObject>(ubo_ptr, ubo);
+            &compute_image,
+            &ubo_buffer,
+            &ubo,
+            compute_descriptor_set,
+        );
 
         Ok(Self {
             instance,
@@ -171,8 +170,134 @@ impl Engine {
             compute_fence,
             compute_image,
             ubo_buffer,
-            ubo: unsafe { *ubo_ptr },
+            ubo,
+            compute_descriptor_set_layout,
+            compute_descriptor_pool,
+            compute_descriptor_set,
         })
+    }
+
+    fn create_ubo(
+        device: &ash::Device,
+        memory_properties: &ash::vk::PhysicalDeviceMemoryProperties,
+    ) -> Result<(crate::VkBuffer, crate::types::UniformBufferObject), String> {
+        use crate::{types::UniformBufferObject, vk_init};
+        use ash::vk;
+        use std::mem::size_of_val;
+
+        let ubo = UniformBufferObject {
+            image_width: 1024.0,
+            image_height: 1024.0,
+            viewport_width: 2.0,
+            viewport_height: 2.0,
+            focal_length: 1.0,
+        };
+        let ubo_buffer = vk_init::create_buffer(
+            device,
+            memory_properties,
+            size_of_val(&ubo) as u64,
+            vk::BufferUsageFlags::UNIFORM_BUFFER,
+            vk::MemoryPropertyFlags::DEVICE_LOCAL | vk::MemoryPropertyFlags::HOST_COHERENT,
+        )?;
+        let mut ubo_ptr = vk_init::map_buffer(device, &ubo_buffer)? as *mut UniformBufferObject;
+        ubo_ptr = vk_init::copy_to_mapped_memory::<UniformBufferObject>(ubo_ptr, ubo);
+
+        Ok((ubo_buffer, unsafe { *ubo_ptr }))
+    }
+
+    fn create_compute_descriptor(
+        device: &ash::Device,
+    ) -> Result<
+        (
+            ash::vk::DescriptorSetLayout,
+            ash::vk::DescriptorPool,
+            ash::vk::DescriptorSet,
+        ),
+        String,
+    > {
+        use crate::vk_init;
+        use ash::vk;
+
+        let compute_layout_set_bindings = vec![
+            vk::DescriptorSetLayoutBinding::builder()
+                .binding(0)
+                .descriptor_type(vk::DescriptorType::STORAGE_IMAGE)
+                .descriptor_count(1)
+                .stage_flags(vk::ShaderStageFlags::COMPUTE)
+                .build(),
+            vk::DescriptorSetLayoutBinding::builder()
+                .binding(1)
+                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                .descriptor_count(1)
+                .stage_flags(vk::ShaderStageFlags::COMPUTE)
+                .build(),
+        ];
+        let compute_descriptor_set_layout =
+            vk_init::create_descriptor_set_layout(device, &compute_layout_set_bindings)?;
+
+        let compute_pool_sizes = vec![
+            vk::DescriptorPoolSize::builder()
+                .ty(vk::DescriptorType::STORAGE_IMAGE)
+                .descriptor_count(3)
+                .build(),
+            vk::DescriptorPoolSize::builder()
+                .ty(vk::DescriptorType::UNIFORM_BUFFER)
+                .descriptor_count(3)
+                .build(),
+        ];
+        let compute_descriptor_pool =
+            vk_init::create_descriptor_pool(device, &compute_pool_sizes, 4)?;
+        let compute_descriptor_set = vk_init::create_descriptor_set(
+            device,
+            compute_descriptor_set_layout,
+            compute_descriptor_pool,
+        )?;
+
+        Ok((
+            compute_descriptor_set_layout,
+            compute_descriptor_pool,
+            compute_descriptor_set,
+        ))
+    }
+
+    fn update_compute_descriptor_sets(
+        device: &ash::Device,
+        image: &crate::VkImage,
+        buffer: &crate::VkBuffer,
+        ubo: &crate::types::UniformBufferObject,
+        compute_descriptor_sets: ash::vk::DescriptorSet,
+    ) {
+        use crate::vk_init;
+        use ash::vk;
+        use std::mem::size_of_val;
+
+        let image_info = vk::DescriptorImageInfo::builder()
+            .sampler(image.sampler)
+            .image_view(image.image_view)
+            .image_layout(vk::ImageLayout::GENERAL)
+            .build();
+        let buffer_info = vk::DescriptorBufferInfo::builder()
+            .buffer(buffer.buffer)
+            .range(size_of_val(ubo) as u64)
+            .build();
+        let compute_descriptor_writes = vec![
+            vk::WriteDescriptorSet::builder()
+                .dst_set(compute_descriptor_sets)
+                .dst_binding(0)
+                .dst_array_element(0)
+                .descriptor_type(vk::DescriptorType::STORAGE_IMAGE)
+                .image_info(&[image_info])
+                .build(),
+            vk::WriteDescriptorSet::builder()
+                .dst_set(compute_descriptor_sets)
+                .dst_binding(1)
+                .dst_array_element(0)
+                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                .buffer_info(&[buffer_info])
+                .build(),
+        ];
+
+        vk_init::update_descriptor_sets(device, &compute_descriptor_writes);
     }
 }
 
@@ -180,6 +305,12 @@ impl Drop for Engine {
     fn drop(&mut self) {
         log::info!("performing cleanup for Engine");
 
+        unsafe {
+            self.device
+                .destroy_descriptor_pool(self.compute_descriptor_pool, None);
+            self.device
+                .destroy_descriptor_set_layout(self.compute_descriptor_set_layout, None);
+        }
         crate::VkBuffer::unmap_buffer(&self.device, &mut self.ubo_buffer);
         crate::VkBuffer::cleanup(&self.device, &mut self.ubo_buffer);
         crate::VkImage::cleanup(&self.device, &mut self.compute_image);

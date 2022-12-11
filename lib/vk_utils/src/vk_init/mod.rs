@@ -13,7 +13,10 @@ mod swapchain;
 pub use buffer::{copy_to_mapped_memory, create_buffer, map_buffer};
 pub use command::{create_command_buffer, create_command_pool};
 pub use debug::DebugUtils;
-pub use descriptor::{create_descriptor_pool, create_descriptor_set_layout};
+pub use descriptor::{
+    create_descriptor_pool, create_descriptor_set, create_descriptor_set_layout,
+    update_descriptor_sets,
+};
 pub use device::{create_fence, create_logical_device, get_device_queue};
 pub use image::{create_image, create_image_view, transition_image};
 pub use instance::{

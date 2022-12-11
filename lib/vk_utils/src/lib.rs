@@ -64,7 +64,7 @@ pub struct VkImage {
 
 impl VkImage {
     pub fn cleanup(device: &ash::Device, image: &mut Self) {
-        log::info!("performing cleanup VkImage");
+        log::info!("performing cleanup for VkImage");
 
         unsafe {
             device.destroy_image_view(image.image_view, None);

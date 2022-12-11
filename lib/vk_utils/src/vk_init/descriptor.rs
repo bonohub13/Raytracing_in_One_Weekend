@@ -1,37 +1,12 @@
 pub fn create_descriptor_set_layout(
     device: &ash::Device,
+    descriptor_bindings: &Vec<ash::vk::DescriptorSetLayoutBinding>,
 ) -> Result<ash::vk::DescriptorSetLayout, String> {
     use ash::vk;
     use scopeguard::{guard, ScopeGuard};
 
-    let bindings = vec![
-        vk::DescriptorSetLayoutBinding::builder()
-            .binding(0)
-            .descriptor_type(vk::DescriptorType::STORAGE_IMAGE)
-            .descriptor_count(1)
-            .stage_flags(vk::ShaderStageFlags::COMPUTE)
-            .build(),
-        vk::DescriptorSetLayoutBinding::builder()
-            .binding(1)
-            .descriptor_type(vk::DescriptorType::STORAGE_IMAGE)
-            .descriptor_count(1)
-            .stage_flags(vk::ShaderStageFlags::COMPUTE)
-            .build(),
-        vk::DescriptorSetLayoutBinding::builder()
-            .binding(2)
-            .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-            .descriptor_count(1)
-            .stage_flags(vk::ShaderStageFlags::COMPUTE)
-            .build(),
-        vk::DescriptorSetLayoutBinding::builder()
-            .binding(3)
-            .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-            .descriptor_count(1)
-            .stage_flags(vk::ShaderStageFlags::COMPUTE)
-            .build(),
-    ];
     let create_info = vk::DescriptorSetLayoutCreateInfo::builder()
-        .bindings(&bindings)
+        .bindings(descriptor_bindings)
         .build();
 
     log::info!("creating descriptor set layout");
@@ -57,25 +32,19 @@ pub fn create_descriptor_set_layout(
     Ok(ScopeGuard::into_inner(descriptor_set_layout_sg))
 }
 
-pub fn create_descriptor_pool(device: &ash::Device) -> Result<ash::vk::DescriptorPool, String> {
+pub fn create_descriptor_pool(
+    device: &ash::Device,
+    pool_sizes: &Vec<ash::vk::DescriptorPoolSize>,
+    max_sets: u32,
+) -> Result<ash::vk::DescriptorPool, String> {
     use ash::vk;
     use scopeguard::{guard, ScopeGuard};
 
     log::info!("creating descriptor pool");
 
-    let pool_size = vec![
-        vk::DescriptorPoolSize::builder()
-            .ty(vk::DescriptorType::STORAGE_IMAGE)
-            .descriptor_count(2)
-            .build(),
-        vk::DescriptorPoolSize::builder()
-            .ty(vk::DescriptorType::UNIFORM_BUFFER)
-            .descriptor_count(2)
-            .build(),
-    ];
     let create_info = vk::DescriptorPoolCreateInfo::builder()
-        .max_sets(1)
-        .pool_sizes(&pool_size)
+        .max_sets(max_sets)
+        .pool_sizes(pool_sizes)
         .build();
 
     let pool_sg = {
@@ -99,4 +68,55 @@ pub fn create_descriptor_pool(device: &ash::Device) -> Result<ash::vk::Descripto
     Ok(ScopeGuard::into_inner(pool_sg))
 }
 
-pub fn create_descriptor_sets() {}
+pub fn create_descriptor_set(
+    device: &ash::Device,
+    descriptor_set_layout: ash::vk::DescriptorSetLayout,
+    descriptor_pool: ash::vk::DescriptorPool,
+) -> Result<ash::vk::DescriptorSet, String> {
+    use ash::vk;
+    use scopeguard::{guard, ScopeGuard};
+
+    let alloc_info = vk::DescriptorSetAllocateInfo::builder()
+        .descriptor_pool(descriptor_pool)
+        .set_layouts(&[descriptor_set_layout])
+        .build();
+
+    log::info!("creating descriptor set");
+
+    // descriptor set scopeguard
+    let ds_sg = {
+        let descriptor_set = unsafe {
+            device
+                .allocate_descriptor_sets(&alloc_info)
+                .map_err(|_| String::from("failed to allocate descriptor set"))?
+        }[0];
+
+        guard(descriptor_set, |ds| {
+            log::info!("descriptor set scopeguard");
+
+            match unsafe { device.free_descriptor_sets(descriptor_pool, &[ds]) } {
+                Ok(_) => (),
+                Err(_) => {
+                    log::error!("failed to free descriptor set");
+                }
+            }
+        })
+    };
+
+    log::info!("created descriptor set");
+
+    Ok(ScopeGuard::into_inner(ds_sg))
+}
+
+pub fn update_descriptor_sets(
+    device: &ash::Device,
+    descriptor_writes: &Vec<ash::vk::WriteDescriptorSet>,
+) {
+    log::info!("updating descriptor sets");
+
+    unsafe {
+        device.update_descriptor_sets(descriptor_writes, &[]);
+    }
+
+    log::info!("updated descriptor sets");
+}
