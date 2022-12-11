@@ -10,7 +10,7 @@ mod semaphore;
 mod surface;
 mod swapchain;
 
-pub use buffer::create_buffer;
+pub use buffer::{copy_to_mapped_memory, create_buffer, map_buffer};
 pub use command::{create_command_buffer, create_command_pool};
 pub use debug::DebugUtils;
 pub use descriptor::{create_descriptor_pool, create_descriptor_set_layout};

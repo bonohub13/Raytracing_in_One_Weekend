@@ -19,13 +19,13 @@ pub struct Engine {
     compute_command_buffer: ash::vk::CommandBuffer,
     compute_fence: ash::vk::Fence,
     compute_image: crate::VkImage,
+
+    ubo: crate::types::UniformBufferObject,
+    ubo_buffer: crate::VkBuffer,
 }
 
 impl Engine {
     // constants
-    const SWAP_CHAIN_IMAGE_FORMAT: ash::vk::Format = ash::vk::Format::R8G8B8A8_UNORM;
-    const SUMMED_PIXEL_COLOR_IMAGE_FORMAT: ash::vk::Format = ash::vk::Format::R16G16B16A16_UNORM;
-    const COLOR_SPACE: ash::vk::ColorSpaceKHR = ash::vk::ColorSpaceKHR::SRGB_NONLINEAR;
     const REQUIRED_INSTANCE_EXTENSIONS: [*const i8; 2] = [
         ash::extensions::ext::DebugUtils::name().as_ptr(),
         ash::extensions::khr::Surface::name().as_ptr(),
@@ -36,13 +36,13 @@ impl Engine {
     ];
 
     pub fn new(
-        settings: &crate::VkSettings,
         app_base: &crate::AppBase,
         window: &crate::window::Window,
     ) -> Result<Engine, String> {
-        use crate::vk_init;
+        use crate::{types::UniformBufferObject, vk_init};
         use ash::vk;
         use std::ffi::CStr;
+        use std::mem::size_of_val;
 
         let validation_layers: Vec<*const i8> =
             vec!["VK_LAYER_KHRONOS_validation\0", "VK_LAYER_LUNARG_monitor\0"]
@@ -135,6 +135,23 @@ impl Engine {
             vk::ImageLayout::GENERAL,
         )?;
 
+        let ubo = UniformBufferObject {
+            image_width: 1024.0,
+            image_height: 1024.0,
+            viewport_width: 2.0,
+            viewport_height: 2.0,
+            focal_length: 1.0,
+        };
+        let ubo_buffer = vk_init::create_buffer(
+            &device,
+            &memory_properties,
+            size_of_val(&ubo) as u64,
+            vk::BufferUsageFlags::UNIFORM_BUFFER,
+            vk::MemoryPropertyFlags::DEVICE_LOCAL | vk::MemoryPropertyFlags::HOST_COHERENT,
+        )?;
+        let mut ubo_ptr = vk_init::map_buffer(&device, &ubo_buffer)? as *mut UniformBufferObject;
+        ubo_ptr = vk_init::copy_to_mapped_memory::<UniformBufferObject>(ubo_ptr, ubo);
+
         Ok(Self {
             instance,
             surface,
@@ -153,6 +170,8 @@ impl Engine {
             compute_command_buffer,
             compute_fence,
             compute_image,
+            ubo_buffer,
+            ubo: unsafe { *ubo_ptr },
         })
     }
 }
@@ -161,6 +180,8 @@ impl Drop for Engine {
     fn drop(&mut self) {
         log::info!("performing cleanup for Engine");
 
+        crate::VkBuffer::unmap_buffer(&self.device, &mut self.ubo_buffer);
+        crate::VkBuffer::cleanup(&self.device, &mut self.ubo_buffer);
         crate::VkImage::cleanup(&self.device, &mut self.compute_image);
         unsafe {
             self.device.destroy_fence(self.compute_fence, None);

@@ -8,7 +8,7 @@ pub mod constants {
     pub const HEIGHT: u32 = 600;
     pub const APPLICATION_NAME: &'static str = "Ray Tracing in Vulkan";
     pub const APPLICATION_VERSION: u32 = ash::vk::make_api_version(0, 0, 1, 0);
-    pub const ENGINE_NAME: &'static str = "Ray Tracer (Vulkan)";
+    pub const ENGINE_NAME: &'static str = "Ray Tracer (Vulkan-Compute)";
     pub const ENGINE_VERSION: u32 = ash::vk::make_api_version(0, 0, 1, 0);
 }
 
@@ -31,9 +31,20 @@ pub struct ExpectedQueues {
 pub struct VkBuffer {
     pub buffer: ash::vk::Buffer,
     pub memory: ash::vk::DeviceMemory,
+    pub size: ash::vk::DeviceSize,
 }
 
 impl VkBuffer {
+    pub fn unmap_buffer(device: &ash::Device, buffer: &mut Self) {
+        log::info!("unmmaping memory for buffer");
+
+        unsafe {
+            device.unmap_memory(buffer.memory);
+        }
+
+        log::info!("unmapped memory for buffer")
+    }
+
     pub fn cleanup(device: &ash::Device, buffer: &mut Self) {
         log::info!("performing cleanup for VkBuffer");
 
