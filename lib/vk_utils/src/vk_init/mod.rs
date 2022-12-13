@@ -5,13 +5,17 @@ mod descriptor;
 mod device;
 mod image;
 mod instance;
+mod pipeline;
 mod render;
 mod semaphore;
+mod shader;
 mod surface;
 mod swapchain;
 
 pub use buffer::{copy_to_mapped_memory, create_buffer, map_buffer};
-pub use command::{create_command_buffer, create_command_pool};
+pub use command::{
+    create_command_buffer, create_command_buffers, create_command_pool, create_command_pools,
+};
 pub use debug::DebugUtils;
 pub use descriptor::{
     create_descriptor_pool, create_descriptor_set, create_descriptor_set_layout,
@@ -23,8 +27,10 @@ pub use instance::{
     create_instance, find_queue_families, get_physical_device_format_properties,
     get_physical_device_memory_properties, pick_physical_device,
 };
-pub use render::create_render_call_info_buffer;
+pub use pipeline::{create_compute_pipeline, create_pipeline_layout};
+pub use render::create_render_pass;
 pub use semaphore::create_semaphore;
+pub use shader::create_shader_module;
 pub use surface::create_surface;
 pub use swapchain::{
     choose_swapchain_composite, choose_swapchain_format, choose_swapchain_present_mode,

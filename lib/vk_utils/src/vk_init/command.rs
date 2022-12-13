@@ -34,6 +34,47 @@ pub fn create_command_pool(
     Ok(ScopeGuard::into_inner(command_pool_sg))
 }
 
+pub fn create_command_pools(
+    device: &ash::Device,
+    queue_family_index: u32,
+    size: usize,
+) -> Result<Vec<ash::vk::CommandPool>, String> {
+    use ash::vk;
+    use scopeguard::{guard, ScopeGuard};
+
+    log::info!("creating command pools");
+
+    let mut command_pools: Vec<vk::CommandPool> = Vec::new();
+    for _ in 0..size {
+        let create_info = vk::CommandPoolCreateInfo::builder()
+            .queue_family_index(queue_family_index)
+            .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
+            .build();
+
+        let pool_sg = {
+            let pool = unsafe {
+                device
+                    .create_command_pool(&create_info, None)
+                    .map_err(|_| String::from("failed to create command pool"))?
+            };
+
+            guard(pool, |pool| {
+                log::warn!("command pool scopeguard");
+
+                unsafe {
+                    device.destroy_command_pool(pool, None);
+                }
+            })
+        };
+
+        command_pools.push(ScopeGuard::into_inner(pool_sg));
+    }
+
+    log::info!("created command pools");
+
+    Ok(command_pools)
+}
+
 pub fn create_command_buffer(
     device: &ash::Device,
     command_pool: &ash::vk::CommandPool,
@@ -68,4 +109,24 @@ pub fn create_command_buffer(
     log::info!("created command buffer");
 
     Ok(ScopeGuard::into_inner(command_buffer_sg))
+}
+
+pub fn create_command_buffers(
+    device: &ash::Device,
+    command_pools: &Vec<ash::vk::CommandPool>,
+) -> Result<Vec<ash::vk::CommandBuffer>, String> {
+    use ash::vk;
+
+    log::info!("creating command_buffers");
+
+    let mut command_buffers: Vec<vk::CommandBuffer> = Vec::new();
+    for pool in command_pools.iter() {
+        let command_buffer = create_command_buffer(device, pool)?;
+
+        command_buffers.push(command_buffer);
+    }
+
+    log::info!("created command_buffers");
+
+    Ok(command_buffers)
 }

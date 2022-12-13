@@ -207,6 +207,21 @@ impl VkSwapchain {
     }
 }
 
+pub struct VkShaderModule {
+    pub shader_module: ash::vk::ShaderModule,
+    pub stage: ash::vk::ShaderStageFlags,
+}
+
+impl VkShaderModule {
+    pub fn cleanup(device: &ash::Device, shader_module: &mut Self) {
+        log::info!("performing cleanup for VkShaderModule");
+
+        unsafe {
+            device.destroy_shader_module(shader_module.shader_module, None);
+        }
+    }
+}
+
 pub struct VkSettings {
     pub window_width: u32,
     pub window_height: u32,

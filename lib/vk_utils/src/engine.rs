@@ -26,6 +26,14 @@ pub struct Engine {
     compute_descriptor_set_layout: ash::vk::DescriptorSetLayout,
     compute_descriptor_pool: ash::vk::DescriptorPool,
     compute_descriptor_set: ash::vk::DescriptorSet,
+
+    compute_pipeline_layout: ash::vk::PipelineLayout,
+    compute_pipeline: ash::vk::Pipeline,
+
+    command_pools: Vec<ash::vk::CommandPool>,
+    command_buffers: Vec<ash::vk::CommandBuffer>,
+
+    render_pass: ash::vk::RenderPass,
 }
 
 impl Engine {
@@ -43,10 +51,9 @@ impl Engine {
         app_base: &crate::AppBase,
         window: &crate::window::Window,
     ) -> Result<Engine, String> {
-        use crate::{types::UniformBufferObject, vk_init};
+        use crate::vk_init;
         use ash::vk;
         use std::ffi::CStr;
-        use std::mem::size_of_val;
 
         let validation_layers: Vec<*const i8> =
             vec!["VK_LAYER_KHRONOS_validation\0", "VK_LAYER_LUNARG_monitor\0"]
@@ -151,6 +158,27 @@ impl Engine {
             compute_descriptor_set,
         );
 
+        let compute_pipeline_layout =
+            vk_init::create_pipeline_layout(&device, compute_descriptor_set_layout)?;
+
+        let mut shader = vk_init::create_shader_module(
+            &device,
+            "shaders/spv/raytrace.comp.spv",
+            vk::ShaderStageFlags::COMPUTE,
+        )?;
+        let compute_pipeline =
+            vk_init::create_compute_pipeline(&device, compute_pipeline_layout, &shader)?;
+        crate::VkShaderModule::cleanup(&device, &mut shader);
+
+        let command_pools = vk_init::create_command_pools(
+            &device,
+            queue_family_indices.graphics_family_index,
+            swapchain.images.len(),
+        )?;
+        let command_buffers = vk_init::create_command_buffers(&device, &command_pools)?;
+
+        let render_pass = vk_init::create_render_pass(&device, surface_format.format)?;
+
         Ok(Self {
             instance,
             surface,
@@ -174,6 +202,11 @@ impl Engine {
             compute_descriptor_set_layout,
             compute_descriptor_pool,
             compute_descriptor_set,
+            compute_pipeline_layout,
+            compute_pipeline,
+            command_pools,
+            command_buffers,
+            render_pass,
         })
     }
 
@@ -306,6 +339,18 @@ impl Drop for Engine {
         log::info!("performing cleanup for Engine");
 
         unsafe {
+            self.device.destroy_render_pass(self.render_pass, None);
+            for (index, &buffer) in self.command_buffers.iter().enumerate() {
+                self.device
+                    .free_command_buffers(self.command_pools[index], &[buffer]);
+            }
+            for &pool in self.command_pools.iter() {
+                self.device.destroy_command_pool(pool, None);
+            }
+
+            self.device.destroy_pipeline(self.compute_pipeline, None);
+            self.device
+                .destroy_pipeline_layout(self.compute_pipeline_layout, None);
             self.device
                 .destroy_descriptor_pool(self.compute_descriptor_pool, None);
             self.device
