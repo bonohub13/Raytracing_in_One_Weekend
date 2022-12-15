@@ -121,3 +121,52 @@ pub fn copy_to_mapped_memory<T>(pointer: *mut T, data: T) -> *mut T {
 
     return pointer as *mut T;
 }
+
+pub fn copy_buffer_to(
+    device: &ash::Device,
+    queue: ash::vk::Queue,
+    cmd: ash::vk::CommandBuffer,
+    src: &crate::VkBuffer,
+    dst: &crate::VkBuffer,
+    size: ash::vk::DeviceSize,
+) -> Result<(), String> {
+    use ash::vk;
+
+    log::info!("copying {:?} buffer to {:?}", src, dst);
+
+    let copy_region = vk::BufferCopy::builder().size(size).build();
+    let begin_info = vk::CommandBufferBeginInfo::default();
+    unsafe {
+        device
+            .begin_command_buffer(cmd, &begin_info)
+            .map_err(|_| String::from("failed to begin command buffer"))?;
+        device.cmd_copy_buffer(cmd, src.buffer, dst.buffer, &[copy_region]);
+        device
+            .end_command_buffer(cmd)
+            .map_err(|_| String::from("failed to end command buffer"))?;
+    }
+
+    let submit_info = vk::SubmitInfo::builder().command_buffers(&[cmd]).build();
+    let fence = crate::vk_init::create_fence(device, None).map_err(|err| {
+        log::error!("{}", err);
+
+        String::from("failed to create fence while copying buffer")
+    })?;
+
+    unsafe {
+        device
+            .queue_submit(queue, &[submit_info], fence)
+            .map_err(|_| String::from("failed to submit queue"))?;
+        device
+            .wait_for_fences(&[fence], true, u64::MAX)
+            .map_err(|_| String::from("failed to wait for fences"))?;
+    }
+
+    log::info!("copied {:?} buffer to {:?}", src, dst);
+
+    unsafe {
+        device.destroy_fence(fence, None);
+    }
+
+    Ok(())
+}

@@ -10,6 +10,15 @@ pub mod constants {
     pub const APPLICATION_VERSION: u32 = ash::vk::make_api_version(0, 0, 1, 0);
     pub const ENGINE_NAME: &'static str = "Ray Tracer (Vulkan-Compute)";
     pub const ENGINE_VERSION: u32 = ash::vk::make_api_version(0, 0, 1, 0);
+
+    // Test datas
+    pub const RAINBOW_RECTANGLE: [f32; 20] = [
+        -1.0, -1.0, 0.0, 0.0, 0.0, // top left
+        1.0, -1.0, 0.0, 1.0, 0.0, // top right
+        1.0, 1.0, 0.0, 1.0, 1.0, // bottom right
+        -1.0, 1.0, 0.0, 0.0, 1.0, // bottom left
+    ];
+    pub const RAINBOW_RECTANGLE_INDICES: [u32; 6] = [3, 0, 1, 3, 1, 2];
 }
 
 mod engine;
@@ -28,6 +37,7 @@ pub struct ExpectedQueues {
     pub present: ash::vk::Queue,
 }
 
+#[derive(Debug)]
 pub struct VkBuffer {
     pub buffer: ash::vk::Buffer,
     pub memory: ash::vk::DeviceMemory,

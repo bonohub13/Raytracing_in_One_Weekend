@@ -34,6 +34,17 @@ pub struct Engine {
     command_buffers: Vec<ash::vk::CommandBuffer>,
 
     render_pass: ash::vk::RenderPass,
+    framebuffers: Vec<ash::vk::Framebuffer>,
+
+    vertex_buffer: crate::VkBuffer,
+    index_buffer: crate::VkBuffer,
+
+    descriptor_set_layout: ash::vk::DescriptorSetLayout,
+    descriptor_pool: ash::vk::DescriptorPool,
+    descriptor_set: ash::vk::DescriptorSet,
+
+    pipeline_layout: ash::vk::PipelineLayout,
+    graphics_pipeline: ash::vk::Pipeline,
 }
 
 impl Engine {
@@ -54,6 +65,7 @@ impl Engine {
         use crate::vk_init;
         use ash::vk;
         use std::ffi::CStr;
+        use std::mem::size_of_val;
 
         let validation_layers: Vec<*const i8> =
             vec!["VK_LAYER_KHRONOS_validation\0", "VK_LAYER_LUNARG_monitor\0"]
@@ -179,6 +191,68 @@ impl Engine {
 
         let render_pass = vk_init::create_render_pass(&device, surface_format.format)?;
 
+        let framebuffers = vk_init::create_framebuffers(
+            &device,
+            render_pass,
+            &swapchain.image_views,
+            crate::constants::WIDTH,
+            crate::constants::HEIGHT,
+        )?;
+
+        let max_size = size_of_val(&crate::constants::RAINBOW_RECTANGLE)
+            .max(size_of_val(&crate::constants::RAINBOW_RECTANGLE_INDICES))
+            as u64;
+        let mut staging_buffer = vk_init::create_buffer(
+            &device,
+            &memory_properties,
+            max_size,
+            vk::BufferUsageFlags::TRANSFER_SRC,
+            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+        )?;
+        let staging_buffer_ptr = vk_init::map_buffer(&device, &staging_buffer)?;
+        let vertex_buffer = Self::create_vertex_buffer(
+            &device,
+            &memory_properties,
+            &crate::constants::RAINBOW_RECTANGLE,
+            staging_buffer_ptr,
+        )?;
+        vk_init::copy_buffer_to(
+            &device,
+            queues.graphics,
+            command_buffer,
+            &staging_buffer,
+            &vertex_buffer,
+            size_of_val(&crate::constants::RAINBOW_RECTANGLE) as u64,
+        )?;
+        let index_buffer = Self::create_index_buffer(
+            &device,
+            &memory_properties,
+            &crate::constants::RAINBOW_RECTANGLE_INDICES,
+            staging_buffer_ptr,
+        )?;
+        vk_init::copy_buffer_to(
+            &device,
+            queues.graphics,
+            command_buffer,
+            &staging_buffer,
+            &index_buffer,
+            size_of_val(&crate::constants::RAINBOW_RECTANGLE_INDICES) as u64,
+        )?;
+        crate::VkBuffer::unmap_buffer(&device, &mut staging_buffer);
+        crate::VkBuffer::cleanup(&device, &mut staging_buffer);
+
+        let (descriptor_set_layout, descriptor_pool, descriptor_set) =
+            Self::create_graphics_descriptor(&device)?;
+        Self::update_graphics_descriptor_sets(&device, &compute_image, descriptor_set);
+
+        let pipeline_layout = vk_init::create_pipeline_layout(&device, descriptor_set_layout)?;
+        let graphics_pipeline = Self::create_graphics_pipeline(
+            &device,
+            render_pass,
+            pipeline_layout,
+            swapchain.extent,
+        )?;
+
         Ok(Self {
             instance,
             surface,
@@ -207,6 +281,14 @@ impl Engine {
             command_pools,
             command_buffers,
             render_pass,
+            framebuffers,
+            vertex_buffer,
+            index_buffer,
+            descriptor_set_layout,
+            descriptor_pool,
+            descriptor_set,
+            pipeline_layout,
+            graphics_pipeline,
         })
     }
 
@@ -236,6 +318,63 @@ impl Engine {
         ubo_ptr = vk_init::copy_to_mapped_memory::<UniformBufferObject>(ubo_ptr, ubo);
 
         Ok((ubo_buffer, unsafe { *ubo_ptr }))
+    }
+
+    fn create_vertex_buffer(
+        device: &ash::Device,
+        memory_properties: &ash::vk::PhysicalDeviceMemoryProperties,
+        vertex: &[f32],
+        staging_buffer_ptr: *mut std::os::raw::c_void,
+    ) -> Result<crate::VkBuffer, String> {
+        use crate::vk_init;
+        use ash::vk;
+        use std::mem::size_of_val;
+
+        log::info!("creating vertex buffer");
+
+        let vertex_buffer = vk_init::create_buffer(
+            device,
+            memory_properties,
+            size_of_val(&crate::constants::RAINBOW_RECTANGLE) as u64,
+            vk::BufferUsageFlags::VERTEX_BUFFER | vk::BufferUsageFlags::TRANSFER_DST,
+            vk::MemoryPropertyFlags::DEVICE_LOCAL,
+        )?;
+        unsafe {
+            (staging_buffer_ptr as *mut f32)
+                .copy_from_nonoverlapping(vertex.as_ptr(), vertex.len());
+        }
+
+        log::info!("created vertex buffer");
+
+        Ok(vertex_buffer)
+    }
+
+    fn create_index_buffer(
+        device: &ash::Device,
+        memory_properties: &ash::vk::PhysicalDeviceMemoryProperties,
+        index: &[u32],
+        staging_buffer_ptr: *mut std::os::raw::c_void,
+    ) -> Result<crate::VkBuffer, String> {
+        use crate::vk_init;
+        use ash::vk;
+        use std::mem::size_of_val;
+
+        log::info!("creating index buffer");
+
+        let index_buffer = vk_init::create_buffer(
+            device,
+            memory_properties,
+            size_of_val(&crate::constants::RAINBOW_RECTANGLE_INDICES) as u64,
+            vk::BufferUsageFlags::INDEX_BUFFER | vk::BufferUsageFlags::TRANSFER_DST,
+            vk::MemoryPropertyFlags::DEVICE_LOCAL,
+        )?;
+        unsafe {
+            (staging_buffer_ptr as *mut u32).copy_from_nonoverlapping(index.as_ptr(), index.len());
+        }
+
+        log::info!("created index buffer");
+
+        Ok(index_buffer)
     }
 
     fn create_compute_descriptor(
@@ -293,6 +432,60 @@ impl Engine {
         ))
     }
 
+    fn create_graphics_descriptor(
+        device: &ash::Device,
+    ) -> Result<
+        (
+            ash::vk::DescriptorSetLayout,
+            ash::vk::DescriptorPool,
+            ash::vk::DescriptorSet,
+        ),
+        String,
+    > {
+        use crate::vk_init;
+        use ash::vk;
+
+        log::info!("creating graphics descriptor");
+
+        let layout_set_bindings = vec![vk::DescriptorSetLayoutBinding::builder()
+            .binding(0)
+            .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+            .descriptor_count(1)
+            .stage_flags(vk::ShaderStageFlags::FRAGMENT)
+            .build()];
+
+        let descriptor_set_layout =
+            vk_init::create_descriptor_set_layout(device, &layout_set_bindings).map_err(|err| {
+                log::error!("{}", err);
+
+                String::from("failed to create descriptor set layout for graphics descriptor")
+            })?;
+
+        let pool_sizes = vec![vk::DescriptorPoolSize::builder()
+            .ty(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+            .descriptor_count(3)
+            .build()];
+
+        let descriptor_pool =
+            vk_init::create_descriptor_pool(device, &pool_sizes, 4).map_err(|err| {
+                log::error!("{}", err);
+
+                String::from("failed to create descriptor pool for graphics descriptor")
+            })?;
+
+        let descriptor_set =
+            vk_init::create_descriptor_set(device, descriptor_set_layout, descriptor_pool)
+                .map_err(|err| {
+                    log::error!("{}", err);
+
+                    String::from("failed to create descriptor set for graphics descriptor")
+                })?;
+
+        log::info!("created graphics descriptor");
+
+        Ok((descriptor_set_layout, descriptor_pool, descriptor_set))
+    }
+
     fn update_compute_descriptor_sets(
         device: &ash::Device,
         image: &crate::VkImage,
@@ -332,6 +525,89 @@ impl Engine {
 
         vk_init::update_descriptor_sets(device, &compute_descriptor_writes);
     }
+
+    fn update_graphics_descriptor_sets(
+        device: &ash::Device,
+        image: &crate::VkImage,
+        graphics_descriptor_set: ash::vk::DescriptorSet,
+    ) {
+        use crate::vk_init;
+        use ash::vk;
+
+        let image_info = vk::DescriptorImageInfo::builder()
+            .sampler(image.sampler)
+            .image_view(image.image_view)
+            .image_layout(vk::ImageLayout::GENERAL)
+            .build();
+        let descriptor_writes = vec![vk::WriteDescriptorSet::builder()
+            .dst_set(graphics_descriptor_set)
+            .dst_binding(0)
+            .dst_array_element(0)
+            .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+            .image_info(&[image_info])
+            .build()];
+
+        vk_init::update_descriptor_sets(device, &descriptor_writes);
+    }
+
+    fn create_graphics_pipeline(
+        device: &ash::Device,
+        render_pass: ash::vk::RenderPass,
+        pipeline_layout: ash::vk::PipelineLayout,
+        swapchain_extent: ash::vk::Extent2D,
+    ) -> Result<ash::vk::Pipeline, String> {
+        use crate::vk_init;
+        use ash::vk;
+        use std::mem::size_of;
+
+        let vertex_shader = vk_init::create_shader_module(
+            &device,
+            "shaders/spv/rt.vert.spv",
+            vk::ShaderStageFlags::VERTEX,
+        )?;
+        let fragment_shader = vk_init::create_shader_module(
+            &device,
+            "shaders/spv/rt.frag.spv",
+            vk::ShaderStageFlags::FRAGMENT,
+        )?;
+        let mut shaders = vec![vertex_shader, fragment_shader];
+
+        let binding_description = vk::VertexInputBindingDescription::builder()
+            .binding(0)
+            .stride((size_of::<f32>() as u32) * 5)
+            .input_rate(vk::VertexInputRate::VERTEX)
+            .build();
+        let attribute_descriptions = vec![
+            vk::VertexInputAttributeDescription::builder()
+                .location(0)
+                .binding(0)
+                .format(vk::Format::R32G32B32_SFLOAT)
+                .offset(0)
+                .build(),
+            vk::VertexInputAttributeDescription::builder()
+                .location(1)
+                .binding(0)
+                .format(vk::Format::R32G32_SFLOAT)
+                .offset(size_of::<f32>() as u32 * 3)
+                .build(),
+        ];
+
+        let pipeline = vk_init::create_graphics_pipeline(
+            device,
+            render_pass,
+            pipeline_layout,
+            swapchain_extent,
+            &shaders,
+            binding_description,
+            &attribute_descriptions,
+        )?;
+
+        for shader_module in shaders.iter_mut() {
+            crate::VkShaderModule::cleanup(device, shader_module);
+        }
+
+        Ok(pipeline)
+    }
 }
 
 impl Drop for Engine {
@@ -339,6 +615,20 @@ impl Drop for Engine {
         log::info!("performing cleanup for Engine");
 
         unsafe {
+            self.device.destroy_pipeline(self.graphics_pipeline, None);
+            self.device
+                .destroy_pipeline_layout(self.pipeline_layout, None);
+            self.device
+                .destroy_descriptor_pool(self.descriptor_pool, None);
+            self.device
+                .destroy_descriptor_set_layout(self.descriptor_set_layout, None);
+        }
+        crate::VkBuffer::cleanup(&self.device, &mut self.index_buffer);
+        crate::VkBuffer::cleanup(&self.device, &mut self.vertex_buffer);
+        unsafe {
+            for &fb in self.framebuffers.iter() {
+                self.device.destroy_framebuffer(fb, None);
+            }
             self.device.destroy_render_pass(self.render_pass, None);
             for (index, &buffer) in self.command_buffers.iter().enumerate() {
                 self.device
