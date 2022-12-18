@@ -103,6 +103,7 @@ pub fn create_instance(
 }
 
 pub fn pick_physical_device(instance: &ash::Instance) -> Result<ash::vk::PhysicalDevice, String> {
+    use crate::utils::vk_to_string;
     use ash::vk;
 
     log::info!("finding suitable physical device");
@@ -122,7 +123,18 @@ pub fn pick_physical_device(instance: &ash::Instance) -> Result<ash::vk::Physica
 
             physical_device_properties.device_type == vk::PhysicalDeviceType::DISCRETE_GPU
         }) {
-            Some(physical_device) => *physical_device,
+            Some(physical_device) => {
+                let physical_device_name = {
+                    let physical_device_properties =
+                        unsafe { instance.get_physical_device_properties(*physical_device) };
+                    vk_to_string(&physical_device_properties.device_name)
+                        .unwrap_or(String::from("failed to get device name"))
+                };
+                log::info!("DEVICE INFO");
+                log::info!("\tname: {}", physical_device_name);
+
+                physical_device.clone()
+            }
             None => return Err(String::from("failed to find suitable physical device")),
         };
 
