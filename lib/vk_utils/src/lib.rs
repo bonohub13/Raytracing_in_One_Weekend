@@ -335,11 +335,16 @@ impl AppBase {
         };
         let mut image_index: u32 = 0;
         let mut frame_count: u32 = 0;
-        let present_info = vk::PresentInfoKHR::builder()
-            .swapchains(&[engine.swapchain.swapchain])
-            .wait_semaphores(&[engine.render_complete])
-            .image_indices(&[image_index])
-            .build();
+        let present_info = {
+            let mut present_info = vk::PresentInfoKHR::builder()
+                .swapchains(&[engine.swapchain.swapchain])
+                .wait_semaphores(&[engine.render_complete])
+                .build();
+
+            present_info.p_image_indices = &image_index;
+
+            present_info
+        };
 
         self.event_loop.run_return(|event, _, control_flow| {
             use winit::event::{Event, WindowEvent};

@@ -557,13 +557,14 @@ impl Engine {
             self.present_complete,
             vk::Fence::null(),
         )?;
-        let current_fence = self.render_fences[*index as usize];
+        let current_index = index.clone() as usize;
+        let current_fence = self.render_fences[current_index];
         self.wait_for_fences(&[current_fence], true, u64::MAX)?;
         self.reset_fences(&[current_fence])?;
 
-        *cmd = self.command_buffers[*index as usize];
+        *cmd = self.command_buffers[current_index];
         self.begin_command_buffer(*cmd, &begin_info)?;
-        render_pass_begin_info.framebuffer = self.framebuffers[*index as usize];
+        render_pass_begin_info.framebuffer = self.framebuffers[current_index];
         self.cmd_begin_render_pass(*cmd, render_pass_begin_info, vk::SubpassContents::INLINE);
         self.cmd_bind_pipeline(
             *cmd,
