@@ -309,6 +309,14 @@ impl Engine {
         })
     }
 
+    pub fn device_wait_idle(&self) -> Result<(), String> {
+        unsafe {
+            self.device
+                .device_wait_idle()
+                .map_err(|_| String::from("logical device failed to wait at idle"))
+        }
+    }
+
     pub fn queue_submit(
         &self,
         queue: ash::vk::Queue,
@@ -919,9 +927,9 @@ impl Drop for Engine {
         log::info!("performing cleanup for Engine");
 
         unsafe {
-            match self.device.device_wait_idle() {
+            match self.device_wait_idle() {
                 Ok(_) => (),
-                Err(_) => log::error!("logical device failed to wait idle"),
+                Err(err) => log::error!("[ERROR] {}", err),
             };
             self.device.destroy_pipeline(self.graphics_pipeline, None);
             self.device

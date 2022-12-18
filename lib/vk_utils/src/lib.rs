@@ -347,12 +347,28 @@ impl AppBase {
         };
 
         self.event_loop.run_return(|event, _, control_flow| {
-            use winit::event::{Event, WindowEvent};
+            use winit::event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent};
 
             control_flow.set_poll();
             match event {
                 Event::WindowEvent { event, .. } => match event {
                     WindowEvent::CloseRequested => control_flow.set_exit(),
+                    WindowEvent::KeyboardInput { input, .. } => match input {
+                        KeyboardInput {
+                            virtual_keycode,
+                            state,
+                            ..
+                        } => match (virtual_keycode, state) {
+                            (Some(VirtualKeyCode::Escape), ElementState::Pressed) => {
+                                match engine.device_wait_idle() {
+                                    Ok(_) => (),
+                                    Err(err) => log::error!("[ERROR]: {}", err),
+                                };
+                                control_flow.set_exit();
+                            }
+                            _ => {}
+                        },
+                    },
                     _ => (),
                 },
                 Event::MainEventsCleared => match engine.render_loop(
