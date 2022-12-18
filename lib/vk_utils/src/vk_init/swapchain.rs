@@ -87,7 +87,7 @@ pub fn create_swapchain(
         })
     };
 
-    log::info!("created swap chain");
+    log::info!("created swap chain with extent: {:?}", extent);
 
     let swapchain_images = get_swapchain_images(&loader, *swapchain_sg)?;
     let swapchain_image_views =
