@@ -203,6 +203,43 @@ pub struct VkSwapchain {
 }
 
 impl VkSwapchain {
+    pub fn acquire_next_image(
+        &self,
+        timeout: u64,
+        semaphore: ash::vk::Semaphore,
+        fence: ash::vk::Fence,
+    ) -> Result<(u32, bool), String> {
+        log::info!("acquiring next image from swapchain");
+
+        let next_image = unsafe {
+            self.loader
+                .acquire_next_image(self.swapchain, timeout, semaphore, fence)
+                .map_err(|_| String::from("failed to acquire next image"))?
+        };
+
+        log::info!("acquired next image from swapchain");
+
+        Ok(next_image)
+    }
+
+    pub fn queue_present(
+        &self,
+        queue: ash::vk::Queue,
+        present_info: &ash::vk::PresentInfoKHR,
+    ) -> Result<bool, String> {
+        log::info!("performing check if swapchain is suboptimal for surface");
+
+        let queue_present = unsafe {
+            self.loader
+                .queue_present(queue, present_info)
+                .map_err(|_| String::from("failed to perform check for swapchain"))?
+        };
+
+        log::info!("performed check if swapchain is suboptimal for surface");
+
+        Ok(queue_present)
+    }
+
     pub fn cleanup(device: &ash::Device, swapchain: &mut Self) {
         log::info!("performing cleanup for VkSwapchain");
 
@@ -261,8 +298,48 @@ impl AppBase {
         &self.event_loop
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self, engine: &engine::Engine) {
+        use ash::vk;
         use winit::platform::run_return::EventLoopExtRunReturn;
+
+        let mut begin_info = vk::CommandBufferBeginInfo::default();
+        let mut command_buffer = vk::CommandBuffer::null();
+
+        let clear_values = vec![vk::ClearValue {
+            color: vk::ClearColorValue {
+                float32: [0.0, 0.0, 0.0, 0.0],
+            },
+        }];
+
+        let mut render_pass_begin_info = vk::RenderPassBeginInfo::builder()
+            .render_pass(engine.render_pass)
+            .render_area(vk::Rect2D {
+                offset: vk::Offset2D { x: 0, y: 0 },
+                extent: vk::Extent2D {
+                    width: crate::constants::WIDTH,
+                    height: crate::constants::HEIGHT,
+                },
+            })
+            .clear_values(&clear_values)
+            .build();
+        let offsets: Vec<vk::DeviceSize> = vec![0];
+        let mut submit_info = vk::SubmitInfo::builder()
+            .wait_dst_stage_mask(&[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT])
+            .wait_semaphores(&[engine.present_complete])
+            .signal_semaphores(&[engine.render_complete])
+            .build();
+        submit_info.command_buffer_count = 1;
+        let mut compute_info = vk::SubmitInfo {
+            command_buffer_count: 1,
+            ..Default::default()
+        };
+        let mut image_index: u32 = 0;
+        let mut frame_count: u32 = 0;
+        let present_info = vk::PresentInfoKHR::builder()
+            .swapchains(&[engine.swapchain.swapchain])
+            .wait_semaphores(&[engine.render_complete])
+            .image_indices(&[image_index])
+            .build();
 
         self.event_loop.run_return(|event, _, control_flow| {
             use winit::event::{Event, WindowEvent};
@@ -273,7 +350,24 @@ impl AppBase {
                     WindowEvent::CloseRequested => control_flow.set_exit(),
                     _ => (),
                 },
-                Event::MainEventsCleared => (),
+                Event::MainEventsCleared => match engine.render_loop(
+                    &mut image_index,
+                    &mut frame_count,
+                    &mut begin_info,
+                    &mut compute_info,
+                    &mut command_buffer,
+                    &mut render_pass_begin_info,
+                    &offsets,
+                    &mut submit_info,
+                    &present_info,
+                ) {
+                    Ok(_) => (),
+                    Err(err) => {
+                        log::error!("ERROR IN RENDER LOOP: {}", err);
+
+                        control_flow.set_exit_with_code(2);
+                    }
+                },
                 _ => (),
             }
         });

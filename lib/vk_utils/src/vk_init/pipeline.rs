@@ -171,7 +171,7 @@ pub fn create_graphics_pipeline(
         .rasterization_state(&raster)
         .color_blend_state(&blend)
         .multisample_state(&multisampling_create_info)
-        .vertex_input_state(&vertex_create_info)
+        .viewport_state(&viewport_create_info)
         .render_pass(render_pass)
         .layout(pipeline_layout)
         .build();

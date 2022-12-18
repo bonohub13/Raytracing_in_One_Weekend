@@ -21,7 +21,7 @@ fn main() -> Result<(), String> {
 
     let engine = vk_utils::Engine::new(&app_base, &window)?;
 
-    app_base.run();
+    app_base.run(&engine);
 
     Ok(())
 }

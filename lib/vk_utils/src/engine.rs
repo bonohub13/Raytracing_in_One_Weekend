@@ -7,17 +7,17 @@ pub struct Engine {
     compute_queue: ash::vk::Queue,
     graphics_queue: ash::vk::Queue,
     present_queue: ash::vk::Queue,
-    swapchain: crate::VkSwapchain,
+    pub swapchain: crate::VkSwapchain,
 
-    present_complete: ash::vk::Semaphore,
-    render_complete: ash::vk::Semaphore,
+    pub present_complete: ash::vk::Semaphore,
+    pub render_complete: ash::vk::Semaphore,
 
     command_pool: ash::vk::CommandPool,
     command_buffer: ash::vk::CommandBuffer,
 
     compute_command_pool: ash::vk::CommandPool,
-    compute_command_buffer: ash::vk::CommandBuffer,
-    compute_fence: ash::vk::Fence,
+    compute_command_buffers: Vec<ash::vk::CommandBuffer>,
+    compute_fences: Vec<ash::vk::Fence>,
     compute_image: crate::VkImage,
 
     ubo: crate::types::UniformBufferObject,
@@ -33,7 +33,8 @@ pub struct Engine {
     command_pools: Vec<ash::vk::CommandPool>,
     command_buffers: Vec<ash::vk::CommandBuffer>,
 
-    render_pass: ash::vk::RenderPass,
+    render_fences: Vec<ash::vk::Fence>,
+    pub render_pass: ash::vk::RenderPass,
     framebuffers: Vec<ash::vk::Framebuffer>,
 
     vertex_buffer: crate::VkBuffer,
@@ -136,9 +137,17 @@ impl Engine {
             queue_family_indices.compute_family_index,
             "compute family",
         )?;
-        let compute_command_buffer =
-            vk_init::create_command_buffer(&device, &compute_command_pool)?;
-        let compute_fence = vk_init::create_fence(&device, Some(vk::FenceCreateFlags::SIGNALED))?;
+        let mut compute_command_buffers: Vec<vk::CommandBuffer> = Vec::new();
+        let mut compute_fences: Vec<vk::Fence> = Vec::new();
+        for _ in 0..swapchain.images.len() {
+            let compute_command_buffer =
+                vk_init::create_command_buffer(&device, &compute_command_pool)?;
+            let compute_fence =
+                vk_init::create_fence(&device, Some(vk::FenceCreateFlags::SIGNALED))?;
+
+            compute_command_buffers.push(compute_command_buffer);
+            compute_fences.push(compute_fence);
+        }
         let compute_image = vk_init::create_image(
             &device,
             surface_format.format,
@@ -189,6 +198,13 @@ impl Engine {
         )?;
         let command_buffers = vk_init::create_command_buffers(&device, &command_pools)?;
 
+        let mut render_fences: Vec<vk::Fence> = Vec::new();
+        for _ in 0..swapchain.images.len() {
+            let render_fence =
+                vk_init::create_fence(&device, Some(vk::FenceCreateFlags::SIGNALED))?;
+
+            render_fences.push(render_fence);
+        }
         let render_pass = vk_init::create_render_pass(&device, surface_format.format)?;
 
         let framebuffers = vk_init::create_framebuffers(
@@ -268,8 +284,8 @@ impl Engine {
             command_pool,
             command_buffer,
             compute_command_pool,
-            compute_command_buffer,
-            compute_fence,
+            compute_command_buffers,
+            compute_fences,
             compute_image,
             ubo_buffer,
             ubo,
@@ -280,6 +296,7 @@ impl Engine {
             compute_pipeline,
             command_pools,
             command_buffers,
+            render_fences,
             render_pass,
             framebuffers,
             vertex_buffer,
@@ -290,6 +307,292 @@ impl Engine {
             pipeline_layout,
             graphics_pipeline,
         })
+    }
+
+    pub fn queue_submit(
+        &self,
+        queue: ash::vk::Queue,
+        submits: &[ash::vk::SubmitInfo],
+        fence: ash::vk::Fence,
+    ) -> Result<(), String> {
+        log::info!("submitting command buffer or semaphore to a queue");
+
+        unsafe {
+            self.device
+                .queue_submit(queue, submits, fence)
+                .map_err(|_| {
+                    String::from("failed to submit command buffer or semaphore to a queue")
+                })
+        }
+    }
+
+    pub fn begin_command_buffer(
+        &self,
+        command_buffer: ash::vk::CommandBuffer,
+        begin_info: &ash::vk::CommandBufferBeginInfo,
+    ) -> Result<(), String> {
+        log::info!("beginning command buffer");
+
+        unsafe {
+            self.device
+                .begin_command_buffer(command_buffer, begin_info)
+                .map_err(|_| String::from("failed to begin command buffer"))
+        }
+    }
+
+    pub fn cmd_begin_render_pass(
+        &self,
+        command_buffer: ash::vk::CommandBuffer,
+        create_info: &ash::vk::RenderPassBeginInfo,
+        contents: ash::vk::SubpassContents,
+    ) {
+        unsafe {
+            self.device
+                .cmd_begin_render_pass(command_buffer, create_info, contents)
+        }
+    }
+
+    pub fn cmd_bind_pipeline(
+        &self,
+        command_buffer: ash::vk::CommandBuffer,
+        pipeline_bind_point: ash::vk::PipelineBindPoint,
+        pipeline: ash::vk::Pipeline,
+    ) {
+        log::info!("binding pipeline to command buffer");
+
+        unsafe {
+            self.device
+                .cmd_bind_pipeline(command_buffer, pipeline_bind_point, pipeline)
+        }
+    }
+
+    pub fn cmd_bind_vertex_buffers(
+        &self,
+        command_buffer: ash::vk::CommandBuffer,
+        first_binding: u32,
+        buffers: &[ash::vk::Buffer],
+        offsets: &[ash::vk::DeviceSize],
+    ) {
+        log::info!("binding vertex buffers to command buffer");
+
+        unsafe {
+            self.device
+                .cmd_bind_vertex_buffers(command_buffer, first_binding, buffers, offsets)
+        }
+    }
+
+    pub fn cmd_bind_index_buffer(
+        &self,
+        command_buffer: ash::vk::CommandBuffer,
+        buffer: ash::vk::Buffer,
+        offset: ash::vk::DeviceSize,
+        index_type: ash::vk::IndexType,
+    ) {
+        log::info!("binding index buffer to command buffer");
+
+        unsafe {
+            self.device
+                .cmd_bind_index_buffer(command_buffer, buffer, offset, index_type)
+        }
+    }
+
+    pub fn cmd_draw_indexed(
+        &self,
+        command_buffer: ash::vk::CommandBuffer,
+        index_count: u32,
+        instance_count: u32,
+        first_index: u32,
+        vertex_offset: i32,
+        first_instance: u32,
+    ) {
+        unsafe {
+            self.device.cmd_draw_indexed(
+                command_buffer,
+                index_count,
+                instance_count,
+                first_index,
+                vertex_offset,
+                first_instance,
+            )
+        }
+    }
+
+    pub fn cmd_end_render_pass(&self, command_buffer: ash::vk::CommandBuffer) {
+        unsafe { self.device.cmd_end_render_pass(command_buffer) }
+    }
+
+    pub fn end_command_buffer(&self, command_buffer: ash::vk::CommandBuffer) -> Result<(), String> {
+        unsafe {
+            self.device
+                .end_command_buffer(command_buffer)
+                .map_err(|_| String::from("failed to end command buffer"))
+        }
+    }
+
+    pub fn queue_wait_idle(&self, queue: ash::vk::Queue) -> Result<(), String> {
+        unsafe {
+            self.device
+                .queue_wait_idle(queue)
+                .map_err(|_| String::from("queue failed to wait idle"))
+        }
+    }
+
+    pub fn cmd_dispatch(
+        &self,
+        command_buffer: ash::vk::CommandBuffer,
+        group_count_x: u32,
+        group_count_y: u32,
+        group_count_z: u32,
+    ) {
+        unsafe {
+            self.device
+                .cmd_dispatch(command_buffer, group_count_x, group_count_y, group_count_z)
+        }
+    }
+
+    pub fn cmd_draw(
+        &self,
+        command_buffer: ash::vk::CommandBuffer,
+        vertex_count: u32,
+        instance_count: u32,
+        first_vertex: u32,
+        first_instance: u32,
+    ) {
+        unsafe {
+            self.device.cmd_draw(
+                command_buffer,
+                vertex_count,
+                instance_count,
+                first_vertex,
+                first_instance,
+            )
+        }
+    }
+
+    pub fn cmd_bind_descriptor_sets(
+        &self,
+        command_buffer: ash::vk::CommandBuffer,
+        pipeline_bind_point: ash::vk::PipelineBindPoint,
+        layout: ash::vk::PipelineLayout,
+        first_set: u32,
+        descriptor_sets: &[ash::vk::DescriptorSet],
+        dynamic_offsets: &[u32],
+    ) {
+        unsafe {
+            self.device.cmd_bind_descriptor_sets(
+                command_buffer,
+                pipeline_bind_point,
+                layout,
+                first_set,
+                descriptor_sets,
+                dynamic_offsets,
+            )
+        }
+    }
+
+    pub fn wait_for_fences(
+        &self,
+        fences: &[ash::vk::Fence],
+        wait_all: bool,
+        timeout: u64,
+    ) -> Result<(), String> {
+        unsafe {
+            self.device
+                .wait_for_fences(fences, wait_all, timeout)
+                .map_err(|_| String::from("failed to wait for fences"))
+        }
+    }
+
+    pub fn reset_fences(&self, fences: &[ash::vk::Fence]) -> Result<(), String> {
+        unsafe {
+            self.device
+                .reset_fences(fences)
+                .map_err(|_| String::from("failed to reset fences"))
+        }
+    }
+
+    pub fn render_loop(
+        &self,
+        index: &mut u32,
+        frame_count: &mut u32,
+        begin_info: &ash::vk::CommandBufferBeginInfo,
+        compute_info: &mut ash::vk::SubmitInfo,
+        cmd: &mut ash::vk::CommandBuffer,
+        render_pass_begin_info: &mut ash::vk::RenderPassBeginInfo,
+        offsets: &[ash::vk::DeviceSize],
+        submit_info: &mut ash::vk::SubmitInfo,
+        present_info: &ash::vk::PresentInfoKHR,
+    ) -> Result<(), String> {
+        use ash::vk;
+
+        let compute_index = (*frame_count % self.swapchain.images.len() as u32) as usize;
+
+        let compute_fence = self.compute_fences[compute_index];
+        self.wait_for_fences(&[compute_fence], true, u64::MAX)?;
+        self.reset_fences(&[compute_fence])?;
+
+        let compute_command_buffer = self.compute_command_buffers[compute_index];
+        self.begin_command_buffer(compute_command_buffer, begin_info)?;
+        self.cmd_bind_pipeline(
+            compute_command_buffer,
+            vk::PipelineBindPoint::COMPUTE,
+            self.compute_pipeline,
+        );
+        self.cmd_bind_descriptor_sets(
+            compute_command_buffer,
+            vk::PipelineBindPoint::COMPUTE,
+            self.compute_pipeline_layout,
+            0,
+            &[self.compute_descriptor_set],
+            &[],
+        );
+        self.cmd_dispatch(compute_command_buffer, 1024 / 16, 1024 / 24, 1);
+        self.end_command_buffer(compute_command_buffer)?;
+
+        compute_info.p_command_buffers = [compute_command_buffer].as_ptr();
+        self.queue_submit(self.compute_queue, &[*compute_info], compute_fence)?;
+
+        (*index, _) = self.swapchain.acquire_next_image(
+            u64::MAX,
+            self.present_complete,
+            vk::Fence::null(),
+        )?;
+        let current_fence = self.render_fences[*index as usize];
+        self.wait_for_fences(&[current_fence], true, u64::MAX)?;
+        self.reset_fences(&[current_fence])?;
+
+        *cmd = self.command_buffers[*index as usize];
+        self.begin_command_buffer(*cmd, &begin_info)?;
+        render_pass_begin_info.framebuffer = self.framebuffers[*index as usize];
+        self.cmd_begin_render_pass(*cmd, render_pass_begin_info, vk::SubpassContents::INLINE);
+        self.cmd_bind_pipeline(
+            *cmd,
+            vk::PipelineBindPoint::GRAPHICS,
+            self.graphics_pipeline,
+        );
+        self.cmd_bind_descriptor_sets(
+            *cmd,
+            vk::PipelineBindPoint::GRAPHICS,
+            self.pipeline_layout,
+            0,
+            &[self.descriptor_set],
+            &[],
+        );
+        self.cmd_bind_vertex_buffers(*cmd, 0, &[self.vertex_buffer.buffer], offsets);
+        self.cmd_bind_index_buffer(*cmd, self.index_buffer.buffer, 0, vk::IndexType::UINT32);
+        self.cmd_draw_indexed(*cmd, 6, 1, 0, 0, 0);
+        self.cmd_end_render_pass(*cmd);
+        self.end_command_buffer(*cmd)?;
+
+        submit_info.p_command_buffers = [*cmd].as_ptr();
+        self.queue_submit(self.graphics_queue, &[*submit_info], current_fence)?;
+        let _ = self
+            .swapchain
+            .queue_present(self.present_queue, present_info)?;
+
+        *frame_count += 1;
+
+        Ok(())
     }
 
     fn create_ubo(
@@ -615,6 +918,10 @@ impl Drop for Engine {
         log::info!("performing cleanup for Engine");
 
         unsafe {
+            match self.device.device_wait_idle() {
+                Ok(_) => (),
+                Err(_) => log::error!("logical device failed to wait idle"),
+            };
             self.device.destroy_pipeline(self.graphics_pipeline, None);
             self.device
                 .destroy_pipeline_layout(self.pipeline_layout, None);
@@ -630,6 +937,9 @@ impl Drop for Engine {
                 self.device.destroy_framebuffer(fb, None);
             }
             self.device.destroy_render_pass(self.render_pass, None);
+            for &render_fence in self.render_fences.iter() {
+                self.device.destroy_fence(render_fence, None);
+            }
             for (index, &buffer) in self.command_buffers.iter().enumerate() {
                 self.device
                     .free_command_buffers(self.command_pools[index], &[buffer]);
@@ -650,9 +960,11 @@ impl Drop for Engine {
         crate::VkBuffer::cleanup(&self.device, &mut self.ubo_buffer);
         crate::VkImage::cleanup(&self.device, &mut self.compute_image);
         unsafe {
-            self.device.destroy_fence(self.compute_fence, None);
+            for &compute_fence in self.compute_fences.iter() {
+                self.device.destroy_fence(compute_fence, None);
+            }
             self.device
-                .free_command_buffers(self.compute_command_pool, &[self.compute_command_buffer]);
+                .free_command_buffers(self.compute_command_pool, &self.compute_command_buffers);
             self.device
                 .destroy_command_pool(self.compute_command_pool, None);
             self.device
