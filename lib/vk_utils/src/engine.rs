@@ -12,9 +12,6 @@ pub struct Engine {
     pub present_complete: ash::vk::Semaphore,
     pub render_complete: ash::vk::Semaphore,
 
-    command_pool: ash::vk::CommandPool,
-    command_buffer: ash::vk::CommandBuffer,
-
     compute_command_pool: ash::vk::CommandPool,
     compute_command_buffers: Vec<ash::vk::CommandBuffer>,
     compute_fences: Vec<ash::vk::Fence>,
@@ -30,7 +27,8 @@ pub struct Engine {
     compute_pipeline_layout: ash::vk::PipelineLayout,
     compute_pipeline: ash::vk::Pipeline,
 
-    command_pools: Vec<ash::vk::CommandPool>,
+    command_pool: ash::vk::CommandPool,
+    command_buffer: ash::vk::CommandBuffer,
     command_buffers: Vec<ash::vk::CommandBuffer>,
 
     render_fences: Vec<ash::vk::Fence>,
@@ -46,6 +44,8 @@ pub struct Engine {
 
     pipeline_layout: ash::vk::PipelineLayout,
     graphics_pipeline: ash::vk::Pipeline,
+
+    is_framebuffer_resized: bool,
 }
 
 impl Engine {
@@ -191,12 +191,8 @@ impl Engine {
             vk_init::create_compute_pipeline(&device, compute_pipeline_layout, &shader)?;
         crate::VkShaderModule::cleanup(&device, &mut shader);
 
-        let command_pools = vk_init::create_command_pools(
-            &device,
-            queue_family_indices.graphics_family_index,
-            swapchain.images.len(),
-        )?;
-        let command_buffers = vk_init::create_command_buffers(&device, &command_pools)?;
+        let command_buffers =
+            vk_init::create_command_buffers(&device, &command_pool, swapchain.images.len())?;
 
         let mut render_fences: Vec<vk::Fence> = Vec::new();
         for _ in 0..swapchain.images.len() {
@@ -294,7 +290,6 @@ impl Engine {
             compute_descriptor_set,
             compute_pipeline_layout,
             compute_pipeline,
-            command_pools,
             command_buffers,
             render_fences,
             render_pass,
@@ -306,6 +301,7 @@ impl Engine {
             descriptor_set,
             pipeline_layout,
             graphics_pipeline,
+            is_framebuffer_resized: false,
         })
     }
 
@@ -520,16 +516,13 @@ impl Engine {
     }
 
     pub fn render_loop(
-        &self,
+        &mut self,
         index: &mut u32,
         frame_count: &mut u32,
         begin_info: &ash::vk::CommandBufferBeginInfo,
-        compute_info: &mut ash::vk::SubmitInfo,
-        cmd: &mut ash::vk::CommandBuffer,
-        render_pass_begin_info: &mut ash::vk::RenderPassBeginInfo,
         offsets: &[ash::vk::DeviceSize],
-        submit_info: &mut ash::vk::SubmitInfo,
-        present_info: &ash::vk::PresentInfoKHR,
+        width: u32,
+        height: u32,
     ) -> Result<(), String> {
         use ash::vk;
 
@@ -557,8 +550,10 @@ impl Engine {
         self.cmd_dispatch(compute_command_buffer, 1024 / 16, 1024 / 24, 1);
         self.end_command_buffer(compute_command_buffer)?;
 
-        compute_info.p_command_buffers = [compute_command_buffer].as_ptr();
-        self.queue_submit(self.compute_queue, &[*compute_info], compute_fence)?;
+        let compute_info = vk::SubmitInfo::builder()
+            .command_buffers(&[compute_command_buffer])
+            .build();
+        self.queue_submit(self.compute_queue, &[compute_info], compute_fence)?;
 
         (*index, _) = self.swapchain.acquire_next_image(
             u64::MAX,
@@ -570,38 +565,157 @@ impl Engine {
         self.wait_for_fences(&[current_fence], true, u64::MAX)?;
         self.reset_fences(&[current_fence])?;
 
-        *cmd = self.command_buffers[current_index];
-        self.begin_command_buffer(*cmd, &begin_info)?;
-        render_pass_begin_info.framebuffer = self.framebuffers[current_index];
-        self.cmd_begin_render_pass(*cmd, render_pass_begin_info, vk::SubpassContents::INLINE);
-        self.cmd_bind_pipeline(
-            *cmd,
-            vk::PipelineBindPoint::GRAPHICS,
-            self.graphics_pipeline,
-        );
+        let cmd = self.command_buffers[current_index];
+
+        self.begin_command_buffer(cmd, begin_info)?;
+
+        let clear_values = vec![vk::ClearValue {
+            color: vk::ClearColorValue {
+                float32: [0.0, 0.0, 0.0, 0.0],
+            },
+        }];
+        let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
+            .render_pass(self.render_pass)
+            .render_area(vk::Rect2D {
+                offset: vk::Offset2D { x: 0, y: 0 },
+                extent: vk::Extent2D {
+                    width: crate::constants::WIDTH,
+                    height: crate::constants::HEIGHT,
+                },
+            })
+            .clear_values(&clear_values)
+            .framebuffer(self.framebuffers[current_index])
+            .build();
+        self.cmd_begin_render_pass(cmd, &render_pass_begin_info, vk::SubpassContents::INLINE);
+        self.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, self.graphics_pipeline);
         self.cmd_bind_descriptor_sets(
-            *cmd,
+            cmd,
             vk::PipelineBindPoint::GRAPHICS,
             self.pipeline_layout,
             0,
             &[self.descriptor_set],
             &[],
         );
-        self.cmd_bind_vertex_buffers(*cmd, 0, &[self.vertex_buffer.buffer], offsets);
-        self.cmd_bind_index_buffer(*cmd, self.index_buffer.buffer, 0, vk::IndexType::UINT32);
-        self.cmd_draw_indexed(*cmd, 6, 1, 0, 0, 0);
-        self.cmd_end_render_pass(*cmd);
-        self.end_command_buffer(*cmd)?;
+        self.cmd_bind_vertex_buffers(cmd, 0, &[self.vertex_buffer.buffer], offsets);
+        self.cmd_bind_index_buffer(cmd, self.index_buffer.buffer, 0, vk::IndexType::UINT32);
+        self.cmd_draw_indexed(cmd, 6, 1, 0, 0, 0);
+        self.cmd_end_render_pass(cmd);
+        self.end_command_buffer(cmd)?;
 
-        submit_info.p_command_buffers = [*cmd].as_ptr();
-        self.queue_submit(self.graphics_queue, &[*submit_info], current_fence)?;
-        let _ = self
+        let submit_info = vk::SubmitInfo::builder()
+            .wait_dst_stage_mask(&[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT])
+            .wait_semaphores(&[self.present_complete])
+            .signal_semaphores(&[self.render_complete])
+            .command_buffers(&[cmd])
+            .build();
+        self.queue_submit(self.graphics_queue, &[submit_info], current_fence)?;
+
+        let present_info = vk::PresentInfoKHR::builder()
+            .wait_semaphores(&[self.render_complete])
+            .swapchains(&[self.swapchain.swapchain])
+            .image_indices(&[*index])
+            .build();
+        let is_resized = match self
             .swapchain
-            .queue_present(self.present_queue, present_info)?;
+            .queue_present(self.present_queue, &present_info)
+        {
+            Ok(_) => self.is_framebuffer_resized,
+            Err(vk_result) => match vk_result {
+                vk::Result::ERROR_OUT_OF_DATE_KHR | vk::Result::SUBOPTIMAL_KHR => true,
+                _ => return Err(String::from("failed to present swapchain image")),
+            },
+        };
+
+        if is_resized {
+            self.is_framebuffer_resized = false;
+            self.recreate_swapchain(width, height).map_err(|err| {
+                log::error!("{}", err);
+
+                String::from("failure occurred while updating swapchain")
+            })?;
+        }
 
         *frame_count += 1;
 
         Ok(())
+    }
+
+    fn recreate_swapchain(&mut self, width: u32, height: u32) -> Result<(), String> {
+        use crate::vk_init;
+
+        self.device_wait_idle()?;
+
+        // cleanup swapchain
+        unsafe {
+            for &fb in self.framebuffers.iter() {
+                self.device.destroy_framebuffer(fb, None);
+            }
+            self.device.destroy_render_pass(self.render_pass, None);
+            self.device.destroy_pipeline(self.graphics_pipeline, None);
+            self.device
+                .destroy_pipeline_layout(self.pipeline_layout, None);
+            self.device
+                .free_command_buffers(self.command_pool, &self.command_buffers);
+            self.device
+                .free_command_buffers(self.command_pool, &[self.command_buffer]);
+        }
+        crate::VkSwapchain::cleanup(&self.device, &mut self.swapchain);
+
+        let surface_capabilities = self
+            .surface
+            .get_physical_device_surface_capabilities(self.physical_device)?;
+        let present_modes = self
+            .surface
+            .get_physical_device_surface_present_modes(self.physical_device)?;
+        let present_mode = vk_init::choose_swapchain_present_mode(&present_modes);
+        let surface_formats = self
+            .surface
+            .get_physical_device_surface_formats(self.physical_device)?;
+        let surface_format = vk_init::choose_swapchain_format(&surface_formats)?;
+
+        self.swapchain = vk_init::create_swapchain(
+            &self.instance,
+            self.physical_device,
+            &self.surface,
+            &self.device,
+            width,
+            height,
+            &surface_capabilities,
+            present_mode,
+            &surface_format,
+        )?;
+
+        self.render_pass = vk_init::create_render_pass(&self.device, surface_format.format)?;
+
+        self.framebuffers = vk_init::create_framebuffers(
+            &self.device,
+            self.render_pass,
+            &self.swapchain.image_views,
+            self.swapchain.extent.width,
+            self.swapchain.extent.height,
+        )?;
+
+        self.pipeline_layout =
+            vk_init::create_pipeline_layout(&self.device, self.descriptor_set_layout)?;
+        self.graphics_pipeline = Self::create_graphics_pipeline(
+            &self.device,
+            self.render_pass,
+            self.pipeline_layout,
+            self.swapchain.extent,
+        )?;
+
+        self.command_buffer = vk_init::create_command_buffer(&self.device, &self.command_pool)?;
+        self.command_buffers = vk_init::create_command_buffers(
+            &self.device,
+            &self.command_pool,
+            self.swapchain.image_views.len(),
+        )?;
+
+        Ok(())
+    }
+
+    pub fn update_framebuffer(&mut self) {
+        self.is_framebuffer_resized = true;
     }
 
     fn create_ubo(
@@ -949,13 +1063,8 @@ impl Drop for Engine {
             for &render_fence in self.render_fences.iter() {
                 self.device.destroy_fence(render_fence, None);
             }
-            for (index, &buffer) in self.command_buffers.iter().enumerate() {
-                self.device
-                    .free_command_buffers(self.command_pools[index], &[buffer]);
-            }
-            for &pool in self.command_pools.iter() {
-                self.device.destroy_command_pool(pool, None);
-            }
+            self.device
+                .free_command_buffers(self.command_pool, &self.command_buffers);
 
             self.device.destroy_pipeline(self.compute_pipeline, None);
             self.device

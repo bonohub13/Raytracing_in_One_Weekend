@@ -36,4 +36,10 @@ impl Window {
 
         self.window.raw_window_handle()
     }
+
+    pub fn window_size(&self) -> (u32, u32) {
+        let window_size = self.window.inner_size();
+
+        (window_size.width, window_size.height)
+    }
 }

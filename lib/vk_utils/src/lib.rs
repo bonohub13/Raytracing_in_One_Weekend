@@ -226,14 +226,10 @@ impl VkSwapchain {
         &self,
         queue: ash::vk::Queue,
         present_info: &ash::vk::PresentInfoKHR,
-    ) -> Result<bool, String> {
+    ) -> ash::prelude::VkResult<bool> {
         log::info!("performing check if swapchain is suboptimal for surface");
 
-        let queue_present = unsafe {
-            self.loader
-                .queue_present(queue, present_info)
-                .map_err(|_| String::from("failed to perform check for swapchain"))?
-        };
+        let queue_present = unsafe { self.loader.queue_present(queue, present_info)? };
 
         log::info!("performed check if swapchain is suboptimal for surface");
 
@@ -298,61 +294,31 @@ impl AppBase {
         &self.event_loop
     }
 
-    pub fn run(&mut self, engine: &engine::Engine) {
+    pub fn run(&mut self, engine: &mut engine::Engine, window: &window::Window) {
         use ash::vk;
         use winit::platform::run_return::EventLoopExtRunReturn;
 
         let mut begin_info = vk::CommandBufferBeginInfo::default();
-        let mut command_buffer = vk::CommandBuffer::null();
 
-        let clear_values = vec![vk::ClearValue {
-            color: vk::ClearColorValue {
-                float32: [0.0, 0.0, 0.0, 0.0],
-            },
-        }];
-
-        let mut render_pass_begin_info = vk::RenderPassBeginInfo::builder()
-            .render_pass(engine.render_pass)
-            .render_area(vk::Rect2D {
-                offset: vk::Offset2D { x: 0, y: 0 },
-                extent: vk::Extent2D {
-                    width: crate::constants::WIDTH,
-                    height: crate::constants::HEIGHT,
-                },
-            })
-            .clear_values(&clear_values)
-            .build();
         let offsets: Vec<vk::DeviceSize> = vec![0];
-        let mut submit_info = vk::SubmitInfo::builder()
-            .wait_dst_stage_mask(&[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT])
-            .wait_semaphores(&[engine.present_complete])
-            .signal_semaphores(&[engine.render_complete])
-            .build();
-        submit_info.command_buffer_count = 1;
-        let mut compute_info = vk::SubmitInfo {
-            command_buffer_count: 1,
-            ..Default::default()
-        };
         let mut image_index: u32 = 0;
         let mut frame_count: u32 = 0;
-        let present_info = {
-            let mut present_info = vk::PresentInfoKHR::builder()
-                .swapchains(&[engine.swapchain.swapchain])
-                .wait_semaphores(&[engine.render_complete])
-                .build();
-
-            present_info.p_image_indices = &image_index;
-
-            present_info
-        };
 
         self.event_loop.run_return(|event, _, control_flow| {
             use winit::event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent};
 
+            let (width, height) = window.window_size();
+
             control_flow.set_poll();
             match event {
                 Event::WindowEvent { event, .. } => match event {
-                    WindowEvent::CloseRequested => control_flow.set_exit(),
+                    WindowEvent::CloseRequested => {
+                        match engine.device_wait_idle() {
+                            Ok(_) => (),
+                            Err(err) => log::error!("[ERROR]: {}", err),
+                        };
+                        control_flow.set_exit();
+                    }
                     WindowEvent::KeyboardInput { input, .. } => match input {
                         KeyboardInput {
                             virtual_keycode,
@@ -369,18 +335,22 @@ impl AppBase {
                             _ => {}
                         },
                     },
+                    WindowEvent::Resized(_new_size) => {
+                        match engine.device_wait_idle() {
+                            Ok(_) => (),
+                            Err(err) => log::error!("[ERROR]: {}", err),
+                        };
+                        engine.update_framebuffer();
+                    }
                     _ => (),
                 },
                 Event::MainEventsCleared => match engine.render_loop(
                     &mut image_index,
                     &mut frame_count,
                     &mut begin_info,
-                    &mut compute_info,
-                    &mut command_buffer,
-                    &mut render_pass_begin_info,
                     &offsets,
-                    &mut submit_info,
-                    &present_info,
+                    width,
+                    height,
                 ) {
                     Ok(_) => (),
                     Err(err) => {
@@ -389,6 +359,12 @@ impl AppBase {
                         control_flow.set_exit_with_code(2);
                     }
                 },
+                Event::LoopDestroyed => {
+                    match engine.device_wait_idle() {
+                        Ok(_) => (),
+                        Err(err) => log::error!("[ERROR]: {}", err),
+                    };
+                }
                 _ => (),
             }
         });

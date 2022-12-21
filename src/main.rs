@@ -15,13 +15,13 @@ fn main() -> Result<(), String> {
     let window_config = vk_utils::window::WindowConfig {
         width: 800,
         height: 600,
-        resizable: false,
+        resizable: true,
     };
     let window = vk_utils::window::Window::new(&app_base, &window_config)?;
 
-    let engine = vk_utils::Engine::new(&app_base, &window)?;
+    let mut engine = vk_utils::Engine::new(&app_base, &window)?;
 
-    app_base.run(&engine);
+    app_base.run(&mut engine, &window);
 
     Ok(())
 }
