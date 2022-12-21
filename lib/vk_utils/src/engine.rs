@@ -154,8 +154,8 @@ impl Engine {
             &format_properties,
             &memory_properties,
             vk::MemoryPropertyFlags::DEVICE_LOCAL,
-            1024,
-            1024,
+            1920,
+            1080,
         )?;
 
         vk_init::transition_image(
@@ -547,7 +547,7 @@ impl Engine {
             &[self.compute_descriptor_set],
             &[],
         );
-        self.cmd_dispatch(compute_command_buffer, 1024 / 16, 1024 / 24, 1);
+        self.cmd_dispatch(compute_command_buffer, 1920 / 16, 1080 / 16, 1);
         self.end_command_buffer(compute_command_buffer)?;
 
         let compute_info = vk::SubmitInfo::builder()
@@ -724,8 +724,8 @@ impl Engine {
         use std::mem::size_of_val;
 
         let ubo = UniformBufferObject {
-            image_width: 1024.0,
-            image_height: 1024.0,
+            image_width: 1920.0,
+            image_height: 1080.0,
             viewport_width: 2.0,
             viewport_height: 2.0,
             focal_length: 1.0,

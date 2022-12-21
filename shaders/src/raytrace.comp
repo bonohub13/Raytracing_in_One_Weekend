@@ -41,5 +41,5 @@ void main() {
 
     vec3 color = rayColor(ray);
 
-    imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), vec4(color, 0.0));
+    imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), vec4(color, 1.0));
 }
