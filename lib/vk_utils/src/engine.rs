@@ -578,10 +578,7 @@ impl Engine {
             .render_pass(self.render_pass)
             .render_area(vk::Rect2D {
                 offset: vk::Offset2D { x: 0, y: 0 },
-                extent: vk::Extent2D {
-                    width: crate::constants::WIDTH,
-                    height: crate::constants::HEIGHT,
-                },
+                extent: vk::Extent2D { width, height },
             })
             .clear_values(&clear_values)
             .framebuffer(self.framebuffers[current_index])
