@@ -13,8 +13,8 @@ fn main() -> Result<(), String> {
     let mut app_base = vk_utils::AppBase::new();
 
     let window_config = vk_utils::window::WindowConfig {
-        width: 1920,
-        height: 1080,
+        width: 800,
+        height: 600,
         resizable: false,
     };
     let window = vk_utils::window::Window::new(&app_base, &window_config)?;
