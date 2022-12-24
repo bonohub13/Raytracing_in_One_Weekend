@@ -209,15 +209,11 @@ impl VkSwapchain {
         semaphore: ash::vk::Semaphore,
         fence: ash::vk::Fence,
     ) -> Result<(u32, bool), String> {
-        log::info!("acquiring next image from swapchain");
-
         let next_image = unsafe {
             self.loader
                 .acquire_next_image(self.swapchain, timeout, semaphore, fence)
                 .map_err(|_| String::from("failed to acquire next image"))?
         };
-
-        log::info!("acquired next image from swapchain");
 
         Ok(next_image)
     }
@@ -227,11 +223,7 @@ impl VkSwapchain {
         queue: ash::vk::Queue,
         present_info: &ash::vk::PresentInfoKHR,
     ) -> ash::prelude::VkResult<bool> {
-        log::info!("performing check if swapchain is suboptimal for surface");
-
         let queue_present = unsafe { self.loader.queue_present(queue, present_info)? };
-
-        log::info!("performed check if swapchain is suboptimal for surface");
 
         Ok(queue_present)
     }
@@ -294,7 +286,7 @@ impl AppBase {
         &self.event_loop
     }
 
-    pub fn run(&mut self, engine: &mut engine::Engine, window: &window::Window) {
+    pub fn run(&mut self, engine: &mut engine::Engine, window: &mut window::Window) {
         use ash::vk;
         use winit::platform::run_return::EventLoopExtRunReturn;
 

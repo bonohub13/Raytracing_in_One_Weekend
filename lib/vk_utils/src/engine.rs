@@ -17,7 +17,6 @@ pub struct Engine {
     compute_fences: Vec<ash::vk::Fence>,
     compute_image: crate::VkImage,
 
-    ubo: crate::types::UniformBufferObject,
     ubo_buffer: crate::VkBuffer,
 
     compute_descriptor_set_layout: ash::vk::DescriptorSetLayout,
@@ -284,7 +283,6 @@ impl Engine {
             compute_fences,
             compute_image,
             ubo_buffer,
-            ubo,
             compute_descriptor_set_layout,
             compute_descriptor_pool,
             compute_descriptor_set,
@@ -319,8 +317,6 @@ impl Engine {
         submits: &[ash::vk::SubmitInfo],
         fence: ash::vk::Fence,
     ) -> Result<(), String> {
-        log::info!("submitting command buffer or semaphore to a queue");
-
         unsafe {
             self.device
                 .queue_submit(queue, submits, fence)
@@ -335,8 +331,6 @@ impl Engine {
         command_buffer: ash::vk::CommandBuffer,
         begin_info: &ash::vk::CommandBufferBeginInfo,
     ) -> Result<(), String> {
-        log::info!("beginning command buffer");
-
         unsafe {
             self.device
                 .begin_command_buffer(command_buffer, begin_info)
@@ -362,8 +356,6 @@ impl Engine {
         pipeline_bind_point: ash::vk::PipelineBindPoint,
         pipeline: ash::vk::Pipeline,
     ) {
-        log::info!("binding pipeline to command buffer");
-
         unsafe {
             self.device
                 .cmd_bind_pipeline(command_buffer, pipeline_bind_point, pipeline)
@@ -377,8 +369,6 @@ impl Engine {
         buffers: &[ash::vk::Buffer],
         offsets: &[ash::vk::DeviceSize],
     ) {
-        log::info!("binding vertex buffers to command buffer");
-
         unsafe {
             self.device
                 .cmd_bind_vertex_buffers(command_buffer, first_binding, buffers, offsets)
@@ -392,8 +382,6 @@ impl Engine {
         offset: ash::vk::DeviceSize,
         index_type: ash::vk::IndexType,
     ) {
-        log::info!("binding index buffer to command buffer");
-
         unsafe {
             self.device
                 .cmd_bind_index_buffer(command_buffer, buffer, offset, index_type)
@@ -640,6 +628,8 @@ impl Engine {
     fn recreate_swapchain(&mut self, width: u32, height: u32) -> Result<(), String> {
         use crate::vk_init;
 
+        log::info!("recreating swapchain due to window resize");
+
         self.device_wait_idle()?;
 
         // cleanup swapchain
@@ -707,6 +697,8 @@ impl Engine {
             &self.command_pool,
             self.swapchain.image_views.len(),
         )?;
+
+        log::info!("recreated swapchain due to window resize");
 
         Ok(())
     }
