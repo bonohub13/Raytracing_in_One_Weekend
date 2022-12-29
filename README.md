@@ -12,7 +12,9 @@ Learning the implementation of raytracing in Vulkan using Rust and Ash \
 - Initialized branch Rust+Ash
 
 ## TODO
-- [ ] Refactor vk_utils code from [learning_vulkan](https://github.com/bonohub13/learning_vulkan)
+- [x] Refactor vk_utils code from [learning_vulkan](https://github.com/bonohub13/learning_vulkan)
+- [ ] Add a compute shader module to load sphere objects from CPU to GPU.
+    - Avoid hard coding sphere(s) in the shader code
 
 ## References
 1. [Peter Shirley, Raytracing in One Weekend, 2020-12-07](https://github.com/RayTracing/raytracing.github.io)
