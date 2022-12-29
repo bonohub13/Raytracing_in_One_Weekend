@@ -12,6 +12,7 @@ fn main() -> Result<(), String> {
 
     let mut app_base = vk_utils::AppBase::new();
 
+    // Use a JSON parser or some file format (e.g. yaml maybe???)
     let window_config = vk_utils::window::WindowConfig {
         width: 800,
         height: 600,

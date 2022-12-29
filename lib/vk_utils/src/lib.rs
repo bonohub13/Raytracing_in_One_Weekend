@@ -45,6 +45,7 @@ pub struct VkBuffer {
 }
 
 impl VkBuffer {
+    #[inline]
     pub fn unmap_buffer(device: &ash::Device, buffer: &mut Self) {
         log::info!("unmmaping memory for buffer");
 
@@ -55,6 +56,7 @@ impl VkBuffer {
         log::info!("unmapped memory for buffer")
     }
 
+    #[inline]
     pub fn cleanup(device: &ash::Device, buffer: &mut Self) {
         log::info!("performing cleanup for VkBuffer");
 
@@ -73,6 +75,7 @@ pub struct VkImage {
 }
 
 impl VkImage {
+    #[inline]
     pub fn cleanup(device: &ash::Device, image: &mut Self) {
         log::info!("performing cleanup for VkImage");
 
@@ -97,6 +100,7 @@ pub struct VkSurface {
 }
 
 impl VkSurface {
+    #[inline]
     pub fn cleanup(surface: &mut Self) {
         log::info!("performing cleanup for VkSurface");
 
@@ -228,6 +232,7 @@ impl VkSwapchain {
         Ok(queue_present)
     }
 
+    #[inline]
     pub fn cleanup(device: &ash::Device, swapchain: &mut Self) {
         log::info!("performing cleanup for VkSwapchain");
 
@@ -248,6 +253,7 @@ pub struct VkShaderModule {
 }
 
 impl VkShaderModule {
+    #[inline]
     pub fn cleanup(device: &ash::Device, shader_module: &mut Self) {
         log::info!("performing cleanup for VkShaderModule");
 
