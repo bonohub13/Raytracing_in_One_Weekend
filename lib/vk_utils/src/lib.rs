@@ -4,8 +4,8 @@ pub mod vk_init;
 pub mod window;
 
 pub mod constants {
-    pub const WIDTH: u32 = 800;
-    pub const HEIGHT: u32 = 600;
+    pub const WIDTH: u32 = 1024;
+    pub const HEIGHT: u32 = WIDTH;
     pub const APPLICATION_NAME: &'static str = "Ray Tracing in Vulkan";
     pub const APPLICATION_VERSION: u32 = ash::vk::make_api_version(0, 0, 1, 0);
     pub const ENGINE_NAME: &'static str = "Ray Tracer (Vulkan-Compute)";

@@ -62,7 +62,10 @@ impl Engine {
         app_base: &crate::AppBase,
         window: &crate::window::Window,
     ) -> Result<Engine, String> {
-        use crate::vk_init;
+        use crate::{
+            constants::{HEIGHT, WIDTH},
+            vk_init,
+        };
         use ash::vk;
         use std::ffi::CStr;
         use std::mem::size_of_val;
@@ -153,8 +156,8 @@ impl Engine {
             &format_properties,
             &memory_properties,
             vk::MemoryPropertyFlags::DEVICE_LOCAL,
-            1024,
-            1024,
+            WIDTH,
+            HEIGHT,
         )?;
 
         vk_init::transition_image(
@@ -512,6 +515,7 @@ impl Engine {
         width: u32,
         height: u32,
     ) -> Result<(), String> {
+        use crate::constants::{HEIGHT, WIDTH};
         use ash::vk;
 
         let compute_index = (*frame_count % self.swapchain.images.len() as u32) as usize;
@@ -535,7 +539,7 @@ impl Engine {
             &[self.compute_descriptor_set],
             &[],
         );
-        self.cmd_dispatch(compute_command_buffer, 1024 / 16, 1024 / 16, 1);
+        self.cmd_dispatch(compute_command_buffer, WIDTH / 16, HEIGHT / 16, 1);
         self.end_command_buffer(compute_command_buffer)?;
 
         let compute_info = vk::SubmitInfo::builder()
@@ -711,13 +715,17 @@ impl Engine {
         device: &ash::Device,
         memory_properties: &ash::vk::PhysicalDeviceMemoryProperties,
     ) -> Result<(crate::VkBuffer, crate::types::UniformBufferObject), String> {
-        use crate::{types::UniformBufferObject, vk_init};
+        use crate::{
+            constants::{HEIGHT, WIDTH},
+            types::UniformBufferObject,
+            vk_init,
+        };
         use ash::vk;
         use std::mem::size_of_val;
 
         let ubo = UniformBufferObject {
-            image_width: 1024.0,
-            image_height: 1024.0,
+            image_width: WIDTH as f32,
+            image_height: HEIGHT as f32,
             viewport_width: 2.0,
             viewport_height: 2.0,
             focal_length: 1.0,

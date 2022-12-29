@@ -14,9 +14,9 @@ fn main() -> Result<(), String> {
 
     // Use a JSON parser or some file format (e.g. yaml maybe???)
     let window_config = vk_utils::window::WindowConfig {
-        width: 800,
-        height: 600,
-        resizable: true,
+        width: 1024,
+        height: 1024,
+        resizable: false,
     };
     let mut window = vk_utils::window::Window::new(&app_base, &window_config)?;
 

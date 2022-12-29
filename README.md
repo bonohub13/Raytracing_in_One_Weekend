@@ -17,3 +17,6 @@ Learning the implementation of raytracing in Vulkan using Rust and Ash \
 ## References
 1. [Peter Shirley, Raytracing in One Weekend, 2020-12-07](https://github.com/RayTracing/raytracing.github.io)
 2. [unknownue, vulkan-tutorial-rust 2022-10-07](https://github.com/unknownue/vulkan-tutorial-rust)
+3. [baeng72, Vulkan-RTIOW](https://github.com/baeng72/Vulkan-RTIOW)
+    - Heavily espired from baeng72's source code (C++)
+    - Check his repository!
