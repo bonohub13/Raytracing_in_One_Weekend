@@ -17,13 +17,13 @@ clean:
 fmt:
 	@$(CARGO) fmt
 
-build: prepare fmt clean
+build: prepare fmt
 	@$(CARGO) build --release
 
-run: prepare fmt clean
+run: prepare fmt
 	@$(CARGO) run --release
 
-test: clean
+test: fmt
 	@$(CARGO) test
 	@$(CARGO) test --package=rtiow
 

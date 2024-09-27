@@ -1,7 +1,9 @@
 use std::ops::{AddAssign, DivAssign, Index, MulAssign, Neg};
 
+pub mod color;
 pub mod utils;
 
+pub use color::*;
 pub use utils::*;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -19,6 +21,10 @@ impl Vec3 {
 
     pub fn zeroes() -> Self {
         Self { e: [0.0; 3] }
+    }
+
+    pub const fn size(&self) -> usize {
+        self.e.len()
     }
 
     pub const fn x(&self) -> f64 {
