@@ -29,8 +29,9 @@ by Peter Shirley
 2022/6/16
 - Completed [9 Volumes](https://raytracing.github.io/books/RayTracingTheNextWeek.html#volumes)
 
-## TODO
-- [ ] Add Texture that reads image file and adds the image as a texture
+2024/9/25
+- Rewrite in rust with better code base
+
 
 ## References
 1. [Peter Shirley, Raytracing in One Weekend, 2020-12-07](https://github.com/RayTracing/raytracing.github.io)

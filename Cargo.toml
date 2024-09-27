@@ -3,19 +3,7 @@ name = "raytracing_in_one_weekend"
 version = "0.1.0"
 edition = "2021"
 
-[[bin]]
-name = "rtweekend"
-path = "src/bin/main.rs"
-
-[lib]
-name = "rt_utils"
-path = "src/lib/rt_utils.rs"
-crate-type = ["lib"]
+[dependencies]
+rtiow = { version = "0.1.0", path = "rtiow" }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-rand = "0.8.5"
-rayon = "1.5.3"
-indicatif = {version = "*", features = ["rayon"]}
-anyhow = "*"

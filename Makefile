@@ -1,33 +1,36 @@
 SHELL := bash
-CC := $(shell which cargo)
+CARGO := cargo
 PWD := $(shell pwd)
 PROJECT_NAME := $(shell pwd | sed "s#.*/##")
 DOCKER_IMAGE_NAME := $(shell pwd | sed "s#.*/##" | tr [:upper:] [:lower:])
-BIN := rtweekend
 
 all: build run
 
 # Rust code
+prepare:
+	@[ -d images ] || mkdir -v images
+
 clean:
-	$(CC) clean
+	@$(CARGO) clean
+	@$(CARGO) clean --package=rtiow
 
 fmt:
-	$(CC) fmt
+	@$(CARGO) fmt
 
-build: fmt clean
-	mkdir -p bin
-	$(CC) build
-	cp ./target/debug/${BIN} bin
+build: prepare fmt clean
+	@$(CARGO) build --release
 
-run:
-	./bin/run.sh
+run: prepare fmt clean
+	@$(CARGO) run --release
+
+test: clean
+	@$(CARGO) test
+	@$(CARGO) test --package=rtiow
 
 rebuild-linux-image:
-	cp Cargo.toml docker
-	docker build . -t ${DOCKER_IMAGE_NAME}/linux -f docker/Dockerfile.linux --no-cache
-	rm docker/Cargo.toml
+	@cp -v Cargo.toml docker
+	@docker build . -t ${DOCKER_IMAGE_NAME}/linux -f docker/Dockerfile.linux --no-cache
+	@rm docker/Cargo.toml
 
-docker-build: fmt clean
-	mkdir -p bin
-	docker run --rm -it -v $(shell pwd):/app ${DOCKER_IMAGE_NAME}/linux
-	cp ./target/debug/${BIN} bin
+docker-build: prepare fmt clean
+	@docker run --rm -it -v $(shell pwd):/app ${DOCKER_IMAGE_NAME}/linux
