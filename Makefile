@@ -27,6 +27,16 @@ test: fmt
 	@$(CARGO) test
 	@$(CARGO) test --package=rtiow
 
+build-offline: prepare fmt
+	@$(CARGO) build --release --offline
+
+run-offline: prepare fmt
+	@$(CARGO) run --release --offline
+
+test-offline: fmt
+	@$(CARGO) test
+	@$(CARGO) test --package=rtiow --offline
+
 rebuild-linux-image:
 	@cp -v Cargo.toml docker
 	@docker build . -t ${DOCKER_IMAGE_NAME}/linux -f docker/Dockerfile.linux --no-cache
