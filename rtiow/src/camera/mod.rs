@@ -8,6 +8,7 @@ use crate::{
     INFINITY,
 };
 use anyhow::Result;
+use rayon::prelude::*;
 
 #[derive(Debug)]
 pub struct Camera {
@@ -74,25 +75,31 @@ impl Camera {
         let mut buffer = vec![[0; 3]; (self.image_size[0] * self.image_size[1]) as usize];
         let mut writer = ImageBuffer::new(output_file);
 
-        for j in 0..self.image_size[1] {
-            eprint!(
-                "\rScanlines remaining: {}{}",
-                self.image_size[1] - j,
-                Self::EMPTY_SPACES
-            );
-            for i in 0..self.image_size[0] {
-                let pixel_color = (0..self.samples_per_pixel)
-                    .into_iter()
-                    .map(|_| {
-                        let r = self.get_ray(i, j);
+        let result = (0..self.image_size[1])
+            .into_par_iter()
+            .map(|j| {
+                (0..self.image_size[0])
+                    .into_par_iter()
+                    .map(move |i| {
+                        let pixel_color = (0..self.samples_per_pixel)
+                            .into_par_iter()
+                            .map(|_| {
+                                let r = self.get_ray(i, j);
 
-                        Self::ray_color(&r, self.max_depth, world)
+                                Self::ray_color(&r, self.max_depth, world)
+                            })
+                            .sum::<Color>();
+
+                        vec3::write_color(&(self.pixel_samples_scale * pixel_color))
                     })
-                    .sum::<Color>();
+                    .collect::<Vec<[i32; 3]>>()
+            })
+            .collect::<Vec<Vec<[i32; 3]>>>();
+        for j in 0..self.image_size[1] as usize {
+            let begin = j * self.image_size[0] as usize;
+            let end = begin + self.image_size[0] as usize;
 
-                buffer[(j * self.image_size[0] + i) as usize] =
-                    vec3::write_color(&(self.pixel_samples_scale * pixel_color));
-            }
+            buffer[begin..end].clone_from_slice(&result[j]);
         }
 
         writer.set_buffer(&buffer);

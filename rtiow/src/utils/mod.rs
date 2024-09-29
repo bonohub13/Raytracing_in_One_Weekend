@@ -10,6 +10,7 @@ pub fn degrees_to_radians(degrees: f64) -> f64 {
 
 #[inline]
 pub fn random() -> f64 {
+    /*
     match unsafe { RAND_INSTANCE.clone() } {
         Some(mut thread) => thread.gen(),
         None => {
@@ -18,10 +19,13 @@ pub fn random() -> f64 {
             random()
         }
     }
+    */
+    thread_rng().gen()
 }
 
 #[inline]
 pub fn random_in_range(range: &Interval) -> f64 {
+    /*
     match unsafe { RAND_INSTANCE.clone() } {
         Some(mut thread) => thread.gen_range(range.min..=range.max),
         None => {
@@ -30,6 +34,8 @@ pub fn random_in_range(range: &Interval) -> f64 {
             random_in_range(range)
         }
     }
+     */
+    thread_rng().gen_range(range.min..=range.max)
 }
 
 #[test]

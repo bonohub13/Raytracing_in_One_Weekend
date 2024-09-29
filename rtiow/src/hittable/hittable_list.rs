@@ -1,10 +1,10 @@
 use super::{HitRecord, Hittable};
 use crate::{interval::Interval, ray::Ray};
-use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct HittableList<T: Hittable> {
-    objects: Vec<Rc<T>>,
+    objects: Vec<Arc<T>>,
 }
 
 impl<T: Hittable> HittableList<T> {
@@ -14,7 +14,7 @@ impl<T: Hittable> HittableList<T> {
         }
     }
 
-    pub fn from(object: Rc<T>) -> Self {
+    pub fn from(object: Arc<T>) -> Self {
         let mut ret = Self::new();
 
         ret.add(object);
@@ -26,7 +26,7 @@ impl<T: Hittable> HittableList<T> {
         self.objects.clear()
     }
 
-    pub fn add(&mut self, object: Rc<T>) {
+    pub fn add(&mut self, object: Arc<T>) {
         self.objects.push(object)
     }
 }
