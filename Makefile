@@ -37,6 +37,10 @@ test-offline: fmt
 	@$(CARGO) test
 	@$(CARGO) test --package=rtiow --offline
 
+pkg:
+	@[ -d images ]
+	@command -v pigz && tar -I pigz -cvf past_renders.tar.gz images || tar czvf past_renders.tar.gz images
+
 rebuild-linux-image:
 	@cp -v Cargo.toml docker
 	@docker build . -t ${DOCKER_IMAGE_NAME}/linux -f docker/Dockerfile.linux --no-cache

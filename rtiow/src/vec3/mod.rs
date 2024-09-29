@@ -1,3 +1,7 @@
+use crate::{
+    interval::Interval,
+    utils::{random, random_in_range},
+};
 use std::ops::{AddAssign, DivAssign, Index, MulAssign, Neg};
 
 pub mod color;
@@ -47,6 +51,22 @@ impl Vec3 {
         let v = *self;
 
         (v * v).e.iter().sum()
+    }
+
+    pub fn random() -> Self {
+        Self {
+            e: [random(), random(), random()],
+        }
+    }
+
+    pub fn random_in_range(range: &Interval) -> Self {
+        Self {
+            e: [
+                random_in_range(range),
+                random_in_range(range),
+                random_in_range(range),
+            ],
+        }
     }
 }
 

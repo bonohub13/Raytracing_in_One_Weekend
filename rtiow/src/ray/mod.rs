@@ -26,3 +26,15 @@ impl Ray {
         self.orig + t * self.dir
     }
 }
+
+#[test]
+fn test_ray_at() {
+    let origin = Point3::new(0.0, 1.0, 2.0);
+    let direction = Vec3::new(3.0, 5.0, 7.0);
+    let ray = Ray::new(origin, direction);
+    let t = 0.5;
+    let result = ray.at(t);
+    let target = Point3::new(1.5, 3.5, 5.5);
+
+    assert_eq!(target, result)
+}
