@@ -72,35 +72,24 @@ impl Camera {
     }
 
     pub fn render(&self, world: &dyn Hittable, output_file: &str) -> Result<()> {
-        let mut buffer = vec![[0; 3]; (self.image_size[0] * self.image_size[1]) as usize];
         let mut writer = ImageBuffer::new(output_file);
-
-        let result = (0..self.image_size[1])
+        let buffer = (0..(self.image_size[0] * self.image_size[1]))
             .into_par_iter()
-            .map(|j| {
-                (0..self.image_size[0])
+            .map(|ij| {
+                let j = ij / self.image_size[0];
+                let i = ij % self.image_size[0];
+                let pixel_color = (0..self.samples_per_pixel)
                     .into_par_iter()
-                    .map(move |i| {
-                        let pixel_color = (0..self.samples_per_pixel)
-                            .into_par_iter()
-                            .map(|_| {
-                                let r = self.get_ray(i, j);
+                    .map(|_| {
+                        let r = self.get_ray(i, j);
 
-                                Self::ray_color(&r, self.max_depth, world)
-                            })
-                            .sum::<Color>();
-
-                        vec3::write_color(&(self.pixel_samples_scale * pixel_color))
+                        Self::ray_color(&r, self.max_depth, world)
                     })
-                    .collect::<Vec<[i32; 3]>>()
-            })
-            .collect::<Vec<Vec<[i32; 3]>>>();
-        for j in 0..self.image_size[1] as usize {
-            let begin = j * self.image_size[0] as usize;
-            let end = begin + self.image_size[0] as usize;
+                    .sum::<Color>();
 
-            buffer[begin..end].clone_from_slice(&result[j]);
-        }
+                vec3::write_color(&(self.pixel_samples_scale * pixel_color))
+            })
+            .collect::<Vec<[i32; 3]>>();
 
         writer.set_buffer(&buffer);
         writer.write([self.image_size[0] as usize, self.image_size[1] as usize])?;
