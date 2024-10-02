@@ -159,6 +159,11 @@ pub fn random_on_hemisphere(normal: &Vec3) -> Vec3 {
     }
 }
 
+#[inline]
+pub fn reflect(v: &Vec3, u: &Vec3) -> Vec3 {
+    *v - 2_f64 * dot(v, u) * u
+}
+
 #[test]
 fn test_dot() {
     let v = Vec3::new(2.0, 3.0, 5.0);

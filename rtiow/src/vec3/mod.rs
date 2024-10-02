@@ -53,6 +53,12 @@ impl Vec3 {
         (v * v).e.iter().sum()
     }
 
+    pub fn near_zero(&self) -> bool {
+        const S: f64 = 1e-8;
+
+        (self.e[0].abs() < S) && (self.e[1].abs() < S) && (self.e[2].abs() < S)
+    }
+
     pub fn random() -> Self {
         Self {
             e: [random(), random(), random()],
@@ -195,4 +201,17 @@ fn test_div_assign() {
     v /= t;
 
     assert_eq!(target, v)
+}
+
+#[test]
+fn test_near_zero() {
+    let v = Vec3 {
+        e: [999e-11, 99e-10, 0_f64],
+    };
+    let u = Vec3 {
+        e: [1e-8, 99e-10, 101e-10],
+    };
+
+    assert!(v.near_zero());
+    assert!(!u.near_zero());
 }
