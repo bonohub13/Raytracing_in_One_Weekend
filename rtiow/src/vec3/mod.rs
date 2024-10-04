@@ -19,6 +19,8 @@ pub use Vec3 as Color;
 pub use Vec3 as Point3;
 
 impl Vec3 {
+    const DELTA_ZERO: f64 = 1e-8;
+
     pub fn new(e0: f64, e1: f64, e2: f64) -> Self {
         Self { e: [e0, e1, e2] }
     }
@@ -54,9 +56,7 @@ impl Vec3 {
     }
 
     pub fn near_zero(&self) -> bool {
-        const S: f64 = 1e-8;
-
-        (self.e[0].abs() < S) && (self.e[1].abs() < S) && (self.e[2].abs() < S)
+        (self.e[0].abs() < Self::DELTA_ZERO) && (self.e[1].abs() < Self::DELTA_ZERO) && (self.e[2].abs() < Self::DELTA_ZERO)
     }
 
     pub fn random() -> Self {
