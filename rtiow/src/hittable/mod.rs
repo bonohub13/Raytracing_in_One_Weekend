@@ -24,7 +24,7 @@ pub struct HitRecord<'a> {
 
 impl<'a> HitRecord<'a> {
     pub fn set_face_normal(&mut self, r: &Ray, outward_normal: &Vec3) {
-        self.front_face = vec3::dot(r.direction(), outward_normal) < 0.0;
+        self.front_face = vec3::dot(r.direction(), outward_normal) < 0_f64;
         self.normal = if self.front_face {
             *outward_normal
         } else {

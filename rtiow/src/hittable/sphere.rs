@@ -31,7 +31,7 @@ impl Hittable for Sphere {
         let c = oc.length_squared() - self.radius.powi(2);
         let discriminant = h.powi(2) - a * c;
 
-        if discriminant < 0.0 {
+        if discriminant < 0_f64 {
             return None;
         }
 

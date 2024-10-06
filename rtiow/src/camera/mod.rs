@@ -40,16 +40,16 @@ impl Camera {
             }
         };
 
-        let pixel_samples_scale = 1.0 / samples_per_pixel as f64;
+        let pixel_samples_scale = 1_f64 / samples_per_pixel as f64;
 
         let center = Point3::zeroes();
 
-        let focal_length = 1.0;
-        let viewport_height = 2.0;
+        let focal_length = 1_f64;
+        let viewport_height = 2_f64;
         let viewport_width = viewport_height * (image_width as f64 / image_height as f64);
 
-        let viewport_u = Vec3::new(viewport_width, 0.0, 0.0);
-        let viewport_v = Vec3::new(0.0, -viewport_height, 0.0);
+        let viewport_u = Vec3::new(viewport_width, 0_f64, 0_f64);
+        let viewport_v = Vec3::new(0_f64, -viewport_height, 0_f64);
 
         let pixel_delta = [
             viewport_u / image_width as f64,
@@ -57,7 +57,7 @@ impl Camera {
         ];
 
         let viewport_upper_left =
-            center - Vec3::new(0.0, 0.0, focal_length) - (viewport_u + viewport_v) / 2.0;
+            center - Vec3::new(0_f64, 0_f64, focal_length) - (viewport_u + viewport_v) / 2_f64;
         let pixel00_loc = viewport_upper_left + 0.5 * (pixel_delta.iter().sum::<Point3>());
 
         Self {
@@ -111,7 +111,7 @@ impl Camera {
     }
 
     fn sample_square() -> Vec3 {
-        Vec3::new(utils::random() - 0.5, utils::random() - 0.5, 0.0)
+        Vec3::new(utils::random() - 0.5, utils::random() - 0.5, 0_f64)
     }
 
     fn ray_color(r: &Ray, depth: i32, world: &dyn Hittable) -> Color {
@@ -128,8 +128,8 @@ impl Camera {
         }
 
         let unit_direction = vec3::unit_vector(r.direction());
-        let a = 0.5 * (unit_direction.y() + 1.0);
+        let a = 0.5 * (unit_direction.y() + 1_f64);
 
-        (1.0 - a) * Color::new(1.0, 1.0, 1.0) + a * Color::new(0.5, 0.7, 1.0)
+        (1_f64 - a) * Color::new(1_f64, 1_f64, 1_f64) + a * Color::new(0.5, 0.7, 1_f64)
     }
 }

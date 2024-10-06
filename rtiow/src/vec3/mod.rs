@@ -26,7 +26,7 @@ impl Vec3 {
     }
 
     pub fn zeroes() -> Self {
-        Self { e: [0.0; 3] }
+        Self { e: [0_f64; 3] }
     }
 
     pub const fn size(&self) -> usize {
@@ -120,21 +120,21 @@ impl MulAssign<f64> for Vec3 {
 
 impl DivAssign<f64> for Vec3 {
     fn div_assign(&mut self, t: f64) {
-        *self *= 1.0 / t;
+        *self *= 1_f64 / t;
     }
 }
 
 #[test]
 fn test_length_squared() {
-    let v = Vec3::new(2.0, 3.0, 5.0);
-    let target = 38.0; // 4 + 9 + 25
+    let v = Vec3::new(2_f64, 3_f64, 5_f64);
+    let target = 38_f64; // 4 + 9 + 25
 
     assert_eq!(target, v.length_squared())
 }
 
 #[test]
 fn test_length() {
-    let v = Vec3::new(3.0, 4.0, 5.0);
+    let v = Vec3::new(3_f64, 4_f64, 5_f64);
     let target = 50_f64.sqrt();
 
     assert_eq!(target, v.length());
@@ -142,26 +142,26 @@ fn test_length() {
 
 #[test]
 fn test_neg() {
-    let v = Vec3::new(1.0, -1.0, 0.1);
-    let target = Vec3::new(-1.0, 1.0, -0.1);
+    let v = Vec3::new(1_f64, -1_f64, 0.1);
+    let target = Vec3::new(-1_f64, 1_f64, -0.1);
 
     assert_eq!(target, -v)
 }
 
 #[test]
 fn test_index() {
-    let v = Vec3::new(2.0, 3.0, 5.0);
+    let v = Vec3::new(2_f64, 3_f64, 5_f64);
 
-    assert_eq!(2.0, v[0]);
-    assert_eq!(3.0, v[1]);
-    assert_eq!(5.0, v[2]);
+    assert_eq!(2_f64, v[0]);
+    assert_eq!(3_f64, v[1]);
+    assert_eq!(5_f64, v[2]);
 }
 
 #[test]
 fn test_add_assign() {
-    let mut v = Vec3::new(1.0, -1.0, 0.1);
-    let u = Vec3::new(2.0, 10.0, 0.01);
-    let target = Vec3::new(3.0, 9.0, 0.11);
+    let mut v = Vec3::new(1_f64, -1_f64, 0.1);
+    let u = Vec3::new(2_f64, 10_f64, 0_f641);
+    let target = Vec3::new(3_f64, 9_f64, 0.11);
 
     v += u;
 
@@ -170,9 +170,9 @@ fn test_add_assign() {
 
 #[test]
 fn test_add_assign_ref() {
-    let mut v = Vec3::new(1.0, -1.0, 0.1);
-    let u = Vec3::new(2.0, 10.0, 0.01);
-    let target = Vec3::new(3.0, 9.0, 0.11);
+    let mut v = Vec3::new(1_f64, -1_f64, 0.1);
+    let u = Vec3::new(2_f64, 10_f64, 0_f641);
+    let target = Vec3::new(3_f64, 9_f64, 0.11);
 
     v += &u;
 
@@ -181,9 +181,9 @@ fn test_add_assign_ref() {
 
 #[test]
 fn test_mul_assign() {
-    let mut v = Vec3::new(1.0, -1.0, 0.1);
+    let mut v = Vec3::new(1_f64, -1_f64, 0.1);
     let t = 0.1;
-    let target = Vec3::new(0.1, -0.1, 0.01);
+    let target = Vec3::new(0.1, -0.1, 0_f641);
 
     v *= t;
     v.e.iter_mut()
@@ -194,9 +194,9 @@ fn test_mul_assign() {
 
 #[test]
 fn test_div_assign() {
-    let mut v = Vec3::new(1.0, -1.0, 0.1);
+    let mut v = Vec3::new(1_f64, -1_f64, 0.1);
     let t = 0.5;
-    let target = Vec3::new(2.0, -2.0, 0.2);
+    let target = Vec3::new(2_f64, -2_f64, 0.2);
 
     v /= t;
 

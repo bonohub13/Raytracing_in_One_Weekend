@@ -19,7 +19,7 @@ pub fn write_color(pixel_color: &Color) -> [i32; 3] {
     let mut rgb = [0; 3];
 
     rgb.iter_mut().enumerate().for_each(|(i, e_i)| {
-        *e_i = (256.0 * INTENSITY.clamp(linear_to_gamma(pixel_color[i]))) as i32
+        *e_i = (256_f64 * INTENSITY.clamp(linear_to_gamma(pixel_color[i]))) as i32
     });
 
     rgb
@@ -27,7 +27,7 @@ pub fn write_color(pixel_color: &Color) -> [i32; 3] {
 
 #[test]
 fn test_write_color() {
-    let pixel_color = Color::new(0.01, 0.999, 0.9991);
+    let pixel_color = Color::new(0_f641, 0.999, 0.9991);
     let result = write_color(&pixel_color);
     let target = [25, 255, 255];
 
