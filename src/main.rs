@@ -2,7 +2,7 @@ use anyhow::Result;
 use rtiow::{
     camera::Camera,
     hittable::{Dielectric, HittableList, Lambertian, Metal, Sphere},
-    vec3::{Color, Point3},
+    vec3::{Color, Point3, Vec3},
 };
 use std::sync::Arc;
 
@@ -41,9 +41,18 @@ fn main() -> Result<()> {
         material_right,
     )));
 
-    let cam = Camera::new(16_f64 / 9_f64, 400, 100, 50);
+    let cam = Camera::new(
+        16_f64 / 9_f64,
+        400,
+        100,
+        50,
+        20_f64,
+        &Point3::new(-2_f64, 2_f64, 1_f64),
+        &Point3::new(0_f64, 0_f64, -1_f64),
+        &Vec3::new(0_f64, 1_f64, 0_f64),
+    );
 
-    cam.render(&world, "images/hollow_glass_sphere.ppm")?;
+    cam.render(&world, "images/zooming_in.ppm")?;
 
     Ok(())
 }
