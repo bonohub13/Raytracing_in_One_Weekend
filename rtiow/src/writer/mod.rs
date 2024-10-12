@@ -7,12 +7,12 @@ use std::{
 };
 
 #[derive(Debug)]
-pub struct ImageBuffer {
+pub struct PpmWriter {
     pub path: Box<Path>,
     pub buffer: Box<[[i32; 3]]>,
 }
 
-impl ImageBuffer {
+impl PpmWriter {
     pub fn new(file_path: &str) -> Self {
         Self {
             path: Path::new(file_path).into(),

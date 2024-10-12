@@ -7,6 +7,9 @@ use std::ops::{AddAssign, DivAssign, Index, MulAssign, Neg};
 pub mod color;
 pub mod utils;
 
+#[cfg(test)]
+mod test_utils;
+
 pub use color::*;
 pub use utils::*;
 
@@ -56,7 +59,9 @@ impl Vec3 {
     }
 
     pub fn near_zero(&self) -> bool {
-        (self.e[0].abs() < Self::DELTA_ZERO) && (self.e[1].abs() < Self::DELTA_ZERO) && (self.e[2].abs() < Self::DELTA_ZERO)
+        (self.e[0].abs() < Self::DELTA_ZERO)
+            && (self.e[1].abs() < Self::DELTA_ZERO)
+            && (self.e[2].abs() < Self::DELTA_ZERO)
     }
 
     pub fn random() -> Self {
