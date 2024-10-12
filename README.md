@@ -8,6 +8,18 @@ by Peter Shirley
 - [TODO](#TODO)
 - [References](#References)
 
+## So, why another Raytracing in One Weekend in Rust?
+I re-read Raytracing in One Weekend recently and the code structure changed and,
+my previous code was terrible. \
+I wanted to rewrite to code with a better structure and base it off of the new
+code base in the book. \
+What differentiates this from other implementations are the following features.
+1. Not using stdout for writing PPM.
+    - Created a dedicated PPM writer to get rid of the bottleneck from using stdout.
+2. Added PNG image writer by using the `image` crate for handling PNG file writer.
+3. Parallel renderer. (Because multithread = fast)
+
+
 ## UPDATES
 2022/5/31
 - Erased every past code in `rust` branch due to fatal flaw in code
