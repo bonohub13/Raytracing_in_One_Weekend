@@ -32,6 +32,9 @@ by Peter Shirley
 2024/9/25
 - Rewrite in rust with better code base
 
+2024/10/12
+- Moved rust-rewrite to rust
+- Completed Raytracing in One Weekend
 
 ## References
 1. [Peter Shirley, Raytracing in One Weekend, 2020-12-07](https://github.com/RayTracing/raytracing.github.io)
