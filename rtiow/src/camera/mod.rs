@@ -140,7 +140,7 @@ impl Camera {
                 let j = ij / self.image_size[0];
                 let i = ij % self.image_size[0];
                 let pixel_color = (0..self.samples_per_pixel)
-                    .into_iter()
+                    .into_par_iter()
                     .map(|_| {
                         let r = self.get_ray(i, j);
 
