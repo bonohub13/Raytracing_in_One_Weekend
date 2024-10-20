@@ -140,7 +140,7 @@ impl Camera {
                 let j = ij / self.image_size[0];
                 let i = ij % self.image_size[0];
                 let pixel_color = (0..self.samples_per_pixel)
-                    .into_par_iter()
+                    .into_iter()
                     .map(|_| {
                         let r = self.get_ray(i, j);
 
@@ -182,8 +182,9 @@ impl Camera {
             self.defocus_disk_sample()
         };
         let ray_direction = pixel_sample - ray_origin;
+        let ray_time = utils::random();
 
-        Ray::new(ray_origin, ray_direction)
+        Ray::new(ray_origin, ray_direction, ray_time)
     }
 
     fn defocus_disk_sample(&self) -> Point3 {

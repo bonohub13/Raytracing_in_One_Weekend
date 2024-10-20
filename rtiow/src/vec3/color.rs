@@ -27,7 +27,7 @@ pub fn write_color(pixel_color: &Color) -> [i32; 3] {
 
 #[test]
 fn test_write_color() {
-    let pixel_color = Color::new(0_f641, 0.999, 0.9991);
+    let pixel_color = Color::new(0.01, 0.999, 0.9991);
     let result = write_color(&pixel_color);
     let target = [25, 255, 255];
 

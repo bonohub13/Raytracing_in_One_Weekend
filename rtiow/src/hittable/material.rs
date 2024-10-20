@@ -1,13 +1,15 @@
 use super::{HitRecord, Material};
 use crate::{
     ray::Ray,
+    texture::{SolidColor, Texture},
     utils,
     vec3::{self, Color},
 };
+use std::sync::Arc;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Lambertian {
-    albedo: Color,
+    tex: Arc<dyn Texture>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -23,12 +25,18 @@ pub struct Dielectric {
 
 impl Lambertian {
     pub fn new(albedo: Color) -> Self {
-        Self { albedo }
+        Self {
+            tex: Arc::new(SolidColor::new(albedo)),
+        }
+    }
+
+    pub fn from(tex: &Arc<dyn Texture>) -> Self {
+        Self { tex: tex.clone() }
     }
 }
 
 impl Material for Lambertian {
-    fn scatter(&self, _r_in: &Ray, rec: &HitRecord) -> Option<(Color, Ray)> {
+    fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Color, Ray)> {
         let scatter_direction = {
             let scatter_direction = rec.normal + vec3::random_unit_vector();
 
@@ -38,8 +46,8 @@ impl Material for Lambertian {
                 scatter_direction
             }
         };
-        let scattered = Ray::new(rec.p, scatter_direction);
-        let attenuation = self.albedo;
+        let scattered = Ray::new(rec.p, scatter_direction, *r_in.time());
+        let attenuation = self.tex.value(rec.u, rec.v, &rec.p);
 
         Some((attenuation, scattered))
     }
@@ -58,7 +66,7 @@ impl Material for Metal {
 
             vec3::unit_vector(&reflected) + (self.fuzz * vec3::random_unit_vector())
         };
-        let scattered = Ray::new(rec.p, reflected);
+        let scattered = Ray::new(rec.p, reflected, *r_in.time());
         let attenuation = self.albedo;
 
         if vec3::dot(scattered.direction(), &rec.normal) > 0_f64 {
@@ -100,7 +108,7 @@ impl Material for Dielectric {
         } else {
             vec3::refract(&unit_direction, &rec.normal, refraction_index)
         };
-        let scattered = Ray::new(rec.p, direction);
+        let scattered = Ray::new(rec.p, direction, *r_in.time());
 
         Some((attenuation, scattered))
     }

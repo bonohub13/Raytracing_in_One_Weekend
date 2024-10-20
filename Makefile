@@ -10,6 +10,10 @@ all: build run
 prepare:
 	@[ -d images ] || mkdir -v images
 
+resources:
+	@chmod +x scripts/resources.sh
+	@./scripts/resources.sh
+
 clean:
 	@$(CARGO) clean
 	@$(CARGO) clean --package=rtiow

@@ -16,6 +16,11 @@ pub fn random_in_range(range: &Interval) -> f64 {
     thread_rng().gen_range(range.min..=range.max)
 }
 
+#[inline]
+pub fn random_i32(range: &Interval) -> i32 {
+    random_in_range(&Interval::new(range.min, range.max + 1_f64)) as i32
+}
+
 #[test]
 fn test_degrees_to_radians() {
     let degrees = 60_f64;

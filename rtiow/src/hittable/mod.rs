@@ -5,10 +5,14 @@ use crate::{
 };
 use std::fmt::Debug;
 
-pub mod hittable_list;
-pub mod material;
-pub mod sphere;
+mod aabb;
+mod bvh;
+mod hittable_list;
+mod material;
+mod sphere;
 
+pub use aabb::*;
+pub use bvh::*;
 pub use hittable_list::*;
 pub use material::*;
 pub use sphere::*;
@@ -19,6 +23,8 @@ pub struct HitRecord<'a> {
     pub normal: Vec3,
     pub mat: &'a dyn Material,
     pub t: f64,
+    pub u: f64,
+    pub v: f64,
     pub front_face: bool,
 }
 
@@ -33,8 +39,12 @@ impl<'a> HitRecord<'a> {
     }
 }
 
-pub trait Hittable: Sync + Send {
+pub trait Hittable: Debug + Sync + Send {
     fn hit(&self, _r: &Ray, _ray_t: &Interval) -> Option<HitRecord> {
+        None
+    }
+
+    fn bounding_box(&self) -> Option<Aabb> {
         None
     }
 }

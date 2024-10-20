@@ -4,8 +4,8 @@ use crate::{
 };
 use std::ops::{AddAssign, DivAssign, Index, MulAssign, Neg};
 
-pub mod color;
-pub mod utils;
+mod color;
+mod utils;
 
 #[cfg(test)]
 mod test_utils;
@@ -165,7 +165,7 @@ fn test_index() {
 #[test]
 fn test_add_assign() {
     let mut v = Vec3::new(1_f64, -1_f64, 0.1);
-    let u = Vec3::new(2_f64, 10_f64, 0_f641);
+    let u = Vec3::new(2_f64, 10_f64, 0.01);
     let target = Vec3::new(3_f64, 9_f64, 0.11);
 
     v += u;
@@ -176,7 +176,7 @@ fn test_add_assign() {
 #[test]
 fn test_add_assign_ref() {
     let mut v = Vec3::new(1_f64, -1_f64, 0.1);
-    let u = Vec3::new(2_f64, 10_f64, 0_f641);
+    let u = Vec3::new(2_f64, 10_f64, 0.01);
     let target = Vec3::new(3_f64, 9_f64, 0.11);
 
     v += &u;
@@ -188,7 +188,7 @@ fn test_add_assign_ref() {
 fn test_mul_assign() {
     let mut v = Vec3::new(1_f64, -1_f64, 0.1);
     let t = 0.1;
-    let target = Vec3::new(0.1, -0.1, 0_f641);
+    let target = Vec3::new(0.1, -0.1, 0.01);
 
     v *= t;
     v.e.iter_mut()

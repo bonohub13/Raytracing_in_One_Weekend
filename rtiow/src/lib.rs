@@ -3,6 +3,7 @@ pub mod error;
 pub mod hittable;
 pub mod interval;
 pub mod ray;
+pub mod texture;
 pub mod utils;
 pub mod vec3;
 pub mod writer;
