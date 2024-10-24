@@ -30,7 +30,7 @@ impl Lambertian {
         }
     }
 
-    pub fn from(tex: &Arc<dyn Texture>) -> Self {
+    pub fn from(tex: Arc<dyn Texture>) -> Self {
         Self { tex: tex.clone() }
     }
 }

@@ -3,7 +3,7 @@ use rtiow::{
     camera::Camera,
     hittable::{Dielectric, HittableList, Lambertian, Metal, Sphere},
     interval::Interval,
-    texture::{CheckerTexture, ImageTexture, Texture},
+    texture::{CheckerTexture, ImageTexture, NoiseTexture, Texture},
     vec3::{Color, Point3, Vec3},
 };
 use std::sync::Arc;
@@ -112,12 +112,12 @@ pub fn checkered_spheres() -> Result<()> {
     world.add(Arc::new(Sphere::new(
         Point3::new(0_f64, -1e1, 0_f64),
         1e1,
-        Arc::new(Lambertian::from(&checker)),
+        Arc::new(Lambertian::from(checker.clone())),
     )));
     world.add(Arc::new(Sphere::new(
         Point3::new(0_f64, 1e1, 0_f64),
         1e1,
-        Arc::new(Lambertian::from(&checker)),
+        Arc::new(Lambertian::from(checker)),
     )));
 
     let cam = Camera::new(
@@ -140,7 +140,7 @@ pub fn checkered_spheres() -> Result<()> {
 
 pub fn earth() -> Result<()> {
     let earth_texture: Arc<dyn Texture> = Arc::new(ImageTexture::new("earthmap.jpg")?);
-    let earth_surface = Arc::new(Lambertian::from(&earth_texture));
+    let earth_surface = Arc::new(Lambertian::from(earth_texture));
     let globe = Sphere::new(Point3::zeroes(), 2_f64, earth_surface);
     let cam = Camera::new(
         16_f64 / 9_f64,
@@ -158,4 +158,33 @@ pub fn earth() -> Result<()> {
     cam.render_png(&globe, "images/earthmap.png")?;
 
     Ok(())
+}
+
+pub fn perlin_spheres() -> Result<()> {
+    let mut world = HittableList::new();
+    let cam = Camera::new(
+        16_f64 / 9_f64,
+        400,
+        100,
+        50,
+        20_f64,
+        &Point3::new(13_f64, 2_f64, 3_f64),
+        &Point3::zeroes(),
+        &Vec3::new(0_f64, 1_f64, 0_f64),
+        0_f64,
+        1e1,
+    );
+
+    world.add(Arc::new(Sphere::new(
+        Point3::new(0_f64, -1e3, 0_f64),
+        1e3,
+        Arc::new(Lambertian::from(Arc::new(NoiseTexture::new(1_f64)))),
+    )));
+    world.add(Arc::new(Sphere::new(
+        Point3::new(0_f64, 2_f64, 0_f64),
+        2_f64,
+        Arc::new(Lambertian::from(Arc::new(NoiseTexture::new(4_f64)))),
+    )));
+
+    cam.render_png(&world, "images/hashed_random_texture.png")
 }

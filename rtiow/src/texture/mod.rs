@@ -3,8 +3,10 @@ use anyhow::Result;
 use std::{fmt::Debug, sync::Arc};
 
 mod image;
+mod perlin;
 
 pub use image::RtwImage;
+pub use perlin::*;
 
 pub trait Texture: Debug + Send + Sync {
     fn value(&self, u: f64, v: f64, p: &Color) -> Color;
@@ -25,6 +27,12 @@ pub struct CheckerTexture {
 #[derive(Debug)]
 pub struct ImageTexture {
     image: RtwImage,
+}
+
+#[derive(Debug)]
+pub struct NoiseTexture {
+    noise: Perlin,
+    scale: f64,
 }
 
 impl SolidColor {
@@ -109,5 +117,21 @@ impl Texture for ImageTexture {
             color_scale * pixel[1] as f64,
             color_scale * pixel[2] as f64,
         )
+    }
+}
+
+impl NoiseTexture {
+    pub fn new(scale: f64) -> Self {
+        Self {
+            noise: Perlin::new(),
+            scale,
+        }
+    }
+}
+
+impl Texture for NoiseTexture {
+    fn value(&self, _u: f64, _v: f64, p: &Color) -> Color {
+        // Color::new(1_f64, 1_f64, 1_f64) * 0.5 * (1_f64 + self.noise.noise(&(self.scale * p)))
+        Color::new(1_f64, 1_f64, 1_f64) * self.noise.turbulance(p, 7)
     }
 }

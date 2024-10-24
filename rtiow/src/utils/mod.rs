@@ -13,7 +13,7 @@ pub fn random() -> f64 {
 
 #[inline]
 pub fn random_in_range(range: &Interval) -> f64 {
-    thread_rng().gen_range(range.min..=range.max)
+    range.min + (range.max - range.min) * thread_rng().gen::<f64>()
 }
 
 #[inline]
