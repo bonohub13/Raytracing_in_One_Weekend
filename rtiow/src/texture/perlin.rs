@@ -40,17 +40,18 @@ impl Perlin {
             [u, v, w]
         };
 
-        let i = p.x().floor() as usize;
-        let j = p.y().floor() as usize;
-        let k = p.z().floor() as usize;
+        let i = p.x().floor() as i32;
+        let j = p.y().floor() as i32;
+        let k = p.z().floor() as i32;
         let mut c = [[[Vec3::zeroes(); 2]; 2]; 2];
 
-        for di in 0..2 {
-            for dj in 0..2 {
-                for dk in 0..2 {
-                    c[di][dj][dk] = self.randvec[self.perm_x[(i + di) & 255]
-                        ^ self.perm_y[(j + dj) & 255]
-                        ^ self.perm_z[(k + dk) & 255]];
+        for di in 0..2_i32 {
+            for dj in 0..2_i32 {
+                for dk in 0..2_i32 {
+                    c[di as usize][dj as usize][dk as usize] = self.randvec[self.perm_x
+                        [((i + di) & 255) as usize]
+                        ^ self.perm_y[((j + dj) & 255) as usize]
+                        ^ self.perm_z[((k + dk) & 255) as usize]];
                 }
             }
         }
