@@ -36,6 +36,8 @@ impl Aabb {
             Interval::new(b[2], a[2])
         };
 
+        let (x, y, z) = Self::pad_to_minimum(&x, &y, &z);
+
         Self { x, y, z }
     }
 
@@ -98,5 +100,27 @@ impl Aabb {
                 2
             }
         }
+    }
+
+    fn pad_to_minimum(x: &Interval, y: &Interval, z: &Interval) -> (Interval, Interval, Interval) {
+        const DELTA: f64 = 1e-4;
+
+        let x = if x.size() < DELTA {
+            x.expand(DELTA)
+        } else {
+            *x
+        };
+        let y = if y.size() < DELTA {
+            y.expand(DELTA)
+        } else {
+            *y
+        };
+        let z = if z.size() < DELTA {
+            z.expand(DELTA)
+        } else {
+            *z
+        };
+
+        (x, y, z)
     }
 }

@@ -9,12 +9,14 @@ mod aabb;
 mod bvh;
 mod hittable_list;
 mod material;
+mod quad;
 mod sphere;
 
 pub use aabb::*;
 pub use bvh::*;
 pub use hittable_list::*;
 pub use material::*;
+pub use quad::*;
 pub use sphere::*;
 
 #[derive(Debug)]

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use rtiow::{
     camera::Camera,
-    hittable::{Dielectric, HittableList, Lambertian, Metal, Sphere},
+    hittable::{Dielectric, HittableList, Lambertian, Material, Metal, Quad, Sphere},
     interval::Interval,
     texture::{CheckerTexture, ImageTexture, NoiseTexture, Texture},
     vec3::{Color, Point3, Vec3},
@@ -95,9 +95,7 @@ pub fn bouncing_spheres() -> Result<()> {
         1e1,
     );
 
-    cam.render_png(&world, "images/checkered_ground.png")?;
-
-    Ok(())
+    cam.render_png(&world, "images/checkered_ground.png")
 }
 
 pub fn checkered_spheres() -> Result<()> {
@@ -133,9 +131,7 @@ pub fn checkered_spheres() -> Result<()> {
         1e1,
     );
 
-    cam.render_png(&world, "images/checkered_spheres.png")?;
-
-    Ok(())
+    cam.render_png(&world, "images/checkered_spheres.png")
 }
 
 pub fn earth() -> Result<()> {
@@ -155,9 +151,7 @@ pub fn earth() -> Result<()> {
         1e1,
     );
 
-    cam.render_png(&globe, "images/earthmap.png")?;
-
-    Ok(())
+    cam.render_png(&globe, "images/earthmap.png")
 }
 
 pub fn perlin_spheres() -> Result<()> {
@@ -187,4 +181,58 @@ pub fn perlin_spheres() -> Result<()> {
     )));
 
     cam.render_png(&world, "images/hashed_random_texture.png")
+}
+
+pub fn quads() -> Result<()> {
+    let mut world = HittableList::new();
+    let cam = Camera::new(
+        1_f64,
+        400,
+        100,
+        50,
+        80_f64,
+        &Point3::new(0_f64, 0_f64, 9_f64),
+        &Point3::zeroes(),
+        &Vec3::new(0_f64, 1_f64, 0_f64),
+        0_f64,
+        1e1,
+    );
+    let left_red: Arc<dyn Material> = Arc::new(Lambertian::new(Color::new(1_f64, 0.2, 0.2)));
+    let back_green: Arc<dyn Material> = Arc::new(Lambertian::new(Color::new(0.2, 1_f64, 0.2)));
+    let right_blue: Arc<dyn Material> = Arc::new(Lambertian::new(Color::new(0.2, 0.2, 1_f64)));
+    let upper_orange: Arc<dyn Material> = Arc::new(Lambertian::new(Color::new(1_f64, 0.5, 0_f64)));
+    let lower_teal: Arc<dyn Material> = Arc::new(Lambertian::new(Color::new(0.2, 0.8, 0.8)));
+
+    world.add(Arc::new(Quad::new(
+        Point3::new(-3_f64, -2_f64, 5_f64),
+        Vec3::new(0_f64, 0_f64, -4_f64),
+        Vec3::new(0_f64, 4_f64, 0_f64),
+        &left_red,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(-2_f64, -2_f64, 0_f64),
+        Vec3::new(4_f64, 0_f64, 0_f64),
+        Vec3::new(0_f64, 4_f64, 0_f64),
+        &back_green,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(3_f64, -2_f64, 1_f64),
+        Vec3::new(0_f64, 0_f64, 4_f64),
+        Vec3::new(0_f64, 4_f64, 0_f64),
+        &right_blue,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(-2_f64, 3_f64, 1_f64),
+        Vec3::new(4_f64, 0_f64, 0_f64),
+        Vec3::new(0_f64, 0_f64, 4_f64),
+        &upper_orange,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(-2_f64, -3_f64, 5_f64),
+        Vec3::new(4_f64, 0_f64, 0_f64),
+        Vec3::new(0_f64, 0_f64, -4_f64),
+        &lower_teal,
+    )));
+
+    cam.render_png(&world, "images/quads.png")
 }
