@@ -1,7 +1,7 @@
 use anyhow::Result;
 use rtiow::{
     camera::Camera,
-    hittable::{Dielectric, HittableList, Lambertian, Material, Metal, Quad, Sphere},
+    hittable::{Dielectric, DiffuseLight, HittableList, Lambertian, Material, Metal, Quad, Sphere},
     interval::Interval,
     texture::{CheckerTexture, ImageTexture, NoiseTexture, Texture},
     vec3::{Color, Point3, Vec3},
@@ -83,16 +83,17 @@ pub fn bouncing_spheres() -> Result<()> {
     )));
 
     let cam = Camera::new(
-        16_f64 / 9_f64,
-        1200,
-        500,
-        50,
+        Some(16_f64 / 9_f64),
+        Some(1200),
+        Some(500),
+        Some(50),
         20_f64,
         &Point3::new(13_f64, 2_f64, 3_f64),
         &Point3::zeroes(),
         &Vec3::new(0_f64, 1_f64, 0_f64),
         0.6,
         1e1,
+        Color::new(0.7, 0.8, 1_f64),
     );
 
     cam.render_png(&world, "images/checkered_ground.png")
@@ -110,25 +111,26 @@ pub fn checkered_spheres() -> Result<()> {
     world.add(Arc::new(Sphere::new(
         Point3::new(0_f64, -1e1, 0_f64),
         1e1,
-        Arc::new(Lambertian::from(checker.clone())),
+        Arc::new(Lambertian::from(&checker)),
     )));
     world.add(Arc::new(Sphere::new(
         Point3::new(0_f64, 1e1, 0_f64),
         1e1,
-        Arc::new(Lambertian::from(checker)),
+        Arc::new(Lambertian::from(&checker)),
     )));
 
     let cam = Camera::new(
-        16_f64 / 9_f64,
-        400,
-        100,
-        50,
+        Some(16_f64 / 9_f64),
+        Some(400),
+        Some(100),
+        Some(50),
         20_f64,
         &Point3::new(13_f64, 2_f64, 3_f64),
         &Point3::zeroes(),
         &Vec3::new(0_f64, 1_f64, 0_f64),
         0_f64,
         1e1,
+        Color::new(0.7, 0.8, 1_f64),
     );
 
     cam.render_png(&world, "images/checkered_spheres.png")
@@ -136,19 +138,20 @@ pub fn checkered_spheres() -> Result<()> {
 
 pub fn earth() -> Result<()> {
     let earth_texture: Arc<dyn Texture> = Arc::new(ImageTexture::new("earthmap.jpg")?);
-    let earth_surface = Arc::new(Lambertian::from(earth_texture));
+    let earth_surface = Arc::new(Lambertian::from(&earth_texture));
     let globe = Sphere::new(Point3::zeroes(), 2_f64, earth_surface);
     let cam = Camera::new(
-        16_f64 / 9_f64,
-        400,
-        100,
-        50,
+        Some(16_f64 / 9_f64),
+        Some(400),
+        Some(100),
+        Some(50),
         20_f64,
         &Point3::new(0_f64, 0_f64, 12_f64),
         &Point3::zeroes(),
         &Vec3::new(0_f64, 1_f64, 0_f64),
         0_f64,
         1e1,
+        Color::new(0.7, 0.8, 1_f64),
     );
 
     cam.render_png(&globe, "images/earthmap.png")
@@ -156,28 +159,30 @@ pub fn earth() -> Result<()> {
 
 pub fn perlin_spheres() -> Result<()> {
     let mut world = HittableList::new();
+    let pertext: Arc<dyn Texture> = Arc::new(NoiseTexture::new(4_f64));
     let cam = Camera::new(
-        16_f64 / 9_f64,
-        400,
-        100,
-        50,
+        Some(16_f64 / 9_f64),
+        Some(400),
+        Some(100),
+        Some(50),
         20_f64,
         &Point3::new(13_f64, 2_f64, 3_f64),
         &Point3::zeroes(),
         &Vec3::new(0_f64, 1_f64, 0_f64),
         0_f64,
         1e1,
+        Color::new(0.7, 0.8, 1_f64),
     );
 
     world.add(Arc::new(Sphere::new(
         Point3::new(0_f64, -1e3, 0_f64),
         1e3,
-        Arc::new(Lambertian::from(Arc::new(NoiseTexture::new(1_f64)))),
+        Arc::new(Lambertian::from(&pertext)),
     )));
     world.add(Arc::new(Sphere::new(
         Point3::new(0_f64, 2_f64, 0_f64),
         2_f64,
-        Arc::new(Lambertian::from(Arc::new(NoiseTexture::new(4_f64)))),
+        Arc::new(Lambertian::from(&pertext)),
     )));
 
     cam.render_png(&world, "images/hashed_random_texture.png")
@@ -186,16 +191,17 @@ pub fn perlin_spheres() -> Result<()> {
 pub fn quads() -> Result<()> {
     let mut world = HittableList::new();
     let cam = Camera::new(
-        1_f64,
-        400,
-        100,
-        50,
+        Some(1_f64),
+        Some(400),
+        Some(100),
+        Some(50),
         80_f64,
         &Point3::new(0_f64, 0_f64, 9_f64),
         &Point3::zeroes(),
         &Vec3::new(0_f64, 1_f64, 0_f64),
         0_f64,
         1e1,
+        Color::new(0.7, 0.8, 1_f64),
     );
     let left_red: Arc<dyn Material> = Arc::new(Lambertian::new(Color::new(1_f64, 0.2, 0.2)));
     let back_green: Arc<dyn Material> = Arc::new(Lambertian::new(Color::new(0.2, 1_f64, 0.2)));
@@ -235,4 +241,47 @@ pub fn quads() -> Result<()> {
     )));
 
     cam.render_png(&world, "images/quads.png")
+}
+
+pub fn simple_light() -> Result<()> {
+    let mut world = HittableList::new();
+    let pertext: Arc<dyn Texture> = Arc::new(NoiseTexture::new(4_f64));
+    let difflight: Arc<dyn Material> = Arc::new(DiffuseLight::new(Color::new(4_f64, 4_f64, 4_f64)));
+    let cam = Camera::new(
+        Some(16_f64 / 9_f64),
+        Some(400),
+        Some(100),
+        Some(50),
+        20_f64,
+        &Point3::new(26_f64, 3_f64, 6_f64),
+        &Point3::new(0_f64, 2_f64, 0_f64),
+        &Vec3::new(0_f64, 1_f64, 0_f64),
+        0_f64,
+        1e1,
+        Color::zeroes(),
+    );
+
+    world.add(Arc::new(Sphere::new(
+        Point3::new(0_f64, -1e3, 0_f64),
+        1e3,
+        Arc::new(Lambertian::from(&pertext)),
+    )));
+    world.add(Arc::new(Sphere::new(
+        Point3::new(0_f64, 2_f64, 0_f64),
+        2_f64,
+        Arc::new(Lambertian::from(&pertext)),
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(3_f64, 1_f64, -2_f64),
+        Vec3::new(2_f64, 0_f64, 0_f64),
+        Vec3::new(0_f64, 2_f64, 0_f64),
+        &difflight,
+    )));
+    world.add(Arc::new(Sphere::new(
+        Point3::new(0_f64, 7_f64, 0_f64),
+        2_f64,
+        difflight,
+    )));
+
+    cam.render_png(&world, "images/scene_with_rectangle_light_source.png")
 }

@@ -23,23 +23,31 @@ pub struct Camera {
     max_depth: i32,
     defocus_angle: f64,
     defocus_disk: [Vec3; 2],
+    background: Color,
 }
 
 impl Camera {
     const EMPTY_SPACES: &'static str = "          ";
 
     pub fn new(
-        aspect_ratio: f64,
-        image_width: i32,
-        samples_per_pixel: i32,
-        max_depth: i32,
+        aspect_ratio: Option<f64>,
+        image_width: Option<i32>,
+        samples_per_pixel: Option<i32>,
+        max_depth: Option<i32>,
         vfov: f64,
         look_from: &Point3,
         look_at: &Point3,
         vup: &Vec3,
         defocus_angle: f64,
         focus_distance: f64,
+        background: Color,
     ) -> Self {
+        // Parameters with default values
+        let aspect_ratio = aspect_ratio.unwrap_or(1_f64);
+        let image_width = image_width.unwrap_or(100);
+        let samples_per_pixel = samples_per_pixel.unwrap_or(10);
+        let max_depth = max_depth.unwrap_or(10);
+
         let image_height = {
             let image_height = (image_width as f64 / aspect_ratio) as i32;
 
@@ -88,6 +96,7 @@ impl Camera {
             max_depth,
             defocus_angle,
             defocus_disk,
+            background,
         }
     }
 
@@ -109,7 +118,7 @@ impl Camera {
                     .map(|_| {
                         let r = self.get_ray(i, j);
 
-                        Self::ray_color(&r, self.max_depth, world)
+                        self.ray_color(&r, self.max_depth, world)
                     })
                     .sum::<Color>();
 
@@ -144,7 +153,7 @@ impl Camera {
                     .map(|_| {
                         let r = self.get_ray(i, j);
 
-                        Self::ray_color(&r, self.max_depth, world)
+                        self.ray_color(&r, self.max_depth, world)
                     })
                     .sum::<Color>();
 
@@ -197,22 +206,22 @@ impl Camera {
         Vec3::new(utils::random() - 0.5, utils::random() - 0.5, 0_f64)
     }
 
-    fn ray_color(r: &Ray, depth: i32, world: &dyn Hittable) -> Color {
+    fn ray_color(&self, r: &Ray, depth: i32, world: &dyn Hittable) -> Color {
         if depth <= 0 {
             return Color::zeroes();
         }
 
         if let Some(rec) = world.hit(r, &Interval::new(0.001, INFINITY)) {
+            let color_from_emission = rec.mat.emitted(rec.u, rec.v, &rec.p);
+
             if let Some((attenuation, scattered)) = rec.mat.scatter(r, &rec) {
-                return attenuation * Self::ray_color(&scattered, depth - 1, world);
+                let color_from_scatter = attenuation * self.ray_color(&scattered, depth - 1, world);
+                return color_from_emission + color_from_scatter;
             }
 
-            return Color::zeroes();
+            return color_from_emission;
         }
 
-        let unit_direction = vec3::unit_vector(r.direction());
-        let a = 0.5 * (unit_direction.y() + 1_f64);
-
-        (1_f64 - a) * Color::new(1_f64, 1_f64, 1_f64) + a * Color::new(0.5, 0.7, 1_f64)
+        self.background
     }
 }
