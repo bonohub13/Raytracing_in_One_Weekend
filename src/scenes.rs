@@ -285,3 +285,73 @@ pub fn simple_light() -> Result<()> {
 
     cam.render_png(&world, "images/scene_with_rectangle_light_source.png")
 }
+
+pub fn cornell_box() -> Result<()> {
+    let mut world = HittableList::new();
+    let red: Arc<dyn Material> = Arc::new(Lambertian::new(Color::new(0.65, 0.05, 0.05)));
+    let white: Arc<dyn Material> = Arc::new(Lambertian::new(Color::new(0.73, 0.73, 0.73)));
+    let green: Arc<dyn Material> = Arc::new(Lambertian::new(Color::new(0.12, 0.45, 0.15)));
+    let light: Arc<dyn Material> = Arc::new(DiffuseLight::new(Color::new(15_f64, 15_f64, 15_f64)));
+    let cam = Camera::new(
+        Some(1_f64),
+        Some(600),
+        Some(200),
+        Some(50),
+        40_f64,
+        &Point3::new(278_f64, 278_f64, -800_f64),
+        &Point3::new(278_f64, 278_f64, 0_f64),
+        &Vec3::new(0_f64, 1_f64, 0_f64),
+        0_f64,
+        1e1,
+        Color::zeroes(),
+    );
+
+    world.add(Arc::new(Quad::new(
+        Point3::new(555_f64, 0_f64, 0_f64),
+        Vec3::new(0_f64, 555_f64, 0_f64),
+        Vec3::new(0_f64, 0_f64, 555_f64),
+        &green,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(0_f64, 0_f64, 0_f64),
+        Vec3::new(0_f64, 555_f64, 0_f64),
+        Vec3::new(0_f64, 0_f64, 555_f64),
+        &red,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(343_f64, 554_f64, 332_f64),
+        Vec3::new(-130_f64, 0_f64, 0_f64),
+        Vec3::new(0_f64, 0_f64, -105_f64),
+        &light,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(0_f64, 0_f64, 0_f64),
+        Vec3::new(555_f64, 0_f64, 0_f64),
+        Vec3::new(0_f64, 0_f64, 555_f64),
+        &white,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(555_f64, 555_f64, 555_f64),
+        Vec3::new(-555_f64, 0_f64, 0_f64),
+        Vec3::new(0_f64, 0_f64, -555_f64),
+        &white,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(0_f64, 0_f64, 555_f64),
+        Vec3::new(555_f64, 0_f64, 0_f64),
+        Vec3::new(0_f64, 555_f64, 0_f64),
+        &white,
+    )));
+    world.add(Arc::new(Quad::create_box(
+        Point3::new(130_f64, 0_f64, 65_f64),
+        Point3::new(295_f64, 165_f64, 230_f64),
+        &white,
+    )));
+    world.add(Arc::new(Quad::create_box(
+        Point3::new(265_f64, 0_f64, 295_f64),
+        Point3::new(430_f64, 330_f64, 460_f64),
+        &white,
+    )));
+
+    cam.render_png(&world, "images/cornell_box_with_two_blocks.png")
+}

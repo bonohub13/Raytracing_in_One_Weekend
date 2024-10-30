@@ -1,4 +1,4 @@
-use super::{Aabb, HitRecord, Hittable, Material};
+use super::{Aabb, HitRecord, Hittable, HittableList, Material};
 use crate::{
     interval::Interval,
     ray::Ray,
@@ -34,6 +34,44 @@ impl Quad {
         ret.set_bounding_box();
 
         ret
+    }
+
+    pub fn create_box(a: Point3, b: Point3, mat: &Arc<dyn Material>) -> HittableList {
+        let mut sides = HittableList::new();
+        let min = Point3::new(a.x().min(b.x()), a.y().min(b.y()), a.z().min(b.z()));
+        let max = Point3::new(a.x().max(b.x()), a.y().max(b.y()), a.z().max(b.z()));
+        let dx = Vec3::new(max.x() - min.x(), 0_f64, 0_f64);
+        let dy = Vec3::new(0_f64, max.y() - min.y(), 0_f64);
+        let dz = Vec3::new(0_f64, 0_f64, max.z() - min.z());
+
+        sides.add(Arc::new(Self::new(
+            Point3::new(min.x(), min.y(), max.z()),
+            dx,
+            dy,
+            mat,
+        )));
+        sides.add(Arc::new(Self::new(
+            Point3::new(max.x(), min.y(), max.z()),
+            -dz,
+            dy,
+            mat,
+        )));
+        sides.add(Arc::new(Self::new(
+            Point3::new(max.x(), min.y(), min.z()),
+            -dx,
+            dy,
+            mat,
+        )));
+        sides.add(Arc::new(Self::new(min, dz, dy, mat)));
+        sides.add(Arc::new(Self::new(
+            Point3::new(min.x(), max.y(), max.z()),
+            dx,
+            -dz,
+            mat,
+        )));
+        sides.add(Arc::new(Self::new(min, dx, dz, mat)));
+
+        sides
     }
 
     pub fn set_bounding_box(&mut self) {
