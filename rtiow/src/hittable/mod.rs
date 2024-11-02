@@ -7,6 +7,7 @@ use std::fmt::Debug;
 
 mod aabb;
 mod bvh;
+mod constant_medium;
 mod hittable_list;
 mod material;
 mod quad;
@@ -15,6 +16,7 @@ mod translate;
 
 pub use aabb::*;
 pub use bvh::*;
+pub use constant_medium::*;
 pub use hittable_list::*;
 pub use material::*;
 pub use quad::*;

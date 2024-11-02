@@ -1,10 +1,10 @@
 mod scenes;
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use scenes::*;
 
 fn main() -> Result<()> {
-    match 7 {
+    match 9 {
         1 => bouncing_spheres(),
         2 => checkered_spheres(),
         3 => earth(),
@@ -12,6 +12,8 @@ fn main() -> Result<()> {
         5 => quads(),
         6 => simple_light(),
         7 => cornell_box(),
-        val => bail!("Option is not available. ({})", val),
+        8 => cornell_smoke(),
+        9 => ray_tracing_the_next_week(800, 10000, 40),
+        _ => ray_tracing_the_next_week(400, 250, 4),
     }
 }
