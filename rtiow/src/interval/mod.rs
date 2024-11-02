@@ -1,4 +1,5 @@
 use crate::INFINITY;
+use std::ops::Add;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Interval {
@@ -62,5 +63,24 @@ impl Interval {
 impl Default for Interval {
     fn default() -> Self {
         Self::EMPTY
+    }
+}
+
+impl Add<f64> for Interval {
+    type Output = Self;
+
+    fn add(self, displacement: f64) -> Self::Output {
+        Self::Output {
+            min: self.min + displacement,
+            max: self.max + displacement,
+        }
+    }
+}
+
+impl Add<Interval> for f64 {
+    type Output = Interval;
+
+    fn add(self, ival: Interval) -> Self::Output {
+        ival + self
     }
 }

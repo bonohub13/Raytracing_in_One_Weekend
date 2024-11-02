@@ -10,12 +10,14 @@ mod bvh;
 mod hittable_list;
 mod material;
 mod sphere;
+mod translate;
 
 pub use aabb::*;
 pub use bvh::*;
 pub use hittable_list::*;
 pub use material::*;
 pub use sphere::*;
+pub use translate::*;
 
 #[derive(Debug)]
 pub struct HitRecord<'a> {

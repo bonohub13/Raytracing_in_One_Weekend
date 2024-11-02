@@ -1,10 +1,15 @@
-use crate::{interval::Interval, ray::Ray, vec3::Point3};
+use crate::{
+    interval::Interval,
+    ray::Ray,
+    vec3::{Point3, Vec3},
+};
+use std::ops::Add;
 
 #[derive(Debug, Clone)]
 pub struct Aabb {
-    x: Interval,
-    y: Interval,
-    z: Interval,
+    pub x: Interval,
+    pub y: Interval,
+    pub z: Interval,
 }
 
 impl Aabb {
@@ -98,5 +103,41 @@ impl Aabb {
                 2
             }
         }
+    }
+}
+
+impl Add<Vec3> for Aabb {
+    type Output = Self;
+
+    fn add(self, offset: Vec3) -> Self::Output {
+        Self::Output {
+            x: self.x + offset.x(),
+            y: self.y + offset.y(),
+            z: self.z + offset.z(),
+        }
+    }
+}
+
+impl Add<&Vec3> for Aabb {
+    type Output = Self;
+
+    fn add(self, offset: &Vec3) -> Self::Output {
+        self + (*offset)
+    }
+}
+
+impl Add<Aabb> for Vec3 {
+    type Output = Aabb;
+
+    fn add(self, bbox: Aabb) -> Self::Output {
+        bbox + self
+    }
+}
+
+impl Add<&Aabb> for Vec3 {
+    type Output = Aabb;
+
+    fn add(self, bbox: &Aabb) -> Self::Output {
+        bbox.clone() + self
     }
 }

@@ -2,7 +2,7 @@ use crate::{
     interval::Interval,
     utils::{random, random_in_range},
 };
-use std::ops::{AddAssign, DivAssign, Index, MulAssign, Neg};
+use std::ops::{AddAssign, DivAssign, Index, IndexMut, MulAssign, Neg};
 
 mod color;
 mod utils;
@@ -96,6 +96,12 @@ impl Index<usize> for Vec3 {
 
     fn index(&self, i: usize) -> &Self::Output {
         &self.e[i]
+    }
+}
+
+impl IndexMut<usize> for Vec3 {
+    fn index_mut(&mut self, i: usize) -> &mut Self::Output {
+        &mut self.e[i]
     }
 }
 
