@@ -1,7 +1,10 @@
 use anyhow::Result;
 use rtiow::{
     camera::Camera,
-    hittable::{Dielectric, DiffuseLight, HittableList, Lambertian, Material, Metal, Quad, Sphere},
+    hittable::{
+        Dielectric, DiffuseLight, Hittable, HittableList, Lambertian, Material, Metal, Quad,
+        RotateY, Sphere, Translate,
+    },
     interval::Interval,
     texture::{CheckerTexture, ImageTexture, NoiseTexture, Texture},
     vec3::{Color, Point3, Vec3},
@@ -342,16 +345,23 @@ pub fn cornell_box() -> Result<()> {
         Vec3::new(0_f64, 555_f64, 0_f64),
         &white,
     )));
-    world.add(Arc::new(Quad::create_box(
-        Point3::new(130_f64, 0_f64, 65_f64),
-        Point3::new(295_f64, 165_f64, 230_f64),
+    let mut box1: Arc<dyn Hittable> = Arc::new(Quad::create_box(
+        Point3::zeroes(),
+        Point3::new(165_f64, 330_f64, 165_f64),
         &white,
-    )));
-    world.add(Arc::new(Quad::create_box(
-        Point3::new(265_f64, 0_f64, 295_f64),
-        Point3::new(430_f64, 330_f64, 460_f64),
+    ));
+    let mut box2: Arc<dyn Hittable> = Arc::new(Quad::create_box(
+        Point3::zeroes(),
+        Point3::new(165_f64, 165_f64, 165_f64),
         &white,
-    )));
+    ));
 
-    cam.render_png(&world, "images/cornell_box_with_two_blocks.png")
+    box1 = Arc::new(RotateY::new(&box1, 15_f64));
+    box1 = Arc::new(Translate::new(&box1, Vec3::new(265_f64, 0_f64, 295_f64)));
+    box2 = Arc::new(RotateY::new(&box2, -18_f64));
+    box2 = Arc::new(Translate::new(&box2, Vec3::new(130_f64, 0_f64, 65_f64)));
+    world.add(box1);
+    world.add(box2);
+
+    cam.render_png(&world, "images/standard_cornell_box.png")
 }

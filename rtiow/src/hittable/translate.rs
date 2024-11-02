@@ -120,4 +120,8 @@ impl Hittable for RotateY {
             None
         }
     }
+
+    fn bounding_box(&self) -> Option<Aabb> {
+        Some(self.bbox.clone())
+    }
 }
