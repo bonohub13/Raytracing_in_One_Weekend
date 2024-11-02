@@ -1,7 +1,7 @@
 use anyhow::Result;
 use rtiow::{
     camera::Camera,
-    hittable::{Dielectric, HittableList, Lambertian, Metal, Sphere},
+    hittable::{Dielectric, DiffuseLight, HittableList, Lambertian, Material, Metal, Quad, Sphere},
     interval::Interval,
     texture::{CheckerTexture, ImageTexture, NoiseTexture, Texture},
     vec3::{Color, Point3, Vec3},
@@ -83,21 +83,20 @@ pub fn bouncing_spheres() -> Result<()> {
     )));
 
     let cam = Camera::new(
-        16_f64 / 9_f64,
-        1200,
-        500,
-        50,
+        Some(16_f64 / 9_f64),
+        Some(1200),
+        Some(500),
+        Some(50),
         20_f64,
         &Point3::new(13_f64, 2_f64, 3_f64),
         &Point3::zeroes(),
         &Vec3::new(0_f64, 1_f64, 0_f64),
         0.6,
         1e1,
+        Color::new(0.7, 0.8, 1_f64),
     );
 
-    cam.render_png(&world, "images/checkered_ground.png")?;
-
-    Ok(())
+    cam.render_png(&world, "images/checkered_ground.png")
 }
 
 pub fn checkered_spheres() -> Result<()> {
@@ -112,79 +111,247 @@ pub fn checkered_spheres() -> Result<()> {
     world.add(Arc::new(Sphere::new(
         Point3::new(0_f64, -1e1, 0_f64),
         1e1,
-        Arc::new(Lambertian::from(checker.clone())),
+        Arc::new(Lambertian::from(&checker)),
     )));
     world.add(Arc::new(Sphere::new(
         Point3::new(0_f64, 1e1, 0_f64),
         1e1,
-        Arc::new(Lambertian::from(checker)),
+        Arc::new(Lambertian::from(&checker)),
     )));
 
     let cam = Camera::new(
-        16_f64 / 9_f64,
-        400,
-        100,
-        50,
+        Some(16_f64 / 9_f64),
+        Some(400),
+        Some(100),
+        Some(50),
         20_f64,
         &Point3::new(13_f64, 2_f64, 3_f64),
         &Point3::zeroes(),
         &Vec3::new(0_f64, 1_f64, 0_f64),
         0_f64,
         1e1,
+        Color::new(0.7, 0.8, 1_f64),
     );
 
-    cam.render_png(&world, "images/checkered_spheres.png")?;
-
-    Ok(())
+    cam.render_png(&world, "images/checkered_spheres.png")
 }
 
 pub fn earth() -> Result<()> {
     let earth_texture: Arc<dyn Texture> = Arc::new(ImageTexture::new("earthmap.jpg")?);
-    let earth_surface = Arc::new(Lambertian::from(earth_texture));
+    let earth_surface = Arc::new(Lambertian::from(&earth_texture));
     let globe = Sphere::new(Point3::zeroes(), 2_f64, earth_surface);
     let cam = Camera::new(
-        16_f64 / 9_f64,
-        400,
-        100,
-        50,
+        Some(16_f64 / 9_f64),
+        Some(400),
+        Some(100),
+        Some(50),
         20_f64,
         &Point3::new(0_f64, 0_f64, 12_f64),
         &Point3::zeroes(),
         &Vec3::new(0_f64, 1_f64, 0_f64),
         0_f64,
         1e1,
+        Color::new(0.7, 0.8, 1_f64),
     );
 
-    cam.render_png(&globe, "images/earthmap.png")?;
-
-    Ok(())
+    cam.render_png(&globe, "images/earthmap.png")
 }
 
 pub fn perlin_spheres() -> Result<()> {
     let mut world = HittableList::new();
+    let pertext: Arc<dyn Texture> = Arc::new(NoiseTexture::new(4_f64));
     let cam = Camera::new(
-        16_f64 / 9_f64,
-        400,
-        100,
-        50,
+        Some(16_f64 / 9_f64),
+        Some(400),
+        Some(100),
+        Some(50),
         20_f64,
         &Point3::new(13_f64, 2_f64, 3_f64),
         &Point3::zeroes(),
         &Vec3::new(0_f64, 1_f64, 0_f64),
         0_f64,
         1e1,
+        Color::new(0.7, 0.8, 1_f64),
     );
 
     world.add(Arc::new(Sphere::new(
         Point3::new(0_f64, -1e3, 0_f64),
         1e3,
-        Arc::new(Lambertian::from(Arc::new(NoiseTexture::new(1_f64)))),
+        Arc::new(Lambertian::from(&pertext)),
     )));
     world.add(Arc::new(Sphere::new(
         Point3::new(0_f64, 2_f64, 0_f64),
         2_f64,
-        Arc::new(Lambertian::from(Arc::new(NoiseTexture::new(4_f64)))),
+        Arc::new(Lambertian::from(&pertext)),
     )));
 
     cam.render_png(&world, "images/hashed_random_texture.png")
+}
+
+pub fn quads() -> Result<()> {
+    let mut world = HittableList::new();
+    let cam = Camera::new(
+        Some(1_f64),
+        Some(400),
+        Some(100),
+        Some(50),
+        80_f64,
+        &Point3::new(0_f64, 0_f64, 9_f64),
+        &Point3::zeroes(),
+        &Vec3::new(0_f64, 1_f64, 0_f64),
+        0_f64,
+        1e1,
+        Color::new(0.7, 0.8, 1_f64),
+    );
+    let left_red: Arc<dyn Material> = Arc::new(Lambertian::new(Color::new(1_f64, 0.2, 0.2)));
+    let back_green: Arc<dyn Material> = Arc::new(Lambertian::new(Color::new(0.2, 1_f64, 0.2)));
+    let right_blue: Arc<dyn Material> = Arc::new(Lambertian::new(Color::new(0.2, 0.2, 1_f64)));
+    let upper_orange: Arc<dyn Material> = Arc::new(Lambertian::new(Color::new(1_f64, 0.5, 0_f64)));
+    let lower_teal: Arc<dyn Material> = Arc::new(Lambertian::new(Color::new(0.2, 0.8, 0.8)));
+
+    world.add(Arc::new(Quad::new(
+        Point3::new(-3_f64, -2_f64, 5_f64),
+        Vec3::new(0_f64, 0_f64, -4_f64),
+        Vec3::new(0_f64, 4_f64, 0_f64),
+        &left_red,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(-2_f64, -2_f64, 0_f64),
+        Vec3::new(4_f64, 0_f64, 0_f64),
+        Vec3::new(0_f64, 4_f64, 0_f64),
+        &back_green,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(3_f64, -2_f64, 1_f64),
+        Vec3::new(0_f64, 0_f64, 4_f64),
+        Vec3::new(0_f64, 4_f64, 0_f64),
+        &right_blue,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(-2_f64, 3_f64, 1_f64),
+        Vec3::new(4_f64, 0_f64, 0_f64),
+        Vec3::new(0_f64, 0_f64, 4_f64),
+        &upper_orange,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(-2_f64, -3_f64, 5_f64),
+        Vec3::new(4_f64, 0_f64, 0_f64),
+        Vec3::new(0_f64, 0_f64, -4_f64),
+        &lower_teal,
+    )));
+
+    cam.render_png(&world, "images/quads.png")
+}
+
+pub fn simple_light() -> Result<()> {
+    let mut world = HittableList::new();
+    let pertext: Arc<dyn Texture> = Arc::new(NoiseTexture::new(4_f64));
+    let difflight: Arc<dyn Material> = Arc::new(DiffuseLight::new(Color::new(4_f64, 4_f64, 4_f64)));
+    let cam = Camera::new(
+        Some(16_f64 / 9_f64),
+        Some(400),
+        Some(100),
+        Some(50),
+        20_f64,
+        &Point3::new(26_f64, 3_f64, 6_f64),
+        &Point3::new(0_f64, 2_f64, 0_f64),
+        &Vec3::new(0_f64, 1_f64, 0_f64),
+        0_f64,
+        1e1,
+        Color::zeroes(),
+    );
+
+    world.add(Arc::new(Sphere::new(
+        Point3::new(0_f64, -1e3, 0_f64),
+        1e3,
+        Arc::new(Lambertian::from(&pertext)),
+    )));
+    world.add(Arc::new(Sphere::new(
+        Point3::new(0_f64, 2_f64, 0_f64),
+        2_f64,
+        Arc::new(Lambertian::from(&pertext)),
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(3_f64, 1_f64, -2_f64),
+        Vec3::new(2_f64, 0_f64, 0_f64),
+        Vec3::new(0_f64, 2_f64, 0_f64),
+        &difflight,
+    )));
+    world.add(Arc::new(Sphere::new(
+        Point3::new(0_f64, 7_f64, 0_f64),
+        2_f64,
+        difflight,
+    )));
+
+    cam.render_png(&world, "images/scene_with_rectangle_light_source.png")
+}
+
+pub fn cornell_box() -> Result<()> {
+    let mut world = HittableList::new();
+    let red: Arc<dyn Material> = Arc::new(Lambertian::new(Color::new(0.65, 0.05, 0.05)));
+    let white: Arc<dyn Material> = Arc::new(Lambertian::new(Color::new(0.73, 0.73, 0.73)));
+    let green: Arc<dyn Material> = Arc::new(Lambertian::new(Color::new(0.12, 0.45, 0.15)));
+    let light: Arc<dyn Material> = Arc::new(DiffuseLight::new(Color::new(15_f64, 15_f64, 15_f64)));
+    let cam = Camera::new(
+        Some(1_f64),
+        Some(600),
+        Some(200),
+        Some(50),
+        40_f64,
+        &Point3::new(278_f64, 278_f64, -800_f64),
+        &Point3::new(278_f64, 278_f64, 0_f64),
+        &Vec3::new(0_f64, 1_f64, 0_f64),
+        0_f64,
+        1e1,
+        Color::zeroes(),
+    );
+
+    world.add(Arc::new(Quad::new(
+        Point3::new(555_f64, 0_f64, 0_f64),
+        Vec3::new(0_f64, 555_f64, 0_f64),
+        Vec3::new(0_f64, 0_f64, 555_f64),
+        &green,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(0_f64, 0_f64, 0_f64),
+        Vec3::new(0_f64, 555_f64, 0_f64),
+        Vec3::new(0_f64, 0_f64, 555_f64),
+        &red,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(343_f64, 554_f64, 332_f64),
+        Vec3::new(-130_f64, 0_f64, 0_f64),
+        Vec3::new(0_f64, 0_f64, -105_f64),
+        &light,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(0_f64, 0_f64, 0_f64),
+        Vec3::new(555_f64, 0_f64, 0_f64),
+        Vec3::new(0_f64, 0_f64, 555_f64),
+        &white,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(555_f64, 555_f64, 555_f64),
+        Vec3::new(-555_f64, 0_f64, 0_f64),
+        Vec3::new(0_f64, 0_f64, -555_f64),
+        &white,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(0_f64, 0_f64, 555_f64),
+        Vec3::new(555_f64, 0_f64, 0_f64),
+        Vec3::new(0_f64, 555_f64, 0_f64),
+        &white,
+    )));
+    world.add(Arc::new(Quad::create_box(
+        Point3::new(130_f64, 0_f64, 65_f64),
+        Point3::new(295_f64, 165_f64, 230_f64),
+        &white,
+    )));
+    world.add(Arc::new(Quad::create_box(
+        Point3::new(265_f64, 0_f64, 295_f64),
+        Point3::new(430_f64, 330_f64, 460_f64),
+        &white,
+    )));
+
+    cam.render_png(&world, "images/cornell_box_with_two_blocks.png")
 }

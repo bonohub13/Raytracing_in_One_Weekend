@@ -3,7 +3,7 @@ use crate::{
     ray::Ray,
     texture::{SolidColor, Texture},
     utils,
-    vec3::{self, Color},
+    vec3::{self, Color, Point3},
 };
 use std::sync::Arc;
 
@@ -23,6 +23,11 @@ pub struct Dielectric {
     refraction_index: f64,
 }
 
+#[derive(Debug, Clone)]
+pub struct DiffuseLight {
+    tex: Arc<dyn Texture>,
+}
+
 impl Lambertian {
     pub fn new(albedo: Color) -> Self {
         Self {
@@ -30,7 +35,7 @@ impl Lambertian {
         }
     }
 
-    pub fn from(tex: Arc<dyn Texture>) -> Self {
+    pub fn from(tex: &Arc<dyn Texture>) -> Self {
         Self { tex: tex.clone() }
     }
 }
@@ -111,5 +116,23 @@ impl Material for Dielectric {
         let scattered = Ray::new(rec.p, direction, *r_in.time());
 
         Some((attenuation, scattered))
+    }
+}
+
+impl DiffuseLight {
+    pub fn new(emit: Color) -> Self {
+        Self {
+            tex: Arc::new(SolidColor::new(emit)),
+        }
+    }
+
+    pub fn from(tex: &Arc<dyn Texture>) -> Self {
+        Self { tex: tex.clone() }
+    }
+}
+
+impl Material for DiffuseLight {
+    fn emitted(&self, u: f64, v: f64, p: &Point3) -> Color {
+        self.tex.value(u, v, p)
     }
 }
