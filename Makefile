@@ -45,6 +45,11 @@ pkg:
 	@[ -d images ]
 	@command -v pigz && tar -I pigz -cvf past_renders.tar.gz images || tar czvf past_renders.tar.gz images
 
+extract:
+	@command -v pigz \
+		&& tar -I pigz -xvf past_renders.tar.gz \
+		|| tar xzvf past_renders.tar.gz
+
 rebuild-linux-image:
 	@cp -v Cargo.toml docker
 	@docker build . -t ${DOCKER_IMAGE_NAME}/linux -f docker/Dockerfile.linux --no-cache
