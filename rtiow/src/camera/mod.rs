@@ -5,7 +5,7 @@ use crate::{
     utils,
     vec3::{self, Color, Point3, Vec3},
     writer::PpmWriter,
-    INFINITY,
+    INFINITY, PI,
 };
 use anyhow::Result;
 use image::{ImageBuffer, Rgb, RgbImage};
@@ -85,8 +85,7 @@ impl Camera {
         let viewport_upper_left = center - (focus_distance * w) - (viewport_u + viewport_v) / 2.0;
         let pixel00_loc = viewport_upper_left + 0.5 * (pixel_delta.iter().sum::<Point3>());
 
-        let defocus_radius =
-            focus_distance * utils::degrees_to_radians(defocus_angle / 2.0).tan();
+        let defocus_radius = focus_distance * utils::degrees_to_radians(defocus_angle / 2.0).tan();
         let defocus_disk = [u * defocus_radius, v * defocus_radius];
 
         Self {
@@ -216,7 +215,12 @@ impl Camera {
             let color_from_emission = rec.mat.emitted(rec.u, rec.v, &rec.p);
 
             if let Some((attenuation, scattered)) = rec.mat.scatter(r, &rec) {
-                let color_from_scatter = attenuation * self.ray_color(&scattered, depth - 1, world);
+                let scattering_pdf = rec.mat.scattering_pdf(r, &rec, &scattered);
+                let pdf_value = 1.0 / (2.0 * PI);
+                let color_from_scatter =
+                    (attenuation * scattering_pdf * self.ray_color(&scattered, depth - 1, world))
+                        / pdf_value;
+
                 return color_from_emission + color_from_scatter;
             }
 

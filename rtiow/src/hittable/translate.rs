@@ -105,12 +105,12 @@ impl Hittable for RotateY {
 
         if let Some(mut rec) = self.object.hit(&rotated_y, ray_t) {
             rec.p = Point3::new(
-                (self.theta[0] * rec.p.x()) - (self.theta[1] * rec.p.z()),
+                (self.theta[0] * rec.p.x()) + (self.theta[1] * rec.p.z()),
                 rec.p.y(),
                 (-self.theta[1] * rec.p.x()) + (self.theta[0] * rec.p.z()),
             );
             rec.normal = Vec3::new(
-                (self.theta[0] * rec.normal.x()) - (self.theta[1] * rec.normal.z()),
+                (self.theta[0] * rec.normal.x()) + (self.theta[1] * rec.normal.z()),
                 rec.normal.y(),
                 (-self.theta[1] * rec.normal.x()) + (self.theta[0] * rec.normal.z()),
             );

@@ -4,6 +4,7 @@ use crate::{
     texture::{SolidColor, Texture},
     utils,
     vec3::{self, Color, Point3},
+    PI,
 };
 use std::sync::Arc;
 
@@ -60,6 +61,16 @@ impl Material for Lambertian {
         let attenuation = self.tex.value(rec.u, rec.v, &rec.p);
 
         Some((attenuation, scattered))
+    }
+
+    fn scattering_pdf(&self, _r_in: &Ray, rec: &HitRecord, scattered: &Ray) -> f64 {
+        let cos_theta = vec3::dot(&rec.normal, &vec3::unit_vector(scattered.direction()));
+
+        if cos_theta < 0.0 {
+            0.0
+        } else {
+            cos_theta / PI
+        }
     }
 }
 

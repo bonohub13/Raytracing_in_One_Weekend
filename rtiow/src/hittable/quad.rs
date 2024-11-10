@@ -84,10 +84,7 @@ impl Quad {
     }
 
     pub fn is_interior(&self, a: f64, b: f64) -> Option<(f64, f64)> {
-        const UNIT_INTERVAL: Interval = Interval {
-            min: 0.0,
-            max: 1.0,
-        };
+        const UNIT_INTERVAL: Interval = Interval { min: 0.0, max: 1.0 };
 
         if (!UNIT_INTERVAL.contains(a)) || (!UNIT_INTERVAL.contains(b)) {
             None
