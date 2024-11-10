@@ -3,6 +3,14 @@ name = "raytracing_in_one_weekend"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "raytracing"
+path = "src/main.rs"
+
+[[bin]]
+name = "pi"
+path = "src/pi.rs"
+
 [dependencies]
 anyhow = "1.0.89"
 rtiow = { version = "0.1.0", path = "rtiow" }

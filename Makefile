@@ -25,7 +25,7 @@ build: prepare fmt
 	@$(CARGO) build --release
 
 run: prepare fmt
-	@$(CARGO) run --release
+	@$(CARGO) run --release --bin=raytracing
 
 test: fmt
 	@$(CARGO) test
