@@ -35,9 +35,9 @@ impl Ray {
 
 #[test]
 fn test_ray_at() {
-    let origin = Point3::new(0_f64, 1_f64, 2_f64);
-    let direction = Vec3::new(3_f64, 5_f64, 7_f64);
-    let ray = Ray::new(origin, direction, 0_f64);
+    let origin = Point3::new(0.0, 1.0, 2.0);
+    let direction = Vec3::new(3.0, 5.0, 7.0);
+    let ray = Ray::new(origin, direction, 0.0);
     let t = 0.5;
     let result = ray.at(t);
     let target = Point3::new(1.5, 3.5, 5.5);

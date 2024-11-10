@@ -1,21 +1,21 @@
 use super::{utils::*, Vec3};
 #[test]
 fn test_dot() {
-    let v = Vec3::new(2_f64, 3_f64, 5_f64);
-    let u = Vec3::new(7_f64, 11_f64, 13_f64);
-    let target = 112_f64; // 14 + 33 + 65
+    let v = Vec3::new(2.0, 3.0, 5.0);
+    let u = Vec3::new(7.0, 11.0, 13.0);
+    let target = 112.0; // 14 + 33 + 65
 
     assert_eq!(target, dot(&v, &u));
 }
 
 #[test]
 fn test_cross() {
-    let v = Vec3::new(2_f64, 3_f64, 5_f64);
-    let u = Vec3::new(7_f64, 11_f64, 13_f64);
+    let v = Vec3::new(2.0, 3.0, 5.0);
+    let u = Vec3::new(7.0, 11.0, 13.0);
     let target = Vec3::new(
-        -16_f64, // 39 - 55
-        9_f64,   // 35 - 26
-        1_f64,   // 22 - 21
+        -16.0, // 39 - 55
+        9.0,   // 35 - 26
+        1.0,   // 22 - 21
     );
 
     assert_eq!(target, cross(&v, &u));
@@ -23,11 +23,11 @@ fn test_cross() {
 
 #[test]
 fn test_unit_vector() {
-    let v = Vec3::new(2_f64, 3_f64, 5_f64);
+    let v = Vec3::new(2.0, 3.0, 5.0);
     let target = Vec3::new(
-        2_f64 / 38_f64.sqrt(), // 2_f64 / (4_f64 + 9_f64 + 25_f64).sqrt()
-        3_f64 / 38_f64.sqrt(), // 3_f64 / (4_f64 + 9_f64 + 25_f64).sqrt()
-        5_f64 / 38_f64.sqrt(), // 5_f64 / (4_f64 + 9_f64 + 25_f64).sqrt()
+        2.0 / 38.0.sqrt(), // 2.0 / (4.0 + 9.0 + 25.0).sqrt()
+        3.0 / 38.0.sqrt(), // 3.0 / (4.0 + 9.0 + 25.0).sqrt()
+        5.0 / 38.0.sqrt(), // 5.0 / (4.0 + 9.0 + 25.0).sqrt()
     );
 
     assert_eq!(target, unit_vector(&v));
@@ -35,13 +35,13 @@ fn test_unit_vector() {
 
 #[test]
 fn test_reflect() {
-    let v = Vec3::new(2_f64, 3_f64, 5_f64);
-    let u = Vec3::new(7_f64, 11_f64, 13_f64);
+    let v = Vec3::new(2.0, 3.0, 5.0);
+    let u = Vec3::new(7.0, 11.0, 13.0);
     let result = reflect(&v, &u);
     let target = Vec3::new(
-        -1566_f64, // 2_f64 - 2_f64 * (112_f64) * 7_f64
-        -2461_f64, // 3_f64 - 2_f64 * (112_f64) * 11_f64
-        -2907_f64, // 5_f64 - 2_f64 * (112_f64) * 13_f64
+        -1566.0, // 2.0 - 2.0 * (112.0) * 7.0
+        -2461.0, // 3.0 - 2.0 * (112.0) * 11.0
+        -2907.0, // 5.0 - 2.0 * (112.0) * 13.0
     );
 
     assert_eq!(target, result);
@@ -49,18 +49,18 @@ fn test_reflect() {
 
 #[test]
 fn test_refract() {
-    let uv = Vec3::new(2_f64, -3_f64, 5_f64);
-    let n = Vec3::new(-7_f64, 11_f64, -13_f64);
-    let etai_over_etat = 17_f64;
+    let uv = Vec3::new(2.0, -3.0, 5.0);
+    let n = Vec3::new(-7.0, 11.0, -13.0);
+    let etai_over_etat = 17.0;
     let result = refract(&uv, &n, etai_over_etat);
-    let scala = -44216_f64.sqrt();
-    // cos_theta: 1_f64
-    // r_out_perp: [17_f64 * 5_f64, 17_f64 * -8_f64, 17_f64, -8_f64]
-    // r_out_prallel: [scala * -7_f64, scala * 11_f64, scala * -13_f64]
+    let scala = -44216.0.sqrt();
+    // cos_theta: 1.0
+    // r_out_perp: [17.0 * 5.0, 17.0 * -8.0, 17.0, -8.0]
+    // r_out_prallel: [scala * -7.0, scala * 11.0, scala * -13.0]
     let target = Vec3::new(
-        -85_f64 + scala * -7_f64,   // -85_f64 + scala * -7_f64
-        136_f64 + scala * 11_f64,   // 136_f64 + scala * 11_f64
-        -136_f64 + scala * -13_f64, // -136_f64 + scala * -13_f64
+        -85.0 + scala * -7.0,   // -85.0 + scala * -7.0
+        136.0 + scala * 11.0,   // 136.0 + scala * 11.0
+        -136.0 + scala * -13.0, // -136.0 + scala * -13.0
     );
 
     assert_eq!(target, result);

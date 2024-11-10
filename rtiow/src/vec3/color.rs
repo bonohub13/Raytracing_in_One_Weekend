@@ -2,16 +2,16 @@ use super::Color;
 use crate::interval::Interval;
 
 static INTENSITY: Interval = Interval {
-    min: 0_f64,
+    min: 0.0,
     max: 0.999,
 };
 
 #[inline]
 pub fn linear_to_gamma(linear_component: f64) -> f64 {
-    if linear_component > 0_f64 {
+    if linear_component > 0.0 {
         linear_component.sqrt()
     } else {
-        0_f64
+        0.0
     }
 }
 
@@ -19,7 +19,7 @@ pub fn write_color(pixel_color: &Color) -> [i32; 3] {
     let mut rgb = [0; 3];
 
     rgb.iter_mut().enumerate().for_each(|(i, e_i)| {
-        *e_i = (256_f64 * INTENSITY.clamp(linear_to_gamma(pixel_color[i]))) as i32
+        *e_i = (256.0 * INTENSITY.clamp(linear_to_gamma(pixel_color[i]))) as i32
     });
 
     rgb
@@ -36,8 +36,8 @@ fn test_write_color() {
 
 #[test]
 fn test_linear_to_gamma() {
-    let linear_component = [0_f64, 4_f64];
-    let targets = [0_f64, 2_f64];
+    let linear_component = [0.0, 4.0];
+    let targets = [0.0, 2.0];
 
     for i in 0..linear_component.len() {
         let gamma = linear_to_gamma(linear_component[i]);

@@ -44,7 +44,7 @@ impl Camera {
         background: Color,
     ) -> Self {
         // Parameters with default values
-        let aspect_ratio = aspect_ratio.unwrap_or(1_f64);
+        let aspect_ratio = aspect_ratio.unwrap_or(1.0);
         let image_width = image_width.unwrap_or(100);
         let samples_per_pixel = samples_per_pixel.unwrap_or(10);
         let max_depth = max_depth.unwrap_or(10);
@@ -60,14 +60,14 @@ impl Camera {
         };
 
         let sqrt_spp = (samples_per_pixel as f64).sqrt() as i32;
-        let pixel_samples_scale = 1_f64 / sqrt_spp.pow(2) as f64;
+        let pixel_samples_scale = 1.0 / sqrt_spp.pow(2) as f64;
         let recip_sqrt_spp = 1.0 / sqrt_spp as f64;
 
         let center = *look_from;
 
         let theta = utils::degrees_to_radians(vfov);
-        let h = (theta / 2_f64).tan();
-        let viewport_height = 2_f64 * h * focus_distance;
+        let h = (theta / 2.0).tan();
+        let viewport_height = 2.0 * h * focus_distance;
         let viewport_width = viewport_height * (image_width as f64 / image_height as f64);
 
         let w = vec3::unit_vector(&(*look_from - look_at));
@@ -82,11 +82,11 @@ impl Camera {
             viewport_v / image_height as f64,
         ];
 
-        let viewport_upper_left = center - (focus_distance * w) - (viewport_u + viewport_v) / 2_f64;
+        let viewport_upper_left = center - (focus_distance * w) - (viewport_u + viewport_v) / 2.0;
         let pixel00_loc = viewport_upper_left + 0.5 * (pixel_delta.iter().sum::<Point3>());
 
         let defocus_radius =
-            focus_distance * utils::degrees_to_radians(defocus_angle / 2_f64).tan();
+            focus_distance * utils::degrees_to_radians(defocus_angle / 2.0).tan();
         let defocus_disk = [u * defocus_radius, v * defocus_radius];
 
         Self {
@@ -145,7 +145,7 @@ impl Camera {
         let pixel_sample = self.pixel00_loc
             + ((i as f64 + offset.x()) * self.pixel_delta[0])
             + ((j as f64 + offset.y()) * self.pixel_delta[1]);
-        let ray_origin = if self.defocus_angle <= 0_f64 {
+        let ray_origin = if self.defocus_angle <= 0.0 {
             self.center
         } else {
             self.defocus_disk_sample()
@@ -171,7 +171,7 @@ impl Camera {
 
     #[allow(dead_code)]
     fn sample_square() -> Vec3 {
-        Vec3::new(utils::random() - 0.5, utils::random() - 0.5, 0_f64)
+        Vec3::new(utils::random() - 0.5, utils::random() - 0.5, 0.0)
     }
 
     fn render(&self, world: &dyn Hittable) -> Result<Vec<[i32; 3]>> {

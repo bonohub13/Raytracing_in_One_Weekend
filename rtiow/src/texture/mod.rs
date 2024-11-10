@@ -56,7 +56,7 @@ impl Texture for SolidColor {
 impl CheckerTexture {
     pub fn new(scale: f64, c1: Color, c2: Color) -> Self {
         Self {
-            inv_scale: 1_f64 / scale,
+            inv_scale: 1.0 / scale,
             even: Arc::new(SolidColor::new(c1)),
             odd: Arc::new(SolidColor::new(c2)),
         }
@@ -64,7 +64,7 @@ impl CheckerTexture {
 
     pub fn from(scale: f64, even: &Arc<dyn Texture>, odd: &Arc<dyn Texture>) -> Self {
         Self {
-            inv_scale: 1_f64 / scale,
+            inv_scale: 1.0 / scale,
             even: even.clone(),
             odd: odd.clone(),
         }
@@ -102,15 +102,15 @@ impl ImageTexture {
 impl Texture for ImageTexture {
     fn value(&self, u: f64, v: f64, _p: &Color) -> Color {
         if self.image.height() <= 0 {
-            return Color::new(0_f64, 1_f64, 1_f64);
+            return Color::new(0.0, 1.0, 1.0);
         }
 
-        let u = Interval::new(0_f64, 1_f64).clamp(u);
-        let v = 1_f64 - Interval::new(0_f64, 1_f64).clamp(v);
+        let u = Interval::new(0.0, 1.0).clamp(u);
+        let v = 1.0 - Interval::new(0.0, 1.0).clamp(v);
         let i = (u * self.image.width() as f64) as i32;
         let j = (v * self.image.height() as f64) as i32;
         let pixel = self.image.pixel_data(i, j);
-        let color_scale = 1_f64 / 255_f64;
+        let color_scale = 1.0 / 255.0;
 
         Color::new(
             color_scale * pixel[0] as f64,
@@ -131,8 +131,8 @@ impl NoiseTexture {
 
 impl Texture for NoiseTexture {
     fn value(&self, _u: f64, _v: f64, p: &Color) -> Color {
-        // Color::new(1_f64, 1_f64, 1_f64) * 0.5 * (1_f64 + self.noise.noise(&(self.scale * p)))
+        // Color::new(1.0, 1.0, 1.0) * 0.5 * (1.0 + self.noise.noise(&(self.scale * p)))
         Color::new(0.5, 0.5, 0.5)
-            * (1_f64 + (self.scale * p.z() + 10_f64 * self.noise.turbulance(p, 7)).sin())
+            * (1.0 + (self.scale * p.z() + 10.0 * self.noise.turbulance(p, 7)).sin())
     }
 }

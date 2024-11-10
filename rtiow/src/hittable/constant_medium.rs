@@ -20,7 +20,7 @@ impl ConstantMedium {
     pub fn new(boundary: &Arc<dyn Hittable>, density: f64, albedo: Color) -> Self {
         Self {
             boundary: boundary.clone(),
-            neg_inv_density: 1_f64 / density,
+            neg_inv_density: 1.0 / density,
             phase_function: Arc::new(Isotropic::new(albedo)),
         }
     }
@@ -28,7 +28,7 @@ impl ConstantMedium {
     pub fn from(boundary: &Arc<dyn Hittable>, density: f64, tex: &Arc<dyn Texture>) -> Self {
         Self {
             boundary: boundary.clone(),
-            neg_inv_density: 1_f64 / density,
+            neg_inv_density: 1.0 / density,
             phase_function: Arc::new(Isotropic::from(tex)),
         }
     }
@@ -50,8 +50,8 @@ impl Hittable for ConstantMedium {
                 if rec1.t >= rec2.t {
                     return None;
                 }
-                if rec1.t < 0_f64 {
-                    rec1.t = 0_f64;
+                if rec1.t < 0.0 {
+                    rec1.t = 0.0;
                 }
 
                 let ray_length = r.direction().length();
@@ -67,11 +67,11 @@ impl Hittable for ConstantMedium {
                 Some(HitRecord {
                     t,
                     p: r.at(t),
-                    normal: Vec3::new(1_f64, 0_f64, 0_f64),
+                    normal: Vec3::new(1.0, 0.0, 0.0),
                     front_face: true,
                     mat: self.phase_function.as_ref(),
-                    u: 0_f64,
-                    v: 0_f64,
+                    u: 0.0,
+                    v: 0.0,
                 })
             } else {
                 None

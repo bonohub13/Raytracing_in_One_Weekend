@@ -17,7 +17,7 @@ impl Perlin {
 
     pub fn new() -> Self {
         let mut randvec = [Vec3::zeroes(); Self::POINT_COUNT];
-        let range = Interval::new(-1_f64, 1_f64);
+        let range = Interval::new(-1.0, 1.0);
 
         randvec
             .iter_mut()
@@ -87,7 +87,7 @@ impl Perlin {
         assert!(p.len() >= n);
 
         for i in (n..0).rev() {
-            let target = random_i32(&Interval::new(0_f64, i as f64)) as usize;
+            let target = random_i32(&Interval::new(0.0, i as f64)) as usize;
             let tmp = p[i];
 
             p[i] = p[target];
@@ -98,9 +98,9 @@ impl Perlin {
     fn trilinear_interp(c: &[[[Vec3; 2]; 2]], uvw: &[f64]) -> f64 {
         assert!(uvw.len() == 3);
 
-        let uu = uvw[0].powi(2) * (3_f64 - 2_f64 * uvw[0]);
-        let vv = uvw[1].powi(2) * (3_f64 - 2_f64 * uvw[1]);
-        let ww = uvw[2].powi(2) * (3_f64 - 2_f64 * uvw[2]);
+        let uu = uvw[0].powi(2) * (3.0 - 2.0 * uvw[0]);
+        let vv = uvw[1].powi(2) * (3.0 - 2.0 * uvw[1]);
+        let ww = uvw[2].powi(2) * (3.0 - 2.0 * uvw[2]);
         let mut accum = 0.0;
 
         for i in 0..2 {
@@ -109,9 +109,9 @@ impl Perlin {
                     let ijk = [i as f64, j as f64, k as f64];
                     let weight_v = Vec3::new(uvw[0] - ijk[0], uvw[1] - ijk[1], uvw[2] - ijk[2]);
 
-                    accum += (ijk[0] * uu + (1_f64 - ijk[0]) * (1_f64 - uu))
-                        * (ijk[1] * vv + (1_f64 - ijk[1]) * (1_f64 - vv))
-                        * (ijk[2] * ww + (1_f64 - ijk[2]) * (1_f64 - ww))
+                    accum += (ijk[0] * uu + (1.0 - ijk[0]) * (1.0 - uu))
+                        * (ijk[1] * vv + (1.0 - ijk[1]) * (1.0 - vv))
+                        * (ijk[2] * ww + (1.0 - ijk[2]) * (1.0 - ww))
                         * vec3::dot(&c[i][j][k], &weight_v)
                 }
             }

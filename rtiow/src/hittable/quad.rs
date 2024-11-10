@@ -40,9 +40,9 @@ impl Quad {
         let mut sides = HittableList::new();
         let min = Point3::new(a.x().min(b.x()), a.y().min(b.y()), a.z().min(b.z()));
         let max = Point3::new(a.x().max(b.x()), a.y().max(b.y()), a.z().max(b.z()));
-        let dx = Vec3::new(max.x() - min.x(), 0_f64, 0_f64);
-        let dy = Vec3::new(0_f64, max.y() - min.y(), 0_f64);
-        let dz = Vec3::new(0_f64, 0_f64, max.z() - min.z());
+        let dx = Vec3::new(max.x() - min.x(), 0.0, 0.0);
+        let dy = Vec3::new(0.0, max.y() - min.y(), 0.0);
+        let dz = Vec3::new(0.0, 0.0, max.z() - min.z());
 
         sides.add(Arc::new(Self::new(
             Point3::new(min.x(), min.y(), max.z()),
@@ -85,8 +85,8 @@ impl Quad {
 
     pub fn is_interior(&self, a: f64, b: f64) -> Option<(f64, f64)> {
         const UNIT_INTERVAL: Interval = Interval {
-            min: 0_f64,
-            max: 1_f64,
+            min: 0.0,
+            max: 1.0,
         };
 
         if (!UNIT_INTERVAL.contains(a)) || (!UNIT_INTERVAL.contains(b)) {

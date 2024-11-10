@@ -17,7 +17,7 @@ pub struct Sphere {
 impl Sphere {
     pub fn new(static_center: Point3, radius: f64, mat: Arc<dyn Material>) -> Self {
         Self {
-            center: Ray::new(static_center, Vec3::zeroes(), 0_f64),
+            center: Ray::new(static_center, Vec3::zeroes(), 0.0),
             radius: 0_f64.max(radius),
             mat,
         }
@@ -29,7 +29,7 @@ impl Sphere {
         radius: f64,
         mat: Arc<dyn Material>,
     ) -> Self {
-        let center = Ray::new(center_1, center_2 - center_1, 0_f64);
+        let center = Ray::new(center_1, center_2 - center_1, 0.0);
 
         Self {
             center,
@@ -41,7 +41,7 @@ impl Sphere {
     fn get_sphere_uv(p: &Point3) -> [f64; 2] {
         let theta = (-p.y()).acos();
         let phi = (-p.z()).atan2(p.x()) + PI;
-        let u = phi / (2_f64 * PI);
+        let u = phi / (2.0 * PI);
         let v = theta / PI;
 
         [u, v]
@@ -57,7 +57,7 @@ impl Hittable for Sphere {
         let c = oc.length_squared() - self.radius.powi(2);
         let discriminant = h.powi(2) - a * c;
 
-        if discriminant < 0_f64 {
+        if discriminant < 0.0 {
             return None;
         }
 
@@ -92,8 +92,8 @@ impl Hittable for Sphere {
 
     fn bounding_box(&self) -> Option<Aabb> {
         let rvec = Vec3::new(self.radius, self.radius, self.radius);
-        let box0 = Aabb::new(self.center.at(0_f64) - rvec, self.center.at(0_f64) + rvec);
-        let box1 = Aabb::new(self.center.at(1_f64) - rvec, self.center.at(1_f64) + rvec);
+        let box0 = Aabb::new(self.center.at(0.0) - rvec, self.center.at(0.0) + rvec);
+        let box1 = Aabb::new(self.center.at(1.0) - rvec, self.center.at(1.0) + rvec);
 
         Some(Aabb::surrounding_box(&box0, &box1))
     }
