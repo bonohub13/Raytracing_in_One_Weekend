@@ -10,6 +10,7 @@ mod bvh;
 mod constant_medium;
 mod hittable_list;
 mod material;
+mod onb;
 mod quad;
 mod sphere;
 mod translate;
@@ -19,6 +20,7 @@ pub use bvh::*;
 pub use constant_medium::*;
 pub use hittable_list::*;
 pub use material::*;
+pub use onb::*;
 pub use quad::*;
 pub use sphere::*;
 pub use translate::*;
@@ -56,11 +58,11 @@ pub trait Hittable: Debug + Sync + Send {
 }
 
 pub trait Material: Sync + Send + Debug {
-    fn emitted(&self, _u: f64, _v: f64, _p: &Point3) -> Color {
+    fn emitted(&self, r_in: &Ray, _rec: &HitRecord, _u: f64, _v: f64, _p: &Point3) -> Color {
         Color::zeroes()
     }
 
-    fn scatter(&self, _r_in: &Ray, _rec: &HitRecord) -> Option<(Color, Ray)> {
+    fn scatter(&self, _r_in: &Ray, _rec: &HitRecord) -> Option<(Color, Ray, f64)> {
         None
     }
 

@@ -313,40 +313,43 @@ pub fn cornell_box(file_name: Option<&str>) -> Result<()> {
 
     world.add(Arc::new(Quad::new(
         Point3::new(555.0, 0.0, 0.0),
-        Vec3::new(0.0, 555.0, 0.0),
         Vec3::new(0.0, 0.0, 555.0),
+        Vec3::new(0.0, 555.0, 0.0),
         &green,
     )));
     world.add(Arc::new(Quad::new(
-        Point3::new(0.0, 0.0, 0.0),
+        Point3::new(0.0, 0.0, 555.0),
+        Vec3::new(0.0, 0.0, -555.0),
         Vec3::new(0.0, 555.0, 0.0),
-        Vec3::new(0.0, 0.0, 555.0),
         &red,
     )));
     world.add(Arc::new(Quad::new(
-        Point3::new(343.0, 554.0, 332.0),
-        Vec3::new(-130.0, 0.0, 0.0),
-        Vec3::new(0.0, 0.0, -105.0),
-        &light,
-    )));
-    world.add(Arc::new(Quad::new(
-        Point3::new(0.0, 0.0, 0.0),
+        Point3::new(0.0, 555.0, 0.0),
         Vec3::new(555.0, 0.0, 0.0),
         Vec3::new(0.0, 0.0, 555.0),
-        &white,
-    )));
-    world.add(Arc::new(Quad::new(
-        Point3::new(555.0, 555.0, 555.0),
-        Vec3::new(-555.0, 0.0, 0.0),
-        Vec3::new(0.0, 0.0, -555.0),
         &white,
     )));
     world.add(Arc::new(Quad::new(
         Point3::new(0.0, 0.0, 555.0),
         Vec3::new(555.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, -555.0),
+        &white,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(555.0, 0.0, 555.0),
+        Vec3::new(-555.0, 0.0, 0.0),
         Vec3::new(0.0, 555.0, 0.0),
         &white,
     )));
+
+    // Light
+    world.add(Arc::new(Quad::new(
+        Point3::new(213.0, 554.0, 227.0),
+        Vec3::new(130.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 105.0),
+        &light,
+    )));
+
     let mut box1: Arc<dyn Hittable> = Arc::new(Quad::create_box(
         Point3::zeroes(),
         Point3::new(165.0, 330.0, 165.0),
@@ -585,4 +588,84 @@ pub fn ray_tracing_the_next_week(
     )));
 
     cam.render_png(&world, "images/RayTracingTheNextWeek-final_scene.png")
+}
+
+pub fn cornell_box_10spp() -> Result<()> {
+    let mut world = HittableList::new();
+    let red: Arc<dyn Material> = Arc::new(Lambertian::new(Color::new(0.65, 0.05, 0.05)));
+    let white: Arc<dyn Material> = Arc::new(Lambertian::new(Color::new(0.73, 0.73, 0.73)));
+    let green: Arc<dyn Material> = Arc::new(Lambertian::new(Color::new(0.12, 0.45, 0.15)));
+    let light: Arc<dyn Material> = Arc::new(DiffuseLight::new(Color::new(15.0, 15.0, 15.0)));
+    let cam = Camera::new(
+        Some(1.0),
+        Some(600),
+        Some(10),
+        Some(50),
+        40.0,
+        &Point3::new(278.0, 278.0, -800.0),
+        &Point3::new(278.0, 278.0, 0.0),
+        &Vec3::new(0.0, 1.0, 0.0),
+        0.0,
+        1e1,
+        Color::zeroes(),
+    );
+
+    world.add(Arc::new(Quad::new(
+        Point3::new(555.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 555.0),
+        Vec3::new(0.0, 555.0, 0.0),
+        &green,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(0.0, 0.0, 555.0),
+        Vec3::new(0.0, 0.0, -555.0),
+        Vec3::new(0.0, 555.0, 0.0),
+        &red,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(0.0, 555.0, 0.0),
+        Vec3::new(555.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 555.0),
+        &white,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(0.0, 0.0, 555.0),
+        Vec3::new(555.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, -555.0),
+        &white,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(555.0, 0.0, 555.0),
+        Vec3::new(-555.0, 0.0, 0.0),
+        Vec3::new(0.0, 555.0, 0.0),
+        &white,
+    )));
+
+    // Light
+    world.add(Arc::new(Quad::new(
+        Point3::new(213.0, 554.0, 227.0),
+        Vec3::new(130.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 105.0),
+        &light,
+    )));
+
+    let mut box1: Arc<dyn Hittable> = Arc::new(Quad::create_box(
+        Point3::zeroes(),
+        Point3::new(165.0, 330.0, 165.0),
+        &white,
+    ));
+    let mut box2: Arc<dyn Hittable> = Arc::new(Quad::create_box(
+        Point3::zeroes(),
+        Point3::new(165.0, 165.0, 165.0),
+        &white,
+    ));
+
+    box1 = Arc::new(RotateY::new(&box1, 15.0));
+    box1 = Arc::new(Translate::new(&box1, Vec3::new(265.0, 0.0, 295.0)));
+    box2 = Arc::new(RotateY::new(&box2, -18.0));
+    box2 = Arc::new(Translate::new(&box2, Vec3::new(130.0, 0.0, 65.0)));
+    world.add(box1);
+    world.add(box2);
+
+    cam.render_png(&world, "images/standard_cornell_box-10spp.png")
 }

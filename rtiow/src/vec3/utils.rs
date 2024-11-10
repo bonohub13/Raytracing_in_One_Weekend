@@ -1,5 +1,5 @@
 use super::Vec3;
-use crate::{interval::Interval, utils::random_in_range};
+use crate::{interval::Interval, utils, PI};
 use std::{
     iter::{Iterator, Sum},
     ops::{Add, Div, Mul, Sub},
@@ -140,8 +140,8 @@ pub fn unit_vector(v: &Vec3) -> Vec3 {
 pub fn random_in_unit_disk() -> Vec3 {
     loop {
         let p = Vec3::new(
-            random_in_range(&Interval::new(-1.0, 1.0)),
-            random_in_range(&Interval::new(-1.0, 1.0)),
+            utils::random_in_range(&Interval::new(-1.0, 1.0)),
+            utils::random_in_range(&Interval::new(-1.0, 1.0)),
             0.0,
         );
 
@@ -186,4 +186,29 @@ pub fn refract(uv: &Vec3, n: &Vec3, etai_over_etat: f64) -> Vec3 {
     let r_out_parallel = -(1.0 - r_out_perp.length_squared()).abs().sqrt() * n;
 
     r_out_perp + r_out_parallel
+}
+
+#[inline]
+pub fn random_in_unit_vector() -> Vec3 {
+    let range = Interval::new(-1.0, 1.0);
+
+    loop {
+        let p = Vec3::random_in_range(&range);
+
+        if p.length_squared() < 1.0 {
+            return p;
+        }
+    }
+}
+
+#[inline]
+pub fn random_cosine_direction() -> Vec3 {
+    let r1 = utils::random();
+    let r2 = utils::random();
+    let phi = 2.0 * PI * r1;
+    let x = phi.cos() * r2.sqrt();
+    let y = phi.sin() * r2.sqrt();
+    let z = (1.0 - r2).sqrt();
+
+    Vec3::new(x, y, z)
 }

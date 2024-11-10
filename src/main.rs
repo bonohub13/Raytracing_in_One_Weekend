@@ -15,6 +15,7 @@ fn main() -> Result<()> {
         8 => cornell_smoke(),
         9 => ray_tracing_the_next_week(800, 10000, 40),
         10 => cornell_box(Some("images/cornell_box_revised.png")),
+        11 => cornell_box_10spp(),
         _ => ray_tracing_the_next_week(400, 250, 4),
     }
 }
