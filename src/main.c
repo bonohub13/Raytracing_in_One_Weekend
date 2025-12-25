@@ -1,36 +1,25 @@
 #include <stdio.h>
-#include "../include/rt.h"
-#include "../include/color/color.h"
-#include "../include/ray/ray.h"
-#include "../include/renderer/renderer.h"
-#include "../include/vec3/vec3.h"
+#include <stdint.h>
 
-// consts
-const double ASPECT_RATIO = 16.0 / 9.0;
-const int IMAGE_WIDTH = 400;
-const int IMAGE_HEIGHT = (int)(IMAGE_WIDTH / ASPECT_RATIO);
+#include "params.h"
 
-int main() {
-    // Camera
-    double viewport_height = 2.0f;
-    double viewport_width = ASPECT_RATIO * viewport_height;
-    double focal_length = 1.0;
+int32_t main(void) {
+    int32_t ij = 0;
+    int32_t rgb_i[3] = { 0 };
+    double rgb_f[3] = { 0 };
 
-    Point3 origin = point3(0, 0, 0);
-    Vec3 horizontal = vec3(viewport_width, 0, 0);
-    Vec3 vertical = vec3(0, viewport_height, 0);
-    Vec3 half_h = divVec3(&horizontal, 2);
-    Vec3 half_v = divVec3(&vertical, 2);
-    Vec3 _fl = vec3(0, 0, focal_length);
-    Vec3 lower_left_corner = substractVec3(&origin, &half_h);
-    substractFromVec3(&lower_left_corner, &half_v);
-    substractFromVec3(&lower_left_corner, &_fl);
+    printf("P3\n%d %d\n255\n", IMAGE_WIDTH, IMAGE_HEIGHT);
+    for (ij = 0; ij < IMAGE_WIDTH * IMAGE_HEIGHT; ij++) {
+        rgb_f[0] = (double)(ij % IMAGE_WIDTH) / (double)(IMAGE_WIDTH - 1);
+        rgb_f[1] = (double)(ij / IMAGE_WIDTH) / (double)(IMAGE_HEIGHT - 1);
+        rgb_f[2] = 0.0;
 
-    format_ppm(IMAGE_WIDTH, IMAGE_HEIGHT);
+        rgb_i[0] = (int32_t)(255.999 * rgb_f[0]);
+        rgb_i[1] = (int32_t)(255.999 * rgb_f[1]);
+        rgb_i[2] = (int32_t)(255.999 * rgb_f[2]);
 
-    render(IMAGE_WIDTH, IMAGE_HEIGHT,
-            &vertical, &horizontal,
-            &lower_left_corner, &origin);
+        printf("%d %d %d\n", rgb_i[0], rgb_i[1], rgb_i[2]);
+    }
 
-    fprintf(stderr, "\nDone!\n");
+    return 0;
 }
