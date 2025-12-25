@@ -10,10 +10,7 @@ pub struct HittableList {
 
 impl HittableList {
     pub fn new() -> Self {
-        Self {
-            objects: Vec::new(),
-            bbox: Aabb::EMPTY,
-        }
+        Self::default()
     }
 
     pub fn from(object: Arc<dyn Hittable>) -> Self {
@@ -39,8 +36,17 @@ impl HittableList {
     }
 }
 
+impl Default for HittableList {
+    fn default() -> Self {
+        Self {
+            objects: vec![],
+            bbox: Aabb::EMPTY,
+        }
+    }
+}
+
 impl Hittable for HittableList {
-    fn hit(&self, r: &Ray, ray_t: &Interval) -> Option<HitRecord> {
+    fn hit(&self, r: &Ray, ray_t: &Interval) -> Option<HitRecord<'_>> {
         let mut hit_anything = None;
         let mut closest_so_far = ray_t.max;
 

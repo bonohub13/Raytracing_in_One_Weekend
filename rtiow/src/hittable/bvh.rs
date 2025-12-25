@@ -15,12 +15,10 @@ impl BvhNode {
     pub fn new(objects: &mut Vec<Arc<dyn Hittable>>, start: usize, end: usize) -> Result<Self> {
         let mut bbox = Aabb::EMPTY;
 
-        for object_index in start..end {
+        for object in objects.iter().take(end).skip(start) {
             bbox = Aabb::surrounding_box(
                 &bbox,
-                &objects[object_index]
-                    .bounding_box()
-                    .expect("Bounding box not available"),
+                &object.bounding_box().expect("Bounding box not available"),
             );
         }
 
@@ -85,24 +83,16 @@ impl BvhNode {
 }
 
 impl Hittable for BvhNode {
-    fn hit(&self, r: &Ray, ray_t: &Interval) -> Option<HitRecord> {
+    fn hit(&self, r: &Ray, ray_t: &Interval) -> Option<HitRecord<'_>> {
         if !self.bbox.hit(r, ray_t) {
             return None;
         }
 
-        let hit_left = if let Some(rec) = self.left.hit(r, ray_t) {
-            Some(rec)
-        } else {
-            None
-        };
+        let hit_left = self.left.hit(r, ray_t);
         let t = hit_left.as_ref().map(|rec| rec.t).unwrap_or(ray_t.max);
-        let hit_right = if let Some(rec) = self.right.hit(r, &Interval::new(ray_t.min, t)) {
-            Some(rec)
-        } else {
-            None
-        };
+        let hit_right = self.right.hit(r, &Interval::new(ray_t.min, t));
 
-        hit_left.or_else(|| hit_right)
+        hit_left.or(hit_right)
     }
 
     fn bounding_box(&self) -> Option<Aabb> {

@@ -498,7 +498,7 @@ pub fn ray_tracing_the_next_week(
     );
 
     // Floor
-    (0..boxes_per_sides.pow(2)).into_iter().for_each(|ij| {
+    (0..boxes_per_sides.pow(2)).for_each(|ij| {
         let i = ij / boxes_per_sides;
         let j = ij % boxes_per_sides;
         let w = 1e2;
@@ -524,7 +524,7 @@ pub fn ray_tracing_the_next_week(
     )));
 
     // Cube filled with spheres
-    (0..ns).into_iter().for_each(|_| {
+    (0..ns).for_each(|_| {
         boxes2.add(Arc::new(Sphere::new(
             Point3::random_in_range(&Interval::new(0.0, 165.0)),
             1e1,

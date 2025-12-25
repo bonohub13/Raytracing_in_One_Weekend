@@ -220,7 +220,7 @@ impl Camera {
                     554.0,
                     utils::random_in_range(&Interval::new(227.0, 332.0)),
                 );
-                let mut to_light = on_light - rec.p;
+                let to_light = on_light - rec.p;
                 let distance_squared = to_light.length_squared();
 
                 // to_light = vec3::unit_vector(&to_light);

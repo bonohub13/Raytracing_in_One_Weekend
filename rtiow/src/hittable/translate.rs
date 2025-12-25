@@ -31,7 +31,7 @@ impl Translate {
 }
 
 impl Hittable for Translate {
-    fn hit(&self, r: &Ray, ray_t: &Interval) -> Option<HitRecord> {
+    fn hit(&self, r: &Ray, ray_t: &Interval) -> Option<HitRecord<'_>> {
         let offset_r = Ray::new(*r.origin() - self.offset, *r.direction(), *r.time());
 
         if let Some(mut rec) = self.object.hit(&offset_r, ray_t) {
@@ -63,9 +63,9 @@ impl RotateY {
         let mut min = Point3::new(INFINITY, INFINITY, INFINITY);
         let mut max = Point3::new(-INFINITY, -INFINITY, -INFINITY);
 
-        (0..2).into_iter().for_each(|i| {
-            (0..2).into_iter().for_each(|j| {
-                (0..2).into_iter().for_each(|k| {
+        (0..2).for_each(|i| {
+            (0..2).for_each(|j| {
+                (0..2).for_each(|k| {
                     let x = i as f64 * bbox.x.max + (1 - i) as f64 * bbox.x.min;
                     let y = j as f64 * bbox.y.max + (1 - j) as f64 * bbox.y.min;
                     let z = k as f64 * bbox.z.max + (1 - k) as f64 * bbox.z.min;
@@ -73,7 +73,7 @@ impl RotateY {
                     let newz = -theta[1] * x + theta[0] * z;
                     let tester = Vec3::new(newx, y, newz);
 
-                    (0..3).into_iter().for_each(|c| {
+                    (0..3).for_each(|c| {
                         min[c] = min[c].min(tester[c]);
                         max[c] = max[c].max(tester[c]);
                     });
@@ -90,7 +90,7 @@ impl RotateY {
 }
 
 impl Hittable for RotateY {
-    fn hit(&self, r: &Ray, ray_t: &Interval) -> Option<HitRecord> {
+    fn hit(&self, r: &Ray, ray_t: &Interval) -> Option<HitRecord<'_>> {
         let origin = Point3::new(
             (self.theta[0] * r.origin().x()) - (self.theta[1] * r.origin().z()),
             r.origin().y(),

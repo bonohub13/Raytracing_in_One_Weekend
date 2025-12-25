@@ -95,7 +95,7 @@ impl Quad {
 }
 
 impl Hittable for Quad {
-    fn hit(&self, r: &Ray, ray_t: &Interval) -> Option<HitRecord> {
+    fn hit(&self, r: &Ray, ray_t: &Interval) -> Option<HitRecord<'_>> {
         let denominator = vec3::dot(&self.normal, r.direction());
 
         if denominator.abs() < 1e-8 {

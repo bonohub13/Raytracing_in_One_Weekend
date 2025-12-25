@@ -35,7 +35,7 @@ impl ConstantMedium {
 }
 
 impl Hittable for ConstantMedium {
-    fn hit(&self, r: &Ray, ray_t: &Interval) -> Option<HitRecord> {
+    fn hit(&self, r: &Ray, ray_t: &Interval) -> Option<HitRecord<'_>> {
         if let Some(mut rec1) = self.boundary.hit(r, &Interval::UNIVERSE) {
             if let Some(mut rec2) = self
                 .boundary
