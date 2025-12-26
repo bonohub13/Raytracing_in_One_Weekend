@@ -3,7 +3,6 @@
 #include <stdbool.h>
 #include <math.h>
 
-#include "params.h"
 #include "vec3.h"
 #include "color.h"
 #include "ray.h"
@@ -68,15 +67,15 @@ static double hit_sphere(const st_vec3_t * const p_center, double radius,
 {
     st_vec3_t oc = vec3_sub(p_center, &p_ray->origin);
     double a = vec3_length_squared(&p_ray->direction);
-    double b = -2.0 * vec3_dot(&p_ray->direction, &oc);
+    double h = vec3_dot(&p_ray->direction, &oc);
     double c = vec3_length_squared(&oc) - radius * radius;
-    double discriminant = b * b - 4 * a * c;
+    double discriminant = h * h - a * c;
 
     if (discriminant < 0) {
         return -1.0;
     }
 
-    return -(b + sqrt(discriminant)) / (2.0 * a);
+    return (h - sqrt(discriminant)) / a;
 }
 
 static st_vec3_t ray_color(const st_ray_t * const p_ray) {
