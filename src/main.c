@@ -5,10 +5,7 @@
 #include <math.h>
 
 #include "params.h"
-#include "interval.h"
 #include "vec3.h"
-#include "color.h"
-#include "ray.h"
 #include "camera.h"
 #include "sphere.h"
 #include "hittable_list.h"
