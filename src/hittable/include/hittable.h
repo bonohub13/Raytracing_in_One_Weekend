@@ -4,6 +4,7 @@
 #include <stdbool.h>
 
 #include "vec3.h"
+#include "interval.h"
 #include "ray.h"
 
 typedef struct hit_record {
@@ -15,7 +16,7 @@ typedef struct hit_record {
 
 typedef struct hittable {
     bool (*p_hit)(const void * const p_obj, const st_ray_t * const p_ray,
-            double ray_tmin, double ray_tmax, st_hit_record_t * const p_rec);
+            const st_interval_t * const p_ray_t, st_hit_record_t * const p_rec);
 } st_hittable_t;
 
 extern void hit_record_set_face_normal(st_hit_record_t * const p_rec,

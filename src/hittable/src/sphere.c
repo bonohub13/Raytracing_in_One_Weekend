@@ -4,7 +4,7 @@
 #include "hittable.h"
 
 static bool sphere_hit(const void * const p_obj, const st_ray_t * const p_ray,
-            double ray_tmin, double ray_tmax, st_hit_record_t * const p_rec);
+        const st_interval_t * const p_ray_t, st_hit_record_t * const p_rec);
 
 static const st_hittable_t s_sphere = {
     .p_hit = sphere_hit,
@@ -15,7 +15,7 @@ st_hittable_t * create_sphere(void) {
 }
 
 static bool sphere_hit(const void * const p_obj, const st_ray_t * const p_ray,
-            double ray_tmin, double ray_tmax, st_hit_record_t * const p_rec) {
+        const st_interval_t * const p_ray_t, st_hit_record_t * const p_rec) {
     st_sphere_t * p_sphere = (st_sphere_t*)p_obj;
     st_vec3_t oc = vec3_sub(&p_sphere->center, &p_ray->origin);
     st_vec3_t outward_normal;
@@ -32,9 +32,9 @@ static bool sphere_hit(const void * const p_obj, const st_ray_t * const p_ray,
 
     sqrtd = sqrt(discriminant);
     root = (h - sqrtd) / a;
-    if ((root <= ray_tmin) || (ray_tmax <= root)) {
+    if ((root <= p_ray_t->min) || (p_ray_t->max <= root)) {
         root = (h + sqrtd) / a;
-        if ((root <= ray_tmin) || (ray_tmax <= root)) {
+        if ((root <= p_ray_t->min) || (p_ray_t->max <= root)) {
             return false;
         }
     }
