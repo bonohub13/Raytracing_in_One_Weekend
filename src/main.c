@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <math.h>
 
 #include "params.h"
@@ -7,6 +8,8 @@
 #include "color.h"
 #include "ray.h"
 
+static bool hit_sphere(const st_vec3_t * const p_center, double radius,
+        const st_ray_t * const p_ray);
 static st_vec3_t ray_color(const st_ray_t * const p_ray);
 
 int32_t main(void) {
@@ -60,14 +63,30 @@ int32_t main(void) {
     return 0;
 }
 
+static bool hit_sphere(const st_vec3_t * const p_center, double radius,
+        const st_ray_t * const p_ray)
+{
+    st_vec3_t oc = vec3_sub(p_center, &p_ray->origin);
+    double a = vec3_length_squared(&p_ray->direction);
+    double b = -2.0 * vec3_dot(&p_ray->direction, &oc);
+    double c = vec3_length_squared(&oc) - radius * radius;
+    double discriminant = b * b - 4 * a * c;
+
+    return (discriminant >= 0);
+}
+
 static st_vec3_t ray_color(const st_ray_t * const p_ray) {
     static const st_vec3_t s_white = VEC3_WHITE;
     static const st_vec3_t s_blue = VEC3(0.5, 0.7, 1.0);
     st_vec3_t tmp[2] = {
         vec3_unit_vector(&p_ray->direction),
-        VEC3_ZERO,
+        VEC3(0, 0, -1),
     };
     double a = 0.5 * (tmp[0].e[1] + 1.0);
+
+    if (hit_sphere(&tmp[1], 0.5, p_ray)) {
+        return VEC3(1, 0, 0);
+    }
 
     tmp[0] = vec3_scalar_mul(&s_white, 1.0 - a);
     tmp[1] = vec3_scalar_mul(&s_blue, a);
