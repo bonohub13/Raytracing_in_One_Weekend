@@ -4,19 +4,28 @@ BUILD_DIR := build
 IMAGE_DIR := images
 TARGET := $(BUILD_DIR)/rtweekend
 COMPONENT_DIR :=
-SRCS := $(wildcard $(SRC_DIR)/*.c)
+SRCS := $(shell find $(SRC_DIR) -type f -name "*.c")
 OBJS := $(addprefix $(BUILD_DIR)/, $(patsubst %.c,%.o,$(SRCS)))
 PPMS := $(wildcard $(IMAGE_DIR)/*.ppm)
 
 CC := gcc
-INCLUDES := -I$(INCLUDE_DIR)
+INCLUDES := -I$(INCLUDE_DIR) -I$(SRC_DIR)/hittable/$(INCLUDE_DIR)
 CFLAGS := -Wall -Wextra
 LDFLAGS := -lm
 CONVERT := magick
 
+ifeq (1, $(DEBUG))
+	CFLAGS += -g
+else
+	CFLAGS += -O3
+endif
+
 .PHONY: build convert
 
 all: clean build
+
+debug: clean
+	DEBUG=1 make build
 
 build: $(OBJS)
 	@mkdir -pv $(BUILD_DIR)
