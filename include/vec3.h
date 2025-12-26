@@ -1,6 +1,8 @@
 #ifndef RTIOW_VEC3_H
 #define RTIOW_VEC3_H
 
+#include <stddef.h>
+
 #define VEC3(_x, _y, _z)        ((st_vec3_t){ { (_x), (_y), (_z), 0 } })
 #define VEC3_ZERO               (VEC3(0, 0, 0))
 #define VEC3_ONE                (VEC3(1, 1, 1))
@@ -18,6 +20,8 @@ extern char * vec3_string(const st_vec3_t * const p_v);
 extern st_vec3_t vec3_add(const st_vec3_t * const p_u, const st_vec3_t * const p_v);
 extern st_vec3_t vec3_sub(const st_vec3_t * const p_u, const st_vec3_t * const p_v);
 extern st_vec3_t vec3_mul(const st_vec3_t * const p_u, const st_vec3_t * const p_v);
+extern st_vec3_t vec3_sum(const st_vec3_t * const p_v, size_t len);
+extern st_vec3_t vec3_prod(const st_vec3_t * const p_v, size_t len);
 extern st_vec3_t vec3_scalar_mul(const st_vec3_t * const p_v, const double t);
 extern st_vec3_t vec3_scalar_div(const st_vec3_t * const p_v, const double t);
 extern double vec3_dot(const st_vec3_t * const p_u, const st_vec3_t * const p_v);

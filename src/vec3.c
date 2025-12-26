@@ -52,6 +52,26 @@ st_vec3_t vec3_mul(const st_vec3_t * const p_u, const st_vec3_t * const p_v) {
             p_u->e[2] * p_v->e[2]);
 }
 
+st_vec3_t vec3_sum(const st_vec3_t * const p_v, size_t len) {
+    st_vec3_t out = p_v[0];
+
+    for (; len > 0; --len) {
+        out = vec3_add(&out, &p_v[len]);
+    }
+
+    return out;
+}
+
+st_vec3_t vec3_prod(const st_vec3_t * const p_v, size_t len) {
+    st_vec3_t out = p_v[0];
+
+    for (; len > 0; --len) {
+        out = vec3_mul(&out, &p_v[len]);
+    }
+
+    return out;
+}
+
 st_vec3_t vec3_scalar_mul(const st_vec3_t * const p_v, const double t) {
     return VEC3(
             t * p_v->e[0],
