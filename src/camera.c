@@ -123,7 +123,7 @@ static st_vec3_t ray_color(const st_ray_t * const p_ray, const int32_t depth,
     static const st_vec3_t s_white = VEC3_WHITE;
     static const st_vec3_t s_blue = VEC3(0.5, 0.7, 1.0);
     static const st_interval_t s_range = {
-        .min = 0,
+        .min = 1e-3,
         .max = HUGE_VAL,
     };
     st_vec3_t tmp[2];
