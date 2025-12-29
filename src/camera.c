@@ -123,11 +123,15 @@ static st_vec3_t ray_color(const st_ray_t * const p_ray,
         .max = HUGE_VAL,
     };
     st_vec3_t tmp[2];
+    st_ray_t ray;
     st_hit_record_t rec = { 0 };
     double a;
 
     if (p_world->p_hit(p_data, p_ray, &s_range, &rec)) {
-        tmp[0] = vec3_add(&rec.normal, &s_white);
+        ray.origin = rec.p;
+        ray.direction = vec3_random_on_hemisphere(&rec.normal);
+
+        tmp[0] = ray_color(&ray, p_data, p_world);
 
         return vec3_scalar_mul(&tmp[0], 0.5);
     }

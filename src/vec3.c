@@ -3,6 +3,7 @@
 #include <math.h>
 
 #include "vec3.h"
+#include "rtweekend.h"
 
 #define BUFFER_SIZE         (0x10)
 #define STRING_LENGTH       (15)
@@ -17,6 +18,17 @@ double vec3_length(const st_vec3_t * const p_v) {
 
 double vec3_length_squared(const st_vec3_t * const p_v) {
     return vec3_dot(p_v, p_v);
+}
+
+st_vec3_t vec3_random(void) {
+    return VEC3(random_double(), random_double(), random_double());
+}
+
+st_vec3_t vec3_random_in_range(double min, double max) {
+    return VEC3(
+            random_double_in_range(min, max),
+            random_double_in_range(min, max),
+            random_double_in_range(min, max));
 }
 
 char * vec3_string(const st_vec3_t * const p_v) {
@@ -105,4 +117,28 @@ st_vec3_t vec3_cross(const st_vec3_t * const p_u, const st_vec3_t * const p_v) {
 
 st_vec3_t vec3_unit_vector(const st_vec3_t * const p_v) {
     return vec3_scalar_div(p_v, vec3_length(p_v));
+}
+
+st_vec3_t vec3_random_unit_vector(void) {
+    st_vec3_t p;
+    double length_squared;
+
+    while (1) {
+        p = vec3_random_in_range(-1, 1);
+        length_squared = vec3_length_squared(&p);
+
+        if ((1e-160 < length_squared) && (length_squared <= 1)) {
+            return vec3_scalar_div(&p, sqrt(length_squared));
+        }
+    }
+}
+
+st_vec3_t vec3_random_on_hemisphere(const st_vec3_t * const p_normal) {
+    st_vec3_t on_unit_sphere = vec3_random_unit_vector();
+
+    if (!(0.0 < vec3_dot(&on_unit_sphere, p_normal))) {
+        on_unit_sphere = vec3_neg(&on_unit_sphere);
+    }
+
+    return on_unit_sphere;
 }
