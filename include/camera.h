@@ -9,6 +9,8 @@
 typedef struct camera {
     double aspect_ratio;
     int32_t image_size[2];
+    int32_t samples_per_pixel;
+    double pixel_samples_scale;
     st_vec3_t center;
     st_vec3_t pixel00_loc;
     st_vec3_t pixel_delta_uv[2];

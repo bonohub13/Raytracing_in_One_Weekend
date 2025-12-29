@@ -23,3 +23,13 @@ bool interval_contains(const st_interval_t * const p_interval, const double x) {
 bool interval_surrounds(const st_interval_t * const p_interval, const double x) {
     return (p_interval->min < x) && (x < p_interval->max);
 }
+
+double interval_clamp(const st_interval_t * const p_interval, const double x) {
+    if (x < p_interval->min) {
+        return p_interval->min;
+    } else if (p_interval->max < x) {
+        return p_interval->max;
+    } else {
+        return x;
+    }
+}

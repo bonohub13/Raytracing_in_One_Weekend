@@ -2,18 +2,22 @@
 #include <math.h>
 
 #include "camera.h"
+#include "rtweekend.h"
 #include "vec3.h"
 #include "interval.h"
 #include "color.h"
 #include "ray.h"
 
-static void initialize(st_camera_t * const p_camera);
+static void camera_initialize(st_camera_t * const p_camera);
+static st_ray_t camera_get_ray(const st_camera_t * const p_camera, int32_t ij);
+static st_vec3_t sample_square(void);
 static st_vec3_t ray_color(const st_ray_t * const p_ray,
         void * p_data, const st_hittable_t * const p_world);
 
 static const st_camera_t s_camera = {
     .aspect_ratio = 1.0,
     .image_size[0] = 100,
+    .samples_per_pixel = 10,
 };
 
 void camera_init(st_camera_t * const p_camera) {
@@ -24,34 +28,35 @@ void camera_init(st_camera_t * const p_camera) {
 
 void camera_render(st_camera_t * const p_camera,
         void * const p_data, const st_hittable_t * const p_world) {
-    st_vec3_t tmp[3];
+    st_vec3_t pixel_color;
+    st_vec3_t current_sample;
     st_ray_t ray;
     int32_t ij;
+    int32_t sample;
 
-    initialize(p_camera);
+    camera_initialize(p_camera);
 
     puts("P3");
     printf("%d %d\n", p_camera->image_size[0], p_camera->image_size[1]);
     puts("255");
 
     for (ij = 0; ij < (p_camera->image_size[0] * p_camera->image_size[1]); ij++) {
-        tmp[0] = p_camera->pixel00_loc;
-        tmp[1] = vec3_scalar_mul(&p_camera->pixel_delta_uv[0],
-                ij % p_camera->image_size[0]);
-        tmp[2] = vec3_scalar_mul(&p_camera->pixel_delta_uv[1],
-                ij / p_camera->image_size[0]);
-        tmp[0] = vec3_sum(&tmp[0], 3);
-        ray.origin = p_camera->center;
-        ray.direction = vec3_sub(&tmp[0], &p_camera->center);
-        tmp[0] = ray_color(&ray, p_data, p_world);
+        pixel_color = VEC3_BLACK;
+        for (sample = 0; sample < p_camera->samples_per_pixel; sample++) {
+            ray = camera_get_ray(p_camera, ij);
+            current_sample = ray_color(&ray, p_data, p_world);
+            pixel_color = vec3_add(&pixel_color, &current_sample);
+        }
+        pixel_color = vec3_scalar_mul(&pixel_color,
+                p_camera->pixel_samples_scale);
 
-        write_color(&tmp[0]);
+        write_color(&pixel_color);
     }
 
     return;
 }
 
-static void initialize(st_camera_t * const p_camera) {
+static void camera_initialize(st_camera_t * const p_camera) {
     st_vec3_t viewport_uv[2];
     st_vec3_t viewport_upper_left;
     st_vec3_t tmp[3];
@@ -61,6 +66,7 @@ static void initialize(st_camera_t * const p_camera) {
     p_camera->image_size[1] = (int32_t)fmax(
             (double)p_camera->image_size[0] / p_camera->aspect_ratio,
             1.0);
+    p_camera->pixel_samples_scale = 1.0 / (double)p_camera->samples_per_pixel;
     p_camera->center = VEC3_ZERO;
 
     viewport_size[0] = viewport_size[1]
@@ -84,6 +90,28 @@ static void initialize(st_camera_t * const p_camera) {
     p_camera->pixel00_loc = vec3_add(&viewport_upper_left, &tmp[0]);
 
     return;
+}
+
+static st_ray_t camera_get_ray(const st_camera_t * const p_camera, int32_t ij) {
+    st_vec3_t offset = sample_square();
+    st_vec3_t pixel_sample;
+    st_vec3_t tmp[3];
+    st_ray_t out;
+
+    tmp[0] = p_camera->pixel00_loc;
+    tmp[1] = vec3_scalar_mul(&p_camera->pixel_delta_uv[0],
+            offset.e[0] + (ij % p_camera->image_size[0]));
+    tmp[2] = vec3_scalar_mul(&p_camera->pixel_delta_uv[1],
+            offset.e[1] + (ij / p_camera->image_size[0]));
+    pixel_sample = vec3_sum(&tmp[0], 3);
+    out.origin = p_camera->center;
+    out.direction = vec3_sub(&pixel_sample, &out.origin);
+
+    return out;
+}
+
+static st_vec3_t sample_square(void) {
+    return VEC3(random_double() - 0.5, random_double() - 0.5, 0);
 }
 
 static st_vec3_t ray_color(const st_ray_t * const p_ray,

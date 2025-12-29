@@ -44,6 +44,7 @@ int32_t main(void) {
 
     camera.aspect_ratio = 16.0 / 9.0;
     camera.image_size[0] = 400;
+    camera.samples_per_pixel = 100;
 
     camera_render(&camera, &world, p_world);
 
