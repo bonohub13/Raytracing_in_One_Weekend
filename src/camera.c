@@ -142,7 +142,7 @@ static st_vec3_t ray_color(const st_ray_t * const p_ray, const int32_t depth,
 
         tmp[0] = ray_color(&ray, depth - 1, p_data, p_world);
 
-        return vec3_scalar_mul(&tmp[0], 0.5);
+        return vec3_scalar_mul(&tmp[0], 0.1);
     }
 
     tmp[0] = vec3_unit_vector(&p_ray->direction);
