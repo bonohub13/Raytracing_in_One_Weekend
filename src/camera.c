@@ -38,9 +38,9 @@ void camera_render(st_camera_t * const p_camera,
 
     camera_initialize(p_camera);
 
-    puts("P3");
-    printf("%d %d\n", p_camera->image_size[0], p_camera->image_size[1]);
-    puts("255");
+    printf("P3\n%d %d\n255\n",
+            p_camera->image_size[0],
+            p_camera->image_size[1]);
 
     image_dimention = p_camera->image_size[0] * p_camera->image_size[1];
     for (ij = 0; ij < image_dimention; ij++) {

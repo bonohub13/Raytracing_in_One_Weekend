@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -15,7 +14,7 @@ int32_t main(void) {
     int32_t image_size[2] = { 400, 0 };
     double aspect_ratio = 16.0 / 9.0;
     // World
-    uint8_t * p_memory = (uint8_t*)malloc(WORLD_SIZE);
+    uint8_t * p_memory __attribute__((aligned(32))) = (uint8_t*)malloc(WORLD_SIZE);
     st_hittable_list_t world = {
         .pp_datas = (void**)&p_memory[HITTABLE_DATA_OFFSET],
         .pp_objects = (st_hittable_t**)&p_memory[HITTABLE_OBJ_OFFSET],

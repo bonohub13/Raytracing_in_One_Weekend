@@ -16,9 +16,9 @@ DEBUGGER := gdb
 CONVERT := magick
 
 ifeq (1, $(DEBUG))
-	CFLAGS += -g
+	CFLAGS += -O1 -g
 else
-	CFLAGS += -Os
+	CFLAGS += -O1
 endif
 
 .PHONY: build convert

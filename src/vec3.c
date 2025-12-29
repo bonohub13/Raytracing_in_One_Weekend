@@ -91,21 +91,29 @@ st_vec3_t vec3_mul(const st_vec3_t * const p_u, const st_vec3_t * const p_v) {
 }
 
 st_vec3_t vec3_sum(const st_vec3_t * const p_v, size_t len) {
-    st_vec3_t out = p_v[0];
+    st_vec3_t out;
+    __m256d vectors[2];
 
+    vectors[0] = _mm256_loadu_pd(p_v[0].e);
     for (; len > 0; --len) {
-        out = vec3_add(&out, &p_v[len]);
+        vectors[1] = _mm256_loadu_pd(p_v[len].e);
+        vectors[0] = _mm256_add_pd(vectors[0], vectors[1]);
     }
+    _mm256_store_pd(out.e, vectors[0]);
 
     return out;
 }
 
 st_vec3_t vec3_prod(const st_vec3_t * const p_v, size_t len) {
-    st_vec3_t out = p_v[0];
+    st_vec3_t out;
+    __m256d vectors[2];
 
+    vectors[0] = _mm256_loadu_pd(p_v[0].e);
     for (; len > 0; --len) {
-        out = vec3_mul(&out, &p_v[len]);
+        vectors[1] = _mm256_loadu_pd(p_v[len].e);
+        vectors[0] = _mm256_mul_pd(vectors[0], vectors[1]);
     }
+    _mm256_store_pd(out.e, vectors[0]);
 
     return out;
 }
