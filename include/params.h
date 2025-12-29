@@ -1,9 +1,12 @@
 #ifndef RTIOW_PARAMS_H
 #define RTIOW_PARAMS_H
 
+#include "rtweekend.h"
+
 // World info
 #define SPHERE_COUNT            (2)
-#define SINGLE_SPHERE_SIZE      (0x40) // Size has to be aligned by 0x20 bytes
+//  Size has to be aligned by 0x20 bytes
+#define SINGLE_SPHERE_SIZE      (round_up(sizeof(st_sphere_t), 0x40))
 #define SPHERE_SIZE             (SINGLE_SPHERE_SIZE * SPHERE_COUNT)
 #define HITTABLE_COUNT          (SPHERE_COUNT)
 #define HITTABLE_DATA_SIZE      (sizeof(void*) * HITTABLE_COUNT)
