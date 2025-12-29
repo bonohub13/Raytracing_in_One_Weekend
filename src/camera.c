@@ -11,13 +11,14 @@
 static void camera_initialize(st_camera_t * const p_camera);
 static st_ray_t camera_get_ray(const st_camera_t * const p_camera, int32_t ij);
 static st_vec3_t sample_square(void);
-static st_vec3_t ray_color(const st_ray_t * const p_ray,
+static st_vec3_t ray_color(const st_ray_t * const p_ray, const int32_t depth,
         void * p_data, const st_hittable_t * const p_world);
 
 static const st_camera_t s_camera = {
     .aspect_ratio = 1.0,
     .image_size[0] = 100,
     .samples_per_pixel = 10,
+    .max_depth = 10,
 };
 
 void camera_init(st_camera_t * const p_camera) {
@@ -33,6 +34,7 @@ void camera_render(st_camera_t * const p_camera,
     st_ray_t ray;
     int32_t ij;
     int32_t sample;
+    int32_t image_dimention;
 
     camera_initialize(p_camera);
 
@@ -40,11 +42,13 @@ void camera_render(st_camera_t * const p_camera,
     printf("%d %d\n", p_camera->image_size[0], p_camera->image_size[1]);
     puts("255");
 
-    for (ij = 0; ij < (p_camera->image_size[0] * p_camera->image_size[1]); ij++) {
+    image_dimention = p_camera->image_size[0] * p_camera->image_size[1];
+    for (ij = 0; ij < image_dimention; ij++) {
         pixel_color = VEC3_BLACK;
         for (sample = 0; sample < p_camera->samples_per_pixel; sample++) {
             ray = camera_get_ray(p_camera, ij);
-            current_sample = ray_color(&ray, p_data, p_world);
+            current_sample = ray_color(&ray, p_camera->max_depth,
+                    p_data, p_world);
             pixel_color = vec3_add(&pixel_color, &current_sample);
         }
         pixel_color = vec3_scalar_mul(&pixel_color,
@@ -114,7 +118,7 @@ static st_vec3_t sample_square(void) {
     return VEC3(random_double() - 0.5, random_double() - 0.5, 0);
 }
 
-static st_vec3_t ray_color(const st_ray_t * const p_ray,
+static st_vec3_t ray_color(const st_ray_t * const p_ray, const int32_t depth,
         void * p_data, const st_hittable_t * const p_world) {
     static const st_vec3_t s_white = VEC3_WHITE;
     static const st_vec3_t s_blue = VEC3(0.5, 0.7, 1.0);
@@ -127,11 +131,15 @@ static st_vec3_t ray_color(const st_ray_t * const p_ray,
     st_hit_record_t rec = { 0 };
     double a;
 
+    if (depth <= 0) {
+        return VEC3_BLACK;
+    }
+
     if (p_world->p_hit(p_data, p_ray, &s_range, &rec)) {
         ray.origin = rec.p;
         ray.direction = vec3_random_on_hemisphere(&rec.normal);
 
-        tmp[0] = ray_color(&ray, p_data, p_world);
+        tmp[0] = ray_color(&ray, depth - 1, p_data, p_world);
 
         return vec3_scalar_mul(&tmp[0], 0.5);
     }
