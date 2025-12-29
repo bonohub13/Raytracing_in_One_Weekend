@@ -136,8 +136,9 @@ static st_vec3_t ray_color(const st_ray_t * const p_ray, const int32_t depth,
     }
 
     if (p_world->p_hit(p_data, p_ray, &s_range, &rec)) {
+        tmp[0] = vec3_random_unit_vector();
         ray.origin = rec.p;
-        ray.direction = vec3_random_on_hemisphere(&rec.normal);
+        ray.direction = vec3_add(&rec.normal, &tmp[0]);
 
         tmp[0] = ray_color(&ray, depth - 1, p_data, p_world);
 
