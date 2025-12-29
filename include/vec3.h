@@ -10,8 +10,8 @@
 #define VEC3_BLACK              (VEC3_ZERO)
 
 typedef struct vec3 {
-    double e[4] __attribute__((aligned(32)));
-} st_vec3_t;
+    double e[4];
+} __attribute__((aligned(32))) st_vec3_t;
 
 extern st_vec3_t vec3_neg(const st_vec3_t * const p_v);
 extern double vec3_length(const st_vec3_t * const p_v);

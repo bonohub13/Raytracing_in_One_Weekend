@@ -5,7 +5,7 @@
 #include "vec3.h"
 
 typedef struct sphere {
-    st_vec3_t center;
+    st_vec3_t center __attribute__((aligned(32)));
     double radius;
 } st_sphere_t;
 

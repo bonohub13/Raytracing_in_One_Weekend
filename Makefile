@@ -10,14 +10,15 @@ PPMS := $(wildcard $(IMAGE_DIR)/*.ppm)
 
 CC := gcc
 INCLUDES := -I$(INCLUDE_DIR) -I$(SRC_DIR)/hittable/$(INCLUDE_DIR)
-CFLAGS := -Wall -Wextra
+CFLAGS := -Wall -Wextra -mavx2 -mfma
 LDFLAGS := -lm
+DEBUGGER := gdb
 CONVERT := magick
 
 ifeq (1, $(DEBUG))
 	CFLAGS += -g
 else
-	CFLAGS += -O3
+	CFLAGS += -Os
 endif
 
 .PHONY: build convert
@@ -26,6 +27,7 @@ all: clean build
 
 debug: clean
 	DEBUG=1 make build
+	@$(DEBUGGER) $(TARGET)
 
 build: $(OBJS)
 	@mkdir -pv $(BUILD_DIR)
