@@ -1,6 +1,7 @@
 #ifndef RTIOW_VEC3_H
 #define RTIOW_VEC3_H
 
+#include <stdbool.h>
 #include <stddef.h>
 
 #define VEC3(_x, _y, _z)        ((st_vec3_t){ { (_x), (_y), (_z), 0 } })
@@ -16,6 +17,7 @@ typedef struct vec3 {
 extern st_vec3_t vec3_neg(const st_vec3_t * const p_v);
 extern double vec3_length(const st_vec3_t * const p_v);
 extern double vec3_length_squared(const st_vec3_t * const p_v);
+extern bool vec3_near_zero(const st_vec3_t * const p_v);
 extern st_vec3_t vec3_random(void);
 extern st_vec3_t vec3_random_in_range(double min, double max);
 extern char * vec3_string(const st_vec3_t * const p_v);
@@ -31,5 +33,6 @@ extern st_vec3_t vec3_cross(const st_vec3_t * const p_u, const st_vec3_t * const
 extern st_vec3_t vec3_unit_vector(const st_vec3_t * const p_v);
 extern st_vec3_t vec3_random_unit_vector(void);
 extern st_vec3_t vec3_random_on_hemisphere(const st_vec3_t * const p_normal);
+extern st_vec3_t vec3_reflect(const st_vec3_t * const p_v, const st_vec3_t * const p_n);
 
 #endif /* RTIOW_VEC3_H */

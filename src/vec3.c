@@ -28,6 +28,22 @@ double vec3_length_squared(const st_vec3_t * const p_v) {
     return vec3_dot(p_v, p_v);
 }
 
+bool vec3_near_zero(const st_vec3_t * const p_v) {
+    static const int32_t s_mask = 0b1111;
+
+    __m256d threashold = _mm256_set1_pd(1e-8);
+    __m256d vector = _mm256_load_pd(p_v->e);
+    __m256d compare_result;
+    int32_t result_mask;
+
+    vector = _mm256_mul_pd(vector, vector);
+    vector = _mm256_sqrt_pd(vector);
+    compare_result = _mm256_cmp_pd(vector, threashold, _CMP_LT_OQ);
+    result_mask = _mm256_movemask_pd(compare_result);
+
+    return s_mask == result_mask;
+}
+
 st_vec3_t vec3_random(void) {
     return VEC3(random_double(), random_double(), random_double());
 }
@@ -194,4 +210,19 @@ st_vec3_t vec3_random_on_hemisphere(const st_vec3_t * const p_normal) {
     }
 
     return on_unit_sphere;
+}
+
+st_vec3_t vec3_reflect(const st_vec3_t * const p_v, const st_vec3_t * const p_n) {
+    st_vec3_t out;
+    __m256d tmp[3] = {
+        _mm256_load_pd(p_v->e),
+        _mm256_set1_pd(-2 * vec3_dot(p_v, p_n)),
+        _mm256_load_pd(p_n->e),
+    };
+
+    // -2 * dot(v, n) * n + v
+    tmp[0] = _mm256_fmadd_pd(tmp[1], tmp[2], tmp[0]);
+    _mm256_store_pd(out.e, tmp[0]);
+
+    return out;
 }
