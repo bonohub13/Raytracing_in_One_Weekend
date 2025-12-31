@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <assert.h>
 #include <math.h>
 
 #include "camera.h"
@@ -7,6 +8,7 @@
 #include "interval.h"
 #include "color.h"
 #include "ray.h"
+#include "material.h"
 
 static void camera_initialize(st_camera_t * const p_camera);
 static st_ray_t camera_get_ray(const st_camera_t * const p_camera, int32_t ij);
@@ -127,8 +129,10 @@ static st_vec3_t ray_color(const st_ray_t * const p_ray, const int32_t depth,
         .max = HUGE_VAL,
     };
     st_vec3_t tmp[2];
-    st_ray_t ray;
+    st_ray_t scattered;
     st_hit_record_t rec = { 0 };
+    void * p_current_mat_data;
+    st_material_t * p_current_material;
     double a;
 
     if (depth <= 0) {
@@ -136,13 +140,17 @@ static st_vec3_t ray_color(const st_ray_t * const p_ray, const int32_t depth,
     }
 
     if (p_world->p_hit(p_data, p_ray, &s_range, &rec)) {
-        tmp[0] = vec3_random_unit_vector();
-        ray.origin = rec.p;
-        ray.direction = vec3_add(&rec.normal, &tmp[0]);
+        p_current_mat_data = rec.p_mat_data;
+        p_current_material = rec.p_mat;
+        assert((NULL != p_current_mat_data) && (NULL != p_current_material));
+        if (p_current_material->p_scatter(p_current_mat_data, p_ray, &rec,
+                    &tmp[0], &scattered)) {
+            tmp[1] = ray_color(&scattered, depth - 1, p_data, p_world);
 
-        tmp[0] = ray_color(&ray, depth - 1, p_data, p_world);
+            return vec3_mul(&tmp[0], &tmp[1]);
+        }
 
-        return vec3_scalar_mul(&tmp[0], 0.1);
+        return VEC3_BLACK;
     }
 
     tmp[0] = vec3_unit_vector(&p_ray->direction);
