@@ -10,6 +10,7 @@
 #include "hittable_list.h"
 #include "lambertian.h"
 #include "metal.h"
+#include "dielectric.h"
 
 int32_t main(void) {
     // Image
@@ -28,6 +29,7 @@ int32_t main(void) {
     st_sphere_t * p_sphere = (st_sphere_t*)&p_memory[SPHERE_OFFSET];
     st_lambertian_t * p_lambertian = (st_lambertian_t*)&p_memory[LAMBERTIAN_OFFSET];
     st_metal_t * p_metal = (st_metal_t*)&p_memory[METAL_OFFSET];
+    st_dielectric_t * p_dielectric = (st_dielectric_t*)&p_metal[DIELECTRIC_OFFSET];
     // Camera
     st_camera_t camera;
 
@@ -54,14 +56,12 @@ int32_t main(void) {
     p_sphere++;
     world.pp_datas[2] = p_sphere;
     world.pp_objects[2] = create_sphere();
-    p_metal->albedo = VEC3(0.8, 0.8, 0.8);
-    p_metal->fuzz = 0.3;
+    p_dielectric->refraction_index = 1.50;
     p_sphere->center = VEC3(-1, 0, -1);
     p_sphere->radius = 0.5;
-    p_sphere->p_mat_data = p_metal;
-    p_sphere->p_mat = create_metal();
+    p_sphere->p_mat_data = p_dielectric;
+    p_sphere->p_mat = create_dielectric();
 
-    p_metal++;
     p_sphere++;
     world.pp_datas[3] = p_sphere;
     world.pp_objects[3] = create_sphere();

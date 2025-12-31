@@ -34,5 +34,7 @@ extern st_vec3_t vec3_unit_vector(const st_vec3_t * const p_v);
 extern st_vec3_t vec3_random_unit_vector(void);
 extern st_vec3_t vec3_random_on_hemisphere(const st_vec3_t * const p_normal);
 extern st_vec3_t vec3_reflect(const st_vec3_t * const p_v, const st_vec3_t * const p_n);
+extern st_vec3_t vec3_refract(const st_vec3_t * const p_uv,
+        const st_vec3_t * const p_n, double etai_over_etat);
 
 #endif /* RTIOW_VEC3_H */

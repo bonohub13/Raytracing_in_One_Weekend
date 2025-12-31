@@ -16,11 +16,14 @@
 //  Material objects
 #define LAMBERTIAN_COUNT        (2)
 #define LAMBERTIAN_SIZE         (sizeof(st_lambertian_t) * LAMBERTIAN_COUNT)
-#define METAL_COUNT             (2)
+#define METAL_COUNT             (1)
 #define METAL_SIZE              (sizeof(st_metal_t) * METAL_COUNT)
+#define DIELECTRIC_COUNT        (1)
+#define DIELECTRIC_SIZE         (sizeof(st_dielectric_t) * DIELECTRIC_COUNT)
 #define MATERIAL_COUNT          ( \
                                     LAMBERTIAN_COUNT \
                                   + METAL_COUNT \
+                                  + DIELECTRIC_COUNT \
                                 )
 #define WORLD_SIZE              ( \
                                     SPHERE_SIZE \
@@ -28,11 +31,13 @@
                                   + HITTABLE_OBJ_SIZE \
                                   + LAMBERTIAN_SIZE \
                                   + METAL_SIZE \
+                                  + DIELECTRIC_SIZE \
                                 )
 #define SPHERE_OFFSET           (0)
 #define HITTABLE_DATA_OFFSET    (SPHERE_OFFSET + SPHERE_SIZE)
 #define HITTABLE_OBJ_OFFSET     (HITTABLE_DATA_OFFSET + HITTABLE_DATA_SIZE)
 #define LAMBERTIAN_OFFSET       (HITTABLE_OBJ_OFFSET + HITTABLE_OBJ_SIZE)
 #define METAL_OFFSET            (LAMBERTIAN_OFFSET + LAMBERTIAN_SIZE)
+#define DIELECTRIC_OFFSET       (METAL_OFFSET + METAL_SIZE)
 
 #endif /*RTIOW_PARAMS_H  */

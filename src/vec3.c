@@ -226,3 +226,31 @@ st_vec3_t vec3_reflect(const st_vec3_t * const p_v, const st_vec3_t * const p_n)
 
     return out;
 }
+
+st_vec3_t vec3_refract(const st_vec3_t * const p_uv,
+        const st_vec3_t * const p_n, double etai_over_etat) {
+    st_vec3_t out;
+    st_vec3_t tmp;
+    __m256d vectors[3];
+    double cos_theta = fmin(-vec3_dot(p_uv, p_n), 1.0);
+
+    /* R out perpendicular calculation
+     *  - etai_over_etat * (uv + cos_theta * n)
+     */
+    vectors[0] = _mm256_load_pd(p_uv->e);
+    vectors[1] = _mm256_set1_pd(cos_theta);
+    vectors[2] = _mm256_load_pd(p_n->e);
+    vectors[0] = _mm256_fmadd_pd(vectors[1], vectors[2], vectors[0]);
+    vectors[1] = _mm256_set1_pd(etai_over_etat);
+    vectors[0] = _mm256_mul_pd(vectors[0], vectors[1]);
+
+    /* R out parallel calculation
+     *  - -sqrt(fabs(1.0 - length_squared(r_out_perp))) * n
+     */
+    _mm256_store_pd(tmp.e, vectors[0]);
+    vectors[1] = _mm256_set1_pd(-sqrt(fabs(1.0 - vec3_length_squared(&tmp))));
+    vectors[0] = _mm256_fmadd_pd(vectors[1], vectors[2], vectors[0]);
+    _mm256_store_pd(out.e, vectors[0]);
+
+    return out;
+}
