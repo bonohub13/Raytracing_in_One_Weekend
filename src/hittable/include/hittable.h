@@ -7,9 +7,12 @@
 #include "interval.h"
 #include "ray.h"
 
+typedef struct material st_material_t;
 typedef struct hit_record {
     st_vec3_t p;
     st_vec3_t normal;
+    void * p_mat_data;
+    st_material_t * p_mat;
     double t;
     bool front_face;
 } st_hit_record_t;

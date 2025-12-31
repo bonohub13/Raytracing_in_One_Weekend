@@ -44,6 +44,8 @@ static bool sphere_hit(const void * const p_obj, const st_ray_t * const p_ray,
     outward_normal = vec3_sub(&p_rec->p, &p_sphere->center);
     outward_normal = vec3_scalar_div(&outward_normal, p_sphere->radius);
     hit_record_set_face_normal(p_rec, p_ray, &outward_normal);
+    p_rec->p_mat_data = p_sphere->p_mat_data;
+    p_rec->p_mat = p_sphere->p_mat;
 
     return true;
 }
