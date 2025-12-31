@@ -10,7 +10,9 @@ ASMS := $(addprefix $(BUILD_DIR)/, $(patsubst %.c,%.s,$(SRCS)))
 PPMS := $(wildcard $(IMAGE_DIR)/*.ppm)
 
 CC := gcc
-INCLUDES := -I$(INCLUDE_DIR) -I$(SRC_DIR)/hittable/$(INCLUDE_DIR)
+INCLUDES := -I$(INCLUDE_DIR) \
+			-I$(SRC_DIR)/hittable/$(INCLUDE_DIR) \
+			-I$(SRC_DIR)/material/$(INCLUDE_DIR)
 CFLAGS := -Wall -Wextra -mavx2 -mfma -O3
 LDFLAGS := -lm
 DEBUGGER := gdb

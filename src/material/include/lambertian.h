@@ -6,7 +6,7 @@
 
 typedef struct lambertian {
     st_vec3_t albedo;
-} st_lambertian_h;
+} st_lambertian_t;
 
 extern st_material_t * create_lambertian(void);
 
