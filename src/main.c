@@ -55,6 +55,7 @@ int32_t main(void) {
     world.pp_datas[2] = p_sphere;
     world.pp_objects[2] = create_sphere();
     p_metal->albedo = VEC3(0.8, 0.8, 0.8);
+    p_metal->fuzz = 0.3;
     p_sphere->center = VEC3(-1, 0, -1);
     p_sphere->radius = 0.5;
     p_sphere->p_mat_data = p_metal;
@@ -65,6 +66,7 @@ int32_t main(void) {
     world.pp_datas[3] = p_sphere;
     world.pp_objects[3] = create_sphere();
     p_metal->albedo = VEC3(0.8, 0.6, 0.2);
+    p_metal->fuzz = 1.0;
     p_sphere->center = VEC3(1, 0, -1);
     p_sphere->radius = 0.5;
     p_sphere->p_mat_data = p_metal;

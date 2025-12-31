@@ -6,6 +6,7 @@
 
 typedef struct metal {
     st_vec3_t albedo;
+    double fuzz;
 } st_metal_t;
 
 extern st_material_t * create_metal(void);
