@@ -1,3 +1,5 @@
+#include <math.h>
+
 #include "dielectric.h"
 
 static bool dielectric_scatter(const void * const p_obj,
@@ -24,10 +26,17 @@ static bool dielectric_scatter(const void * const p_obj,
     double refraction_index = p_rec->front_face
                             ? (1.0 / p_dielectric->refraction_index)
                             : p_dielectric->refraction_index;
+    double cos_theta = fmin(-vec3_dot(&unit_direction, &p_rec->normal), 1.0);
+    double sin_theta = sqrt(1.0 - cos_theta * cos_theta);
+
+    if (1.0 < (refraction_index * sin_theta)) {
+        p_scattered->direction = vec3_reflect(&unit_direction, &p_rec->normal);
+    } else {
+        p_scattered->direction = vec3_refract(&unit_direction, &p_rec->normal,
+                refraction_index);
+    }
 
     p_scattered->origin = p_rec->p;
-    p_scattered->direction = vec3_refract(&unit_direction, &p_rec->normal,
-            refraction_index);
     *p_attenuation = s_white;
 
     return true;

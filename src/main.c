@@ -56,7 +56,7 @@ int32_t main(void) {
     p_sphere++;
     world.pp_datas[2] = p_sphere;
     world.pp_objects[2] = create_sphere();
-    p_dielectric->refraction_index = 1.50;
+    p_dielectric->refraction_index = 1.0 / 1.33;
     p_sphere->center = VEC3(-1, 0, -1);
     p_sphere->radius = 0.5;
     p_sphere->p_mat_data = p_dielectric;
