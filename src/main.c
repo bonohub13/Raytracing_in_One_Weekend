@@ -56,15 +56,25 @@ int32_t main(void) {
     p_sphere++;
     world.pp_datas[2] = p_sphere;
     world.pp_objects[2] = create_sphere();
-    p_dielectric->refraction_index = 1.0 / 1.33;
+    p_dielectric->refraction_index = 1.50;
     p_sphere->center = VEC3(-1, 0, -1);
     p_sphere->radius = 0.5;
     p_sphere->p_mat_data = p_dielectric;
     p_sphere->p_mat = create_dielectric();
 
+    p_dielectric++;
     p_sphere++;
     world.pp_datas[3] = p_sphere;
     world.pp_objects[3] = create_sphere();
+    p_dielectric->refraction_index = 1.0 / 1.50;
+    p_sphere->center = VEC3(-1, 0, -1);
+    p_sphere->radius = 0.4;
+    p_sphere->p_mat_data = p_dielectric;
+    p_sphere->p_mat = create_dielectric();
+
+    p_sphere++;
+    world.pp_datas[4] = p_sphere;
+    world.pp_objects[4] = create_sphere();
     p_metal->albedo = VEC3(0.8, 0.6, 0.2);
     p_metal->fuzz = 1.0;
     p_sphere->center = VEC3(1, 0, -1);
