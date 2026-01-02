@@ -1,4 +1,4 @@
 /target
-*.pdf
-bin/rtweekend
-build
+/*.pdf
+/bin/rtweekend
+/build
