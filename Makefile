@@ -33,6 +33,9 @@ all: clean build
 docker-build:
 	TAG=builder CMD="make all" make docker-exec
 
+docker-run:
+	TAG=builder CMD="$(TARGET) > output.ppm" make docker-exec
+
 debug: clean
 	DEBUG=1 make build
 	@$(DEBUGGER) $(TARGET)
