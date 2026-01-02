@@ -3,6 +3,8 @@
 
 #include "material.h"
 
+#define DIELECTRIC_SINGLE_SIZE      (sizeof(st_dielectric_t))
+
 typedef struct dielectric {
     double refraction_index;
 } st_dielectric_t;

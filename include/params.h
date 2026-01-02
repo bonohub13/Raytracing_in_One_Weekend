@@ -1,7 +1,7 @@
 #ifndef RTIOW_PARAMS_H
 #define RTIOW_PARAMS_H
 
-#include "rtweekend.h"
+#include "hittable.h"
 #include "sphere.h"
 #include "lambertian.h"
 #include "metal.h"
@@ -10,20 +10,17 @@
 // World info
 //  Hittable objects
 #define SPHERE_COUNT            (2)
-#define SPHERE_ALIGNMENT        (0x20)
-//      Size has to be aligned by 0x20 bytes
-#define SINGLE_SPHERE_SIZE      (round_up(sizeof(st_sphere_t), SPHERE_ALIGNMENT))
 #define SPHERE_SIZE             (SINGLE_SPHERE_SIZE * (SPHERE_COUNT + 1))
 #define HITTABLE_COUNT          (SPHERE_COUNT)
-#define HITTABLE_DATA_SIZE      (sizeof(void*) * HITTABLE_COUNT)
-#define HITTABLE_OBJ_SIZE       (sizeof(st_hittable_t*) * HITTABLE_COUNT)
+#define HITTABLE_DATA_SIZE      (HITTABLE_DATA_SINGLE_SIZE * HITTABLE_COUNT)
+#define HITTABLE_OBJ_SIZE       (HITTABLE_OBJ_SINGLE_SIZE * HITTABLE_COUNT)
 //  Material objects
 #define LAMBERTIAN_COUNT        (2)
-#define LAMBERTIAN_SIZE         (sizeof(st_lambertian_t) * LAMBERTIAN_COUNT)
+#define LAMBERTIAN_SIZE         (LAMBERTIAN_SINGLE_SIZE * LAMBERTIAN_COUNT)
 #define METAL_COUNT             (0)
-#define METAL_SIZE              (sizeof(st_metal_t) * METAL_COUNT)
+#define METAL_SIZE              (METAL_SINGLE_SIZE * METAL_COUNT)
 #define DIELECTRIC_COUNT        (0)
-#define DIELECTRIC_SIZE         (sizeof(st_dielectric_t) * DIELECTRIC_COUNT)
+#define DIELECTRIC_SIZE         (DIELECTRIC_SINGLE_SIZE * DIELECTRIC_COUNT)
 #define MATERIAL_COUNT          ( \
                                     LAMBERTIAN_COUNT \
                                   + METAL_COUNT \

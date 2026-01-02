@@ -7,6 +7,9 @@
 #include "interval.h"
 #include "ray.h"
 
+#define HITTABLE_DATA_SINGLE_SIZE       (sizeof(void*))
+#define HITTABLE_OBJ_SINGLE_SIZE        (sizeof(st_hittable_t*))
+
 typedef struct material st_material_t;
 typedef struct hit_record {
     st_vec3_t p;

@@ -4,6 +4,8 @@
 #include "material.h"
 #include "vec3.h"
 
+#define LAMBERTIAN_SINGLE_SIZE      (sizeof(st_lambertian_t))
+
 typedef struct lambertian {
     st_vec3_t albedo;
 } st_lambertian_t;
