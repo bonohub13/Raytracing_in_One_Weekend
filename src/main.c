@@ -10,7 +10,7 @@ int32_t main(void) {
             SPHERE_ALIGNMENT,
             WORLD_SIZE);
 
-    wide_angle(p_memory);
+    three_spheres(p_memory);
 
     free(p_memory);
 

@@ -12,10 +12,14 @@ typedef struct camera {
     int32_t samples_per_pixel;
     int32_t max_depth;
     double vfov;
+    st_vec3_t look_from;
+    st_vec3_t look_at;
+    st_vec3_t vup;
     double pixel_samples_scale;
     st_vec3_t center;
     st_vec3_t pixel00_loc;
     st_vec3_t pixel_delta_uv[2];
+    st_vec3_t uvw[3];
 } st_camera_t;
 
 extern void camera_init(st_camera_t * const p_camera);

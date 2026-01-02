@@ -71,6 +71,10 @@ void three_spheres(uint8_t * const p_buffer) {
     camera.image_size[0] = 400;
     camera.samples_per_pixel = 100;
     camera.max_depth = 50;
+    camera.vfov = 90;
+    camera.look_from = VEC3(-2, 2, 1);
+    camera.look_at = VEC3(0, 0, -1);
+    camera.vup = VEC3(0, 1, 0);
 
     camera_render(&camera, &world, p_world);
 
