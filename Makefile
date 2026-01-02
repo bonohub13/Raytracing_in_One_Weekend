@@ -2,12 +2,15 @@ SRC_DIR := src
 INCLUDE_DIR := include
 BUILD_DIR := build
 IMAGE_DIR := images
+MAKEFILES_DIR := makefiles
 TARGET := $(BUILD_DIR)/rtweekend
 COMPONENT_DIR :=
 SRCS := $(shell find $(SRC_DIR) -type f -name "*.c")
 OBJS := $(addprefix $(BUILD_DIR)/, $(patsubst %.c,%.o,$(SRCS)))
 ASMS := $(addprefix $(BUILD_DIR)/, $(patsubst %.c,%.s,$(SRCS)))
 PPMS := $(wildcard $(IMAGE_DIR)/*.ppm)
+
+include $(MAKEFILES_DIR)/docker.mk
 
 CC := gcc
 INCLUDES := -I$(INCLUDE_DIR) \
@@ -26,6 +29,9 @@ endif
 .PHONY: build convert
 
 all: clean build
+
+docker-build:
+	TAG=builder CMD="make all" make docker-exec
 
 debug: clean
 	DEBUG=1 make build
