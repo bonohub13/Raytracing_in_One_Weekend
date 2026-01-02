@@ -11,6 +11,7 @@ typedef struct camera {
     int32_t image_size[2];
     int32_t samples_per_pixel;
     int32_t max_depth;
+    double vfov;
     double pixel_samples_scale;
     st_vec3_t center;
     st_vec3_t pixel00_loc;

@@ -2,10 +2,14 @@
 #define RTIOW_PARAMS_H
 
 #include "rtweekend.h"
+#include "sphere.h"
+#include "lambertian.h"
+#include "metal.h"
+#include "dielectric.h"
 
 // World info
 //  Hittable objects
-#define SPHERE_COUNT            (5)
+#define SPHERE_COUNT            (2)
 #define SPHERE_ALIGNMENT        (0x20)
 //      Size has to be aligned by 0x20 bytes
 #define SINGLE_SPHERE_SIZE      (round_up(sizeof(st_sphere_t), SPHERE_ALIGNMENT))
@@ -16,9 +20,9 @@
 //  Material objects
 #define LAMBERTIAN_COUNT        (2)
 #define LAMBERTIAN_SIZE         (sizeof(st_lambertian_t) * LAMBERTIAN_COUNT)
-#define METAL_COUNT             (1)
+#define METAL_COUNT             (0)
 #define METAL_SIZE              (sizeof(st_metal_t) * METAL_COUNT)
-#define DIELECTRIC_COUNT        (2)
+#define DIELECTRIC_COUNT        (0)
 #define DIELECTRIC_SIZE         (sizeof(st_dielectric_t) * DIELECTRIC_COUNT)
 #define MATERIAL_COUNT          ( \
                                     LAMBERTIAN_COUNT \

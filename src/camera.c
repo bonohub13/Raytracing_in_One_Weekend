@@ -21,6 +21,7 @@ static const st_camera_t s_camera = {
     .image_size[0] = 100,
     .samples_per_pixel = 10,
     .max_depth = 10,
+    .vfov = 90,
 };
 
 void camera_init(st_camera_t * const p_camera) {
@@ -67,7 +68,9 @@ static void camera_initialize(st_camera_t * const p_camera) {
     st_vec3_t viewport_upper_left;
     st_vec3_t tmp[3];
     double focal_length = 1.0;
-    double viewport_size[2] = { 0, 2.0 };
+    double theta = degrees_to_radians(p_camera->vfov);
+    double height = tan(0.5 * theta);
+    double viewport_size[2] = { 0, 2.0 * height * focal_length };
 
     p_camera->image_size[1] = (int32_t)fmax(
             (double)p_camera->image_size[0] / p_camera->aspect_ratio,
