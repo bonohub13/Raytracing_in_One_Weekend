@@ -86,6 +86,8 @@ void three_spheres(uint8_t * const p_buffer) {
     camera.look_from = VEC3(-2, 2, 1);
     camera.look_at = VEC3(0, 0, -1);
     camera.vup = VEC3(0, 1, 0);
+    camera.defocus_angle = 10.0;
+    camera.focus_distance = 3.4;
 
     camera_render(&camera, &world, p_world);
 

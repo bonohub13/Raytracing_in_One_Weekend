@@ -14,6 +14,7 @@
 static void camera_initialize(st_camera_t * const p_camera);
 static st_ray_t camera_get_ray(const st_camera_t * const p_camera, int32_t ij);
 static st_vec3_t sample_square(void);
+static st_vec3_t defocus_disk_sample(const st_camera_t * const p_camera);
 static st_vec3_t ray_color(const st_ray_t * const p_ray, const int32_t depth,
         void * p_data, const st_hittable_t * const p_world);
 
@@ -26,6 +27,8 @@ static const st_camera_t s_camera = {
     .look_from = VEC3_ZERO,
     .look_at = VEC3(0, 0, -1),
     .vup = VEC3(0, 1, 0),
+    .defocus_angle = 0,
+    .focus_distance = 10,
 };
 
 void camera_init(st_camera_t * const p_camera) {
@@ -53,7 +56,6 @@ void camera_render(st_camera_t * const p_camera,
     fprintf(stderr, "Image dimention\n");
     fprintf(stderr, "\tWidth: %d\n", p_camera->image_size[0]);
     fprintf(stderr, "\tHeight: %d\n", p_camera->image_size[1]);
-    fprintf(stderr, "\t\n");
     for (ij = 0; ij < image_dimention; ij++) {
         pixel_color = VEC3_BLACK;
         fprintf(stderr, "\rScanlines remaining: %08d",
@@ -90,15 +92,11 @@ void camera_render(st_camera_t * const p_camera,
 static void camera_initialize(st_camera_t * const p_camera) {
     st_vec3_t viewport_uv[2];
     st_vec3_t viewport_upper_left;
-    st_vec3_t tmp[3] = {
-        vec3_sub(&p_camera->look_from, &p_camera->look_at),
-        VEC3_ZERO,
-        VEC3_ZERO,
-    };
-    double focal_length = vec3_length(&tmp[0]);
+    st_vec3_t tmp[3];
     double theta = degrees_to_radians(p_camera->vfov);
     double height = tan(0.5 * theta);
-    double viewport_size[2] = { 0, 2.0 * height * focal_length };
+    double viewport_size[2];
+    double defocus_radius;
 
     p_camera->image_size[1] = (int32_t)fmax(
             (double)p_camera->image_size[0] / p_camera->aspect_ratio,
@@ -106,8 +104,11 @@ static void camera_initialize(st_camera_t * const p_camera) {
     p_camera->pixel_samples_scale = 1.0 / (double)p_camera->samples_per_pixel;
     p_camera->center = p_camera->look_from;
 
+    viewport_size[1] = 2.0 * height * p_camera->focus_distance;
     viewport_size[0] = viewport_size[1]
         * ((double)p_camera->image_size[0]/(double)p_camera->image_size[1]);
+
+    tmp[0] = vec3_sub(&p_camera->look_from, &p_camera->look_at);
     p_camera->uvw[2] = vec3_unit_vector(&tmp[0]);
     tmp[0] = vec3_cross(&p_camera->vup, &p_camera->uvw[2]);
     p_camera->uvw[0] = vec3_unit_vector(&tmp[0]);
@@ -116,20 +117,31 @@ static void camera_initialize(st_camera_t * const p_camera) {
     viewport_uv[0] = vec3_scalar_mul(&p_camera->uvw[0], viewport_size[0]);
     viewport_uv[1] = vec3_scalar_mul(&p_camera->uvw[1], -viewport_size[1]);
 
-    p_camera->pixel_delta_uv[0] = vec3_scalar_div(&viewport_uv[0],
+    p_camera->pixel_delta_uv[0] = vec3_scalar_div(
+            &viewport_uv[0],
             p_camera->image_size[0]);
-    p_camera->pixel_delta_uv[1] = vec3_scalar_div(&viewport_uv[1],
+    p_camera->pixel_delta_uv[1] = vec3_scalar_div(
+            &viewport_uv[1],
             p_camera->image_size[1]);
 
-    tmp[0] = vec3_scalar_mul(&p_camera->uvw[2], focal_length);
+    tmp[0] = vec3_scalar_mul(&p_camera->uvw[2], p_camera->focus_distance);
     tmp[1] = vec3_scalar_mul(&viewport_uv[0], 0.5);
     tmp[2] = vec3_scalar_mul(&viewport_uv[1], 0.5);
     tmp[0] = vec3_sum(&tmp[0], 3);
     viewport_upper_left = vec3_sub(&p_camera->center, &tmp[0]);
-    tmp[0] = vec3_add(&p_camera->pixel_delta_uv[0],
-            &p_camera->pixel_delta_uv[1]);
-    tmp[0] = vec3_scalar_mul(&tmp[0], 0.5);
-    p_camera->pixel00_loc = vec3_add(&viewport_upper_left, &tmp[0]);
+    tmp[0] = viewport_upper_left;
+    tmp[1] = vec3_scalar_mul(&p_camera->pixel_delta_uv[0], 0.5);
+    tmp[2] = vec3_scalar_mul(&p_camera->pixel_delta_uv[1], 0.5);
+    p_camera->pixel00_loc = vec3_sum(&tmp[0], 3);
+
+    defocus_radius = p_camera->focus_distance
+        * tan(degrees_to_radians(0.5 * p_camera->defocus_angle));
+    p_camera->defocus_disk_uv[0] = vec3_scalar_mul(
+            &p_camera->uvw[0],
+            defocus_radius);
+    p_camera->defocus_disk_uv[1] = vec3_scalar_mul(
+            &p_camera->uvw[1],
+            defocus_radius);
 
     return;
 }
@@ -137,23 +149,41 @@ static void camera_initialize(st_camera_t * const p_camera) {
 static st_ray_t camera_get_ray(const st_camera_t * const p_camera, int32_t ij) {
     st_vec3_t offset = sample_square();
     st_vec3_t pixel_sample;
-    st_vec3_t tmp[3];
+    st_vec3_t tmp[3] = {
+        p_camera->pixel00_loc,
+        vec3_scalar_mul(&p_camera->pixel_delta_uv[0],
+                offset.e[0] + (ij % p_camera->image_size[0])),
+        vec3_scalar_mul(&p_camera->pixel_delta_uv[1],
+                offset.e[1] + (ij / p_camera->image_size[0])),
+    };
     st_ray_t out;
 
-    tmp[0] = p_camera->pixel00_loc;
-    tmp[1] = vec3_scalar_mul(&p_camera->pixel_delta_uv[0],
-            offset.e[0] + (ij % p_camera->image_size[0]));
-    tmp[2] = vec3_scalar_mul(&p_camera->pixel_delta_uv[1],
-            offset.e[1] + (ij / p_camera->image_size[0]));
     pixel_sample = vec3_sum(&tmp[0], 3);
     out.origin = p_camera->center;
+    if (0.0 < p_camera->defocus_angle) {
+        out.origin = defocus_disk_sample(p_camera);
+    }
     out.direction = vec3_sub(&pixel_sample, &out.origin);
 
     return out;
 }
 
 static st_vec3_t sample_square(void) {
-    return VEC3(random_double() - 0.5, random_double() - 0.5, 0);
+    static const st_vec3_t s_offset = VEC3(0.5, 0.5, 0);
+    st_vec3_t center = VEC3(random_double(), random_double(), 0);
+
+    return vec3_sub(&center, &s_offset);
+}
+
+static st_vec3_t defocus_disk_sample(const st_camera_t * const p_camera) {
+    st_vec3_t p = vec3_random_in_unit_disk();
+    st_vec3_t tmp[3] = {
+        p_camera->center,
+        vec3_scalar_mul(&p_camera->defocus_disk_uv[0], p.e[0]),
+        vec3_scalar_mul(&p_camera->defocus_disk_uv[1], p.e[1]),
+    };
+
+    return vec3_sum(&tmp[0], 3);
 }
 
 static st_vec3_t ray_color(const st_ray_t * const p_ray, const int32_t depth,

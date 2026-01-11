@@ -188,6 +188,21 @@ st_vec3_t vec3_unit_vector(const st_vec3_t * const p_v) {
     return vec3_scalar_div(p_v, vec3_length(p_v));
 }
 
+st_vec3_t vec3_random_in_unit_disk(void) {
+    st_vec3_t point;
+
+    while (1) {
+        point = VEC3(
+                random_double_in_range(-1, 1),
+                random_double_in_range(-1, 1),
+                0);
+
+        if (vec3_length_squared(&point) < 1) {
+            return point;
+        }
+    }
+}
+
 st_vec3_t vec3_random_unit_vector(void) {
     st_vec3_t p;
     double length_squared;
