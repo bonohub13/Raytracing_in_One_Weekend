@@ -13,30 +13,36 @@ void wide_angle(uint8_t * const p_buffer) {
     st_hittable_list_t world = {
         .pp_datas = (void**)&p_buffer[HITTABLE_DATA_OFFSET],
         .pp_objects = (st_hittable_t**)&p_buffer[HITTABLE_OBJ_OFFSET],
-        .capacity = HITTABLE_COUNT,
     };
     st_sphere_t * p_sphere = (st_sphere_t*)&p_buffer[SPHERE_OFFSET];
     st_lambertian_t * p_lambertian = (st_lambertian_t*)&p_buffer[LAMBERTIAN_OFFSET];
     // Camera
     st_camera_t camera;
+    size_t current_obj = 0;
 
-    world.pp_datas[0] = p_sphere;
-    world.pp_objects[0] = create_sphere();
+    world.pp_datas[current_obj] = p_sphere;
+    world.pp_objects[current_obj] = create_sphere();
     p_lambertian->albedo = VEC3(0, 0, 1);
     p_sphere->center = VEC3(-radius, 0, -1);
     p_sphere->radius = radius;
     p_sphere->p_mat_data = p_lambertian;
     p_sphere->p_mat = create_lambertian();
-
     p_lambertian++;
+    current_obj++;
     p_sphere++;
-    world.pp_datas[1] = p_sphere;
-    world.pp_objects[1] = create_sphere();
+
+    world.pp_datas[current_obj] = p_sphere;
+    world.pp_objects[current_obj] = create_sphere();
     p_lambertian->albedo = VEC3(1, 0, 0);
     p_sphere->center = VEC3(radius, 0, -1);
     p_sphere->radius = radius;
     p_sphere->p_mat_data = p_lambertian;
     p_sphere->p_mat = create_lambertian();
+    p_lambertian++;
+    current_obj++;
+    p_sphere++;
+
+    world.capacity = current_obj;
 
     camera_init(&camera);
 
