@@ -50,8 +50,15 @@ void camera_render(st_camera_t * const p_camera,
     image_dimention = p_camera->image_size[0] * p_camera->image_size[1];
     p_buffer = malloc(image_dimention * (3 * sizeof(uint32_t)));
 
+    fprintf(stderr, "Image dimention\n");
+    fprintf(stderr, "\tWidth: %d\n", p_camera->image_size[0]);
+    fprintf(stderr, "\tHeight: %d\n", p_camera->image_size[1]);
+    fprintf(stderr, "\t\n");
     for (ij = 0; ij < image_dimention; ij++) {
         pixel_color = VEC3_BLACK;
+        fprintf(stderr, "\rScanlines remaining: %08d",
+                p_camera->image_size[1] - ij / p_camera->image_size[0]);
+        fflush(stderr);
         for (sample = 0; sample < p_camera->samples_per_pixel; sample++) {
             ray = camera_get_ray(p_camera, ij);
             current_sample = ray_color(&ray, p_camera->max_depth,
@@ -63,6 +70,7 @@ void camera_render(st_camera_t * const p_camera,
 
         write_color(&pixel_color, &p_buffer[ij * 3]);
     }
+    fprintf(stderr, "\nDone.\n");
 
     fp = fopen("images/output.ppm", "w");
     fprintf(fp, "P3\n%d %d\n255\n",
