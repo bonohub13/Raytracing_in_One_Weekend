@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
 #include <math.h>
 
@@ -41,14 +42,14 @@ void camera_render(st_camera_t * const p_camera,
     int32_t ij;
     int32_t sample;
     int32_t image_dimention;
+    uint32_t * p_buffer;
+    FILE * fp;
 
     camera_initialize(p_camera);
 
-    printf("P3\n%d %d\n255\n",
-            p_camera->image_size[0],
-            p_camera->image_size[1]);
-
     image_dimention = p_camera->image_size[0] * p_camera->image_size[1];
+    p_buffer = malloc(image_dimention * (3 * sizeof(uint32_t)));
+
     for (ij = 0; ij < image_dimention; ij++) {
         pixel_color = VEC3_BLACK;
         for (sample = 0; sample < p_camera->samples_per_pixel; sample++) {
@@ -60,8 +61,20 @@ void camera_render(st_camera_t * const p_camera,
         pixel_color = vec3_scalar_mul(&pixel_color,
                 p_camera->pixel_samples_scale);
 
-        write_color(&pixel_color);
+        write_color(&pixel_color, &p_buffer[ij * 3]);
     }
+
+    fp = fopen("images/output.ppm", "w");
+    fprintf(fp, "P3\n%d %d\n255\n",
+            p_camera->image_size[0],
+            p_camera->image_size[1]);
+    for (ij = 0; ij < image_dimention; ij++) {
+        fprintf(fp, "%d %d %d\n",
+                p_buffer[ij*3],
+                p_buffer[ij*3+1],
+                p_buffer[ij*3+2]);
+    }
+    fclose(fp);
 
     return;
 }
