@@ -10,8 +10,6 @@ OBJS := $(addprefix $(BUILD_DIR)/, $(patsubst %.c,%.o,$(SRCS)))
 ASMS := $(addprefix $(BUILD_DIR)/, $(patsubst %.c,%.s,$(SRCS)))
 PPMS := $(wildcard $(IMAGE_DIR)/*.ppm)
 
-include $(MAKEFILES_DIR)/docker.mk
-
 CC := gcc
 INCLUDES := -I$(INCLUDE_DIR) \
 			-I$(SRC_DIR)/hittable/$(INCLUDE_DIR) \
@@ -59,3 +57,5 @@ convert:
 	for f in $(wildcard $(IMAGE_DIR)/*.ppm); do\
 		$(CONVERT) $$f $$(echo $$f | sed "s/ppm$$/jpg/"); \
 	done
+
+include $(MAKEFILES_DIR)/docker.mk
