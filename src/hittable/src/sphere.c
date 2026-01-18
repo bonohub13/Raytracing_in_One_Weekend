@@ -23,8 +23,8 @@ static bool sphere_hit(const void * const p_obj, const st_ray_t * const p_ray,
     double h = vec3_dot(&p_ray->direction, &oc);
     double c = vec3_length_squared(&oc) - p_sphere->radius * p_sphere->radius;
     double discriminant = h * h - a * c;
-    double sqrtd = 0;
-    double root = 0;
+    double sqrtd;
+    double root;
 
     if (discriminant < 0) {
         return false;
@@ -32,15 +32,15 @@ static bool sphere_hit(const void * const p_obj, const st_ray_t * const p_ray,
 
     sqrtd = sqrt(discriminant);
     root = (h - sqrtd) / a;
-    if ((root <= p_ray_t->min) || (p_ray_t->max <= root)) {
+    if (!interval_surrounds(p_ray_t, root)) {
         root = (h + sqrtd) / a;
-        if ((root <= p_ray_t->min) || (p_ray_t->max <= root)) {
+        if (!interval_surrounds(p_ray_t, root)) {
             return false;
         }
     }
 
     p_rec->t = root;
-    p_rec->p = ray_at(p_ray, root);
+    p_rec->p = ray_at(p_ray, p_rec->t);
     outward_normal = vec3_sub(&p_rec->p, &p_sphere->center);
     outward_normal = vec3_scalar_div(&outward_normal, p_sphere->radius);
     hit_record_set_face_normal(p_rec, p_ray, &outward_normal);

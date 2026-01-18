@@ -27,9 +27,10 @@ bool interval_surrounds(const st_interval_t * const p_interval, const double x) 
 double interval_clamp(const st_interval_t * const p_interval, const double x) {
     if (x < p_interval->min) {
         return p_interval->min;
-    } else if (p_interval->max < x) {
-        return p_interval->max;
-    } else {
-        return x;
     }
+    if (p_interval->max < x) {
+        return p_interval->max;
+    }
+
+    return x;
 }

@@ -5,7 +5,9 @@
 #include "rtweekend.h"
 
 double degrees_to_radians(double degrees) {
-    return degrees * PI / 180.0;
+    static const double s_degrees_to_radians = PI / 180;
+
+    return degrees * s_degrees_to_radians;
 }
 
 double random_double(void) {
@@ -16,7 +18,7 @@ double random_double(void) {
         srand(s_seed);
     }
 
-    return rand() / (RAND_MAX + 1.0);
+    return (double)rand() / ((double)RAND_MAX + 1.0);
 }
 
 double random_double_in_range(double min, double max) {

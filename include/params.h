@@ -9,17 +9,17 @@
 
 // World info
 //  Hittable objects
-#define SPHERE_COUNT            (5)
+#define SPHERE_COUNT            (484 + 4)
 #define SPHERE_SIZE             (SINGLE_SPHERE_SIZE * (SPHERE_COUNT + 1))
 #define HITTABLE_COUNT          (SPHERE_COUNT)
 #define HITTABLE_DATA_SIZE      (HITTABLE_DATA_SINGLE_SIZE * HITTABLE_COUNT)
 #define HITTABLE_OBJ_SIZE       (HITTABLE_OBJ_SINGLE_SIZE * HITTABLE_COUNT)
 //  Material objects
-#define LAMBERTIAN_COUNT        (2)
+#define LAMBERTIAN_COUNT        (484 + 2)
 #define LAMBERTIAN_SIZE         (LAMBERTIAN_SINGLE_SIZE * LAMBERTIAN_COUNT)
-#define METAL_COUNT             (1)
+#define METAL_COUNT             (484 + 1)
 #define METAL_SIZE              (METAL_SINGLE_SIZE * METAL_COUNT)
-#define DIELECTRIC_COUNT        (2)
+#define DIELECTRIC_COUNT        (484 + 2)
 #define DIELECTRIC_SIZE         (DIELECTRIC_SINGLE_SIZE * DIELECTRIC_COUNT)
 #define MATERIAL_COUNT          ( \
                                     LAMBERTIAN_COUNT \

@@ -28,7 +28,10 @@ static bool hittable_list_hit(const void * const p_obj,
     for (i = 0; i < p_hittable_list->capacity; i++) {
         p_current_data = p_hittable_list->pp_datas[i];
         p_current_object = p_hittable_list->pp_objects[i];
-        if (p_current_object->p_hit(p_current_data, p_ray, &closest_so_far,
+        if (p_current_object->p_hit(
+                    p_current_data,
+                    p_ray,
+                    &closest_so_far,
                     &tmp_rec)) {
             hit_anything = true;
             closest_so_far.max = tmp_rec.t;

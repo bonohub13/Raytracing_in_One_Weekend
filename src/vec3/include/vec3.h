@@ -4,11 +4,11 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#define VEC3(_x, _y, _z)        ((st_vec3_t){ { (_x), (_y), (_z), 0 } })
-#define VEC3_ZERO               (VEC3(0, 0, 0))
-#define VEC3_ONE                (VEC3(1, 1, 1))
-#define VEC3_WHITE              (VEC3_ONE)
-#define VEC3_BLACK              (VEC3_ZERO)
+#define VEC3(_x, _y, _z)    ((st_vec3_t){ .e = { (_x), (_y), (_z), 0 } })
+#define VEC3_ZERO           (VEC3(0, 0, 0))
+#define VEC3_ONE            (VEC3(1, 1, 1))
+#define VEC3_WHITE          (VEC3_ONE)
+#define VEC3_BLACK          (VEC3_ZERO)
 
 typedef struct vec3 {
     double e[4] __attribute__((aligned(32)));

@@ -8,7 +8,8 @@
 
 typedef struct camera {
     double aspect_ratio;
-    int32_t image_size[2];
+    int32_t image_width;
+    int32_t image_height;
     int32_t samples_per_pixel;
     int32_t max_depth;
     double vfov;
@@ -20,9 +21,13 @@ typedef struct camera {
     double pixel_samples_scale;
     st_vec3_t center;
     st_vec3_t pixel00_loc;
-    st_vec3_t pixel_delta_uv[2];
-    st_vec3_t uvw[3];
-    st_vec3_t defocus_disk_uv[2];
+    st_vec3_t pixel_delta_u;
+    st_vec3_t pixel_delta_v;
+    st_vec3_t u;
+    st_vec3_t v;
+    st_vec3_t w;
+    st_vec3_t defocus_disk_u;
+    st_vec3_t defocus_disk_v;
 } st_camera_t;
 
 extern void camera_init(st_camera_t * const p_camera);

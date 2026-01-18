@@ -10,7 +10,7 @@ int32_t main(void) {
             SPHERE_ALIGNMENT,
             WORLD_SIZE);
 
-    three_spheres(p_memory);
+    final_scene(p_memory);
 
     free(p_memory);
 

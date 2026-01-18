@@ -21,9 +21,10 @@ static bool lambertian_scatter(const void * const p_obj,
     st_lambertian_t * p_lambertian = (st_lambertian_t*)p_obj;
     st_vec3_t tmp = vec3_random_unit_vector();
 
-    p_scattered->direction = vec3_add(&p_rec->normal, &tmp);
     if (vec3_near_zero(&p_scattered->direction)) {
         p_scattered->direction = p_rec->normal;
+    } else {
+        p_scattered->direction = vec3_add(&p_rec->normal, &tmp);
     }
 
     p_scattered->origin = p_rec->p;
