@@ -2,4 +2,6 @@
 /bin
 /images
 /rtiow/target
+/rtiow/Cargo.lock
 /resources
+/Cargo.lock
