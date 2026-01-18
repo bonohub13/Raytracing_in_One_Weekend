@@ -6,6 +6,12 @@ DOCKER_IMAGE_NAME := $(shell pwd | sed "s#.*/##" | tr [:upper:] [:lower:])
 
 all: build run
 
+docker-build:
+	CMD="make build" make docker-exec
+
+docker-run:
+	CMD="make run" make docker-exec
+
 # Rust code
 prepare:
 	@[ -d images ] || mkdir -v images
@@ -50,10 +56,4 @@ extract:
 		&& tar -I pigz -xvf past_renders.tar.gz \
 		|| tar xzvf past_renders.tar.gz
 
-rebuild-linux-image:
-	@cp -v Cargo.toml docker
-	@docker build . -t ${DOCKER_IMAGE_NAME}/linux -f docker/Dockerfile.linux --no-cache
-	@rm docker/Cargo.toml
-
-docker-build: prepare fmt clean
-	@docker run --rm -it -v $(shell pwd):/app ${DOCKER_IMAGE_NAME}/linux
+include makefiles/docker.mk
