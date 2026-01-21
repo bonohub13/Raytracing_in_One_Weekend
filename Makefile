@@ -12,16 +12,24 @@ PPMS := $(wildcard $(IMAGE_DIR)/*.ppm)
 
 CC := gcc
 INCLUDES := -I$(INCLUDE_DIR) \
+			-I$(SRC_DIR)/vec3/$(INCLUDE_DIR) \
 			-I$(SRC_DIR)/hittable/$(INCLUDE_DIR) \
 			-I$(SRC_DIR)/material/$(INCLUDE_DIR) \
 			-I$(SRC_DIR)/scenes/$(INCLUDE_DIR)
-CFLAGS := -Wall -Wextra -mavx2 -mfma -O3
+CFLAGS := -Wall -Wextra -O3
 LDFLAGS := -lm
 DEBUGGER := gdb
 CONVERT := magick
+FORCE_FALLBACK ?= 0
 
 ifeq (1, $(DEBUG))
 	CFLAGS += -g
+endif
+
+ifeq (1, $(FORCE_FALLBACK))
+	CFLAGS += -DFORCE_FALLBACK
+else
+	CFLAGS := -march=native
 endif
 
 .PHONY: build convert
@@ -29,13 +37,13 @@ endif
 all: clean build
 
 docker-build:
-	TAG=builder CMD="make all" make docker-exec
+	FORCE_FALLBACK=$(FORCE_FALLBACK) TAG=builder CMD="make all" make docker-exec
 
 docker-run:
-	TAG=builder CMD="$(TARGET) > output.ppm" make docker-exec
+	FORCE_FALLBACK=$(FORCE_FALLBACK) TAG=builder CMD="$(TARGET)" make docker-exec
 
 debug: clean
-	DEBUG=1 make build
+	FORCE_FALLBACK=$(FORCE_FALLBACK) DEBUG=1 make build
 	@$(DEBUGGER) $(TARGET)
 
 build: $(OBJS) $(ASMS)

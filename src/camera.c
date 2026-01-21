@@ -167,25 +167,19 @@ static st_ray_t camera_get_ray(
     st_vec3_t pixel_sample = vec3_sum(&tmp[0], 3);
     st_ray_t out;
 
-#if 0
     if (0 < p_camera->defocus_angle) {
         out.origin = defocus_disk_sample(p_camera);
     } else {
         out.origin = p_camera->center;
     }
-#endif
 
-    out.origin = p_camera->center;
     out.direction = vec3_sub(&pixel_sample, &out.origin);
 
     return out;
 }
 
 static st_vec3_t sample_square(void) {
-    static const st_vec3_t s_offset = VEC3(0.5, 0.5, 0);
-    st_vec3_t center = VEC3(random_double(), random_double(), 0);
-
-    return vec3_sub(&center, &s_offset);
+    return VEC3(random_double() - 0.5, random_double() - 0.5, 0);
 }
 
 static st_vec3_t sample_disk(double radius) {
