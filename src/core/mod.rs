@@ -80,7 +80,6 @@ impl<'window> State<'window> {
 
     pub fn resize(&mut self, width: u32, height: u32) {
         self.surface.resize(&self.device, width, height);
-        self.path_tracer.resize(width, height);
     }
 
     pub fn update(&mut self) {
@@ -112,12 +111,7 @@ impl<'window> State<'window> {
                     view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
-                        }),
+                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
                         store: wgpu::StoreOp::Store,
                     },
                     depth_slice: None,
@@ -225,6 +219,10 @@ impl<'window> State<'window> {
     fn create_pipeline(device: &Device, surface: &Surface) -> RtResult<PathTracer> {
         let config = surface.config();
         let resolution = glam::vec2(config.width as f32, config.height as f32);
+        let objects = vec![
+            renderer::HitObject::create_sphere(glam::vec3(0f32, 0f32, -1f32), 0.5),
+            renderer::HitObject::create_sphere(glam::vec3(0f32, -100.5, -1f32), 100f32),
+        ];
         let desc = renderer::PathTracerDescriptor {
             render_pipeline_label: RtLabel::RenderPipeline(Some("Path Tracer")),
             render_shader_desc: renderer::RenderShaderDescriptor {
@@ -243,7 +241,8 @@ impl<'window> State<'window> {
             },
             buffer_desc: renderer::PathTracerBufferDescriptor {
                 label: Some("Path Tracer"),
-                camera: renderer::Camera::new(resolution),
+                camera: renderer::Camera::new(resolution, 100, 50),
+                objects: &objects,
             },
         };
 
@@ -258,5 +257,11 @@ impl<'window> State<'window> {
             DeviceType::Cpu => 3,
             DeviceType::Other => 4,
         }
+    }
+}
+
+impl Drop for State<'_> {
+    fn drop(&mut self) {
+        self.device.destroy();
     }
 }

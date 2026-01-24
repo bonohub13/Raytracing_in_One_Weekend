@@ -2,12 +2,23 @@ use crate::{
     core::{RtLabel, Surface, renderer::Camera},
     utils,
 };
-use wgpu::{Buffer, Device, Queue, Sampler, TextureView};
+use glam::Vec3;
+use wgpu::{Buffer, Device, Sampler, TextureView, util::DeviceExt};
 
 #[derive(Debug, Clone)]
-pub struct PathTracerBufferDescriptor<'label> {
+pub struct PathTracerBufferDescriptor<'data, 'label> {
     pub label: Option<&'label str>,
     pub camera: Camera,
+    pub objects: &'data [HitObject],
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct HitObject {
+    center: Vec3,
+    radius: f32,
+    _pad: [f32; 3],
+    id: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -22,9 +33,24 @@ struct Texture {
     view: TextureView,
 }
 
+impl HitObject {
+    const SPHERE: u32 = 1;
+
+    pub const fn create_sphere(center: Vec3, radius: f32) -> Self {
+        Self {
+            center,
+            radius,
+            id: Self::SPHERE,
+            _pad: [0f32; 3],
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct PathTracerBuffer {
     camera_buffer: Buffer,
+    object_buffer: Buffer,
+    rand_data_buffer: Buffer,
     texture: Texture,
     sampler: Sampler,
 }
@@ -44,20 +70,20 @@ impl BindGroup {
 impl PathTracerBuffer {
     pub fn new(device: &Device, surface: &Surface, desc: &PathTracerBufferDescriptor) -> Self {
         let camera_buffer = desc.camera.create_uniform_buffer(device, None);
+        let rand_data_buffer = desc
+            .camera
+            .create_rand_data_buffer(device, Some("Rand Storage"));
+        let object_buffer = Self::create_object_buffer(device, desc);
         let texture = Self::create_texture(device, surface, desc);
         let sampler = Self::create_sampler(device, desc);
 
         Self {
             camera_buffer,
+            object_buffer,
+            rand_data_buffer,
             texture,
             sampler,
         }
-    }
-
-    pub fn update_camera(&mut self, queue: &Queue, camera: &Camera) {
-        let contents = unsafe { utils::data_into_bytes(std::slice::from_ref(camera)) };
-
-        queue.write_buffer(&self.camera_buffer, 0, contents);
     }
 
     pub fn create_render_bind_group(&self, device: &Device, label: Option<&str>) -> BindGroup {
@@ -127,6 +153,26 @@ impl PathTracerBuffer {
                 wgpu::BindGroupLayoutEntry {
                     binding: 1,
                     visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: wgpu::ShaderStages::COMPUTE,
                     ty: wgpu::BindingType::StorageTexture {
                         access: wgpu::StorageTextureAccess::WriteOnly,
                         format: wgpu::TextureFormat::Rgba16Float,
@@ -146,12 +192,35 @@ impl PathTracerBuffer {
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
+                    resource: self.object_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: self.rand_data_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
                     resource: wgpu::BindingResource::TextureView(&self.texture.view),
                 },
             ],
         });
 
         BindGroup { layout, bind_group }
+    }
+
+    fn create_object_buffer(device: &Device, desc: &PathTracerBufferDescriptor) -> Buffer {
+        let label = if let Some(label) = desc.label {
+            format!("{label} Storage")
+        } else {
+            "Storage".to_string()
+        };
+        let contents = unsafe { utils::data_into_bytes(desc.objects) };
+
+        device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some(&RtLabel::Buffer(Some(&label)).to_string()),
+            usage: wgpu::BufferUsages::STORAGE,
+            contents,
+        })
     }
 
     #[inline]
@@ -194,5 +263,12 @@ impl PathTracerBuffer {
             mipmap_filter: wgpu::MipmapFilterMode::Nearest,
             ..Default::default()
         })
+    }
+}
+
+impl Drop for PathTracerBuffer {
+    fn drop(&mut self) {
+        self.camera_buffer.destroy();
+        self.object_buffer.destroy();
     }
 }

@@ -20,7 +20,7 @@ fn main() -> Result<()> {
     }
 
     let event_loop = EventLoop::new()?;
-    let config = Config { fps: 30 };
+    let config = Config { fps: 2 };
     let mut app = App::default();
 
     app.set_config(&config);

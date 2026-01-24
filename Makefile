@@ -6,6 +6,8 @@ MAKEFILE_DIR := makefiles
 SHADER_DIR := shaders
 SPIRV_DIR := ${SHADER_DIR}/spv
 
+all: build build-shaders
+
 build: fmt clippy
 	$(CARGO) build --release
 
@@ -40,5 +42,7 @@ docker-build:
 
 docker-build-shaders:
 	@TAG="shader" CMD="make build-shaders" make docker-exec
+
+docker-build-all: docker-build docker-build-shaders
 
 include ${MAKEFILE_DIR}/docker.mk

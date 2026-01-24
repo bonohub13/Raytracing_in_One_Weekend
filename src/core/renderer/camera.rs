@@ -6,16 +6,17 @@ use wgpu::{Buffer, Device, util::DeviceExt};
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Camera {
     pub resolution: Vec2,
-    pub _pad0: [f32; 2],
-
-    pub center: Vec3A,
-    pub pixel00_loc: Vec3A,
-    pub pixel_delta_u: Vec3A,
-    pub pixel_delta_v: Vec3A,
+    samples_per_pixel: u32,
+    max_depth: u32,
+    center: Vec3A,
+    pixel00_loc: Vec3A,
+    pixel_delta_u: Vec3A,
+    pixel_delta_v: Vec3A,
+    pixel_samples_scale: Vec3A,
 }
 
 impl Camera {
-    pub fn new(resolution: Vec2) -> Self {
+    pub fn new(resolution: Vec2, samples_per_pixel: u32, max_depth: u32) -> Self {
         const FOCAL_LENGTH: f32 = 1f32;
         const VIEWPORT_HEIGHT: f32 = 2f32;
         const VIEWPORT_V: Vec3A = glam::vec3a(0f32, -VIEWPORT_HEIGHT, 0f32);
@@ -33,12 +34,16 @@ impl Camera {
 
         Self {
             resolution,
+            samples_per_pixel,
+            max_depth,
+            center: CAMERA_CENTER,
             pixel00_loc,
             pixel_delta_u,
             pixel_delta_v,
-            ..Default::default()
+            pixel_samples_scale: glam::vec3a(1f32 / samples_per_pixel as f32, 0f32, 0f32),
         }
     }
+
     pub fn create_uniform_buffer(&self, device: &Device, label: Option<&str>) -> Buffer {
         let label = if label.is_some() {
             label
@@ -50,7 +55,20 @@ impl Camera {
         device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some(&RtLabel::Buffer(label).to_string()),
             contents,
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            usage: wgpu::BufferUsages::UNIFORM,
+        })
+    }
+
+    pub fn create_rand_data_buffer(&self, device: &Device, label: Option<&str>) -> Buffer {
+        let rand_data: Vec<glam::Vec3A> = (0..(self.samples_per_pixel * self.samples_per_pixel))
+            .map(|_| glam::vec3a(utils::random(), utils::random(), utils::random()))
+            .collect();
+        let contents = unsafe { utils::data_into_bytes(&rand_data) };
+
+        device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some(&RtLabel::Buffer(label).to_string()),
+            contents,
+            usage: wgpu::BufferUsages::STORAGE,
         })
     }
 }

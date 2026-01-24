@@ -28,6 +28,7 @@ impl<'window> AppBase<'window> {
             let attribute = Window::default_attributes()
                 .with_title(Self::WINDOW_TITLE)
                 .with_transparent(false)
+                .with_inner_size(PhysicalSize::new(1280, 540))
                 .with_resizable(true);
             let window = event_loop.create_window(attribute)?;
 

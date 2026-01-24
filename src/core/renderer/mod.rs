@@ -9,18 +9,18 @@ pub use shader::*;
 use wgpu::{ComputePass, ComputePipeline, Device, Queue, RenderPass, RenderPipeline};
 
 #[derive(Debug, Clone)]
-pub struct PathTracerDescriptor<'label> {
+pub struct PathTracerDescriptor<'data, 'label> {
     pub render_pipeline_label: RtLabel<'label>,
     pub render_shader_desc: RenderShaderDescriptor<'label>,
     pub compute_pipeline_label: RtLabel<'label>,
     pub compute_shader_desc: ComputeShaderDescriptor<'label>,
-    pub buffer_desc: PathTracerBufferDescriptor<'label>,
+    pub buffer_desc: PathTracerBufferDescriptor<'data, 'label>,
 }
 
 #[derive(Debug, Clone)]
 pub struct PathTracer {
     camera: Camera,
-    buffer: PathTracerBuffer,
+    _buffer: PathTracerBuffer,
     render_bind_group: BindGroup,
     compute_bind_group: BindGroup,
     render_pipeline: RenderPipeline,
@@ -41,7 +41,7 @@ impl PathTracer {
 
         Ok(Self {
             camera: desc.buffer_desc.camera,
-            buffer,
+            _buffer: buffer,
             render_bind_group,
             compute_bind_group,
             render_pipeline,
@@ -49,22 +49,14 @@ impl PathTracer {
         })
     }
 
-    pub fn resize(&mut self, width: u32, height: u32) {
-        let resolution = glam::vec2(width as f32, height as f32);
-
-        self.camera = Camera::new(resolution);
-    }
-
-    pub fn update(&mut self, queue: &Queue) {
-        self.buffer.update_camera(queue, &self.camera);
-    }
+    pub fn update(&mut self, _queue: &Queue) {}
 
     pub fn compute(&self, compute_pass: &mut ComputePass) {
         compute_pass.set_pipeline(&self.compute_pipeline);
         compute_pass.set_bind_group(0, self.compute_bind_group.bind_group(), &[]);
         compute_pass.dispatch_workgroups(
-            (self.camera.resolution.x as u32).div_ceil(16),
-            (self.camera.resolution.y as u32).div_ceil(16),
+            (self.camera.resolution.x as u32).div_ceil(8),
+            (self.camera.resolution.y as u32).div_ceil(8),
             1,
         );
     }
