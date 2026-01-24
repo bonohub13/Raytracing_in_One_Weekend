@@ -13,7 +13,7 @@ struct Ray {
     direction: vec3<f32>,
 }
 
-@group(0) @binding(2)
+@group(0) @binding(0)
 var<uniform> cam : Camera;
 
 @group(0) @binding(1)
@@ -63,16 +63,20 @@ fn ray_color(r: Ray) -> vec4<f32> {
     const BLUE: vec3<f32> = vec3<f32>(0.5, 0.7, 1);
     const SPHERE_CENTER: vec3<f32> = vec3<f32>(0, 0, -1);
     const SPHERE_RADIUS: f32 = 0.5;
-    const SPHERE_COLOR: vec4<f32> = vec4<f32>(1, 0, 0, 1);
+    const SPHERE_COLOR: vec3<f32> = vec3<f32>(1, 0, 0);
+
+    var out: vec3<f32>;
 
     if (hit_sphere(SPHERE_CENTER, SPHERE_RADIUS, r)) {
-        return SPHERE_COLOR;
+        out = SPHERE_COLOR;
     } else {
         let unit_direction = unit_vector(r.direction);
         let a = 0.5 * (unit_direction.y + 1);
 
-        return vec4<f32>((1-a) * WHITE + a * BLUE, 1);
+        out = (1-a) * WHITE + a * BLUE;
     }
+
+    return vec4<f32>(out, 1);
 }
 
 fn ray_at(r: Ray, t: f32) -> vec3<f32> {
