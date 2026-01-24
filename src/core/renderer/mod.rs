@@ -50,8 +50,9 @@ impl PathTracer {
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
-        self.camera.resolution.x = width as f32;
-        self.camera.resolution.y = height as f32;
+        let resolution = glam::vec2(width as f32, height as f32);
+
+        self.camera = Camera::new(resolution);
     }
 
     pub fn update(&mut self, queue: &Queue) {

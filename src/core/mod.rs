@@ -243,10 +243,7 @@ impl<'window> State<'window> {
             },
             buffer_desc: renderer::PathTracerBufferDescriptor {
                 label: Some("Path Tracer"),
-                camera: renderer::Camera {
-                    resolution,
-                    ..Default::default()
-                },
+                camera: renderer::Camera::new(resolution),
             },
         };
 

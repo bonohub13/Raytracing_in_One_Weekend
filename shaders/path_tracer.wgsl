@@ -40,7 +40,7 @@ fn main(
     textureStore(
         ray_image,
         vec2<i32>(gid.xy),
-        vec4<f32>(x / (cam.resolution.x - 1), y / (cam.resolution.y - 1), 0, 1)
+        ray_color(r)
     );
 }
 
@@ -59,7 +59,13 @@ fn unit_vector(v: vec3<f32>) -> vec3<f32> {
 
 /* Ray functions */
 fn ray_color(r: Ray) -> vec4<f32> {
-    return vec4<f32>(0, 0, 0, 1);
+    const WHITE: vec3<f32> = vec3<f32>(1, 1, 1);
+    const BLUE: vec3<f32> = vec3<f32>(0.5, 0.7, 1);
+
+    let unit_direction = unit_vector(r.direction);
+    let a = 0.5 * (unit_direction.y + 1);
+
+    return vec4<f32>((1-a) * WHITE + a * BLUE, 1);
 }
 
 fn ray_at(r: Ray, t: f32) -> vec3<f32> {
