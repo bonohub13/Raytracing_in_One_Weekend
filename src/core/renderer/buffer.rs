@@ -1,8 +1,10 @@
 use crate::{
-    core::{RtLabel, Surface, renderer::Camera},
+    core::{
+        RtLabel, Surface,
+        renderer::{Camera, HitObject},
+    },
     utils,
 };
-use glam::Vec3;
 use wgpu::{Buffer, Device, Sampler, TextureView, util::DeviceExt};
 
 #[derive(Debug, Clone)]
@@ -10,15 +12,6 @@ pub struct PathTracerBufferDescriptor<'data, 'label> {
     pub label: Option<&'label str>,
     pub camera: Camera,
     pub objects: &'data [HitObject],
-}
-
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct HitObject {
-    center: Vec3,
-    radius: f32,
-    _pad: [f32; 3],
-    id: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -31,19 +24,6 @@ pub struct BindGroup {
 struct Texture {
     _texture: wgpu::Texture,
     view: TextureView,
-}
-
-impl HitObject {
-    const SPHERE: u32 = 1;
-
-    pub const fn create_sphere(center: Vec3, radius: f32) -> Self {
-        Self {
-            center,
-            radius,
-            id: Self::SPHERE,
-            _pad: [0f32; 3],
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -101,7 +81,7 @@ impl PathTracerBuffer {
                     ty: wgpu::BindingType::Texture {
                         multisampled: false,
                         view_dimension: wgpu::TextureViewDimension::D2,
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        sample_type: wgpu::TextureSampleType::Float { filterable: false },
                     },
                     count: None,
                 },
@@ -175,7 +155,7 @@ impl PathTracerBuffer {
                     visibility: wgpu::ShaderStages::COMPUTE,
                     ty: wgpu::BindingType::StorageTexture {
                         access: wgpu::StorageTextureAccess::WriteOnly,
-                        format: wgpu::TextureFormat::Rgba16Float,
+                        format: wgpu::TextureFormat::Rgba32Float,
                         view_dimension: wgpu::TextureViewDimension::D2,
                     },
                     count: None,
@@ -239,7 +219,7 @@ impl PathTracerBuffer {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba16Float,
+            format: wgpu::TextureFormat::Rgba32Float,
             usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::TEXTURE_BINDING,
             view_formats: &[],
         });

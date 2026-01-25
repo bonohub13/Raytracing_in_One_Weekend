@@ -1,10 +1,12 @@
 mod buffer;
 mod camera;
+mod object;
 mod shader;
 
 use crate::core::{RtLabel, RtResult, Surface};
 pub use buffer::*;
 pub use camera::*;
+pub use object::*;
 pub use shader::*;
 use wgpu::{ComputePass, ComputePipeline, Device, Queue, RenderPass, RenderPipeline};
 

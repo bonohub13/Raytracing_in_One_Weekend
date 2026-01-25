@@ -220,8 +220,26 @@ impl<'window> State<'window> {
         let config = surface.config();
         let resolution = glam::vec2(config.width as f32, config.height as f32);
         let objects = vec![
-            renderer::HitObject::create_sphere(glam::vec3(0f32, 0f32, -1f32), 0.5),
-            renderer::HitObject::create_sphere(glam::vec3(0f32, -100.5, -1f32), 100f32),
+            renderer::HitObject::create_sphere(
+                glam::vec3(0f32, -100.5, -1f32),
+                100f32,
+                renderer::Material::create_lambertian(glam::vec3(0.8, 0.8, 0f32)),
+            ),
+            renderer::HitObject::create_sphere(
+                glam::vec3(0f32, 0f32, -1.2),
+                0.5,
+                renderer::Material::create_lambertian(glam::vec3(0.1, 0.2, 0.5)),
+            ),
+            renderer::HitObject::create_sphere(
+                glam::vec3(-1f32, 0f32, -1f32),
+                0.5,
+                renderer::Material::create_metal(glam::vec3(0.8, 0.8, 0.8), 0.3),
+            ),
+            renderer::HitObject::create_sphere(
+                glam::vec3(1f32, 0f32, -1f32),
+                0.5,
+                renderer::Material::create_metal(glam::vec3(0.8, 0.6, 0.2), 1f32),
+            ),
         ];
         let desc = renderer::PathTracerDescriptor {
             render_pipeline_label: RtLabel::RenderPipeline(Some("Path Tracer")),

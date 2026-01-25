@@ -25,10 +25,20 @@ impl<'window> AppBase<'window> {
     const WINDOW_TITLE: &'static str = "Ray Tracing in One Weekend";
     pub fn new(event_loop: &ActiveEventLoop, config: &Config) -> Result<Self> {
         let window = {
+            let monitor_size = if let Some(monitor) = event_loop.primary_monitor() {
+                monitor.size()
+            } else {
+                PhysicalSize::new(1920, 1080)
+            };
+            let window_size = PhysicalSize::new(
+                (monitor_size.width as f64 * 0.75).floor() as u32,
+                (monitor_size.height as f64 * 0.75).floor() as u32,
+            );
             let attribute = Window::default_attributes()
                 .with_title(Self::WINDOW_TITLE)
                 .with_transparent(false)
-                .with_inner_size(PhysicalSize::new(1280, 540))
+                .with_inner_size(window_size)
+                .with_resizable(false)
                 .with_resizable(true);
             let window = event_loop.create_window(attribute)?;
 

@@ -14,16 +14,25 @@ struct Scene {
     objects: array<HitObject>,
 }
 
+struct Material {
+    albedo: vec3<f32>,
+    fuzz: f32,
+    _pad: vec3<f32>,
+    id: u32,
+}
+
 struct HitObject {
     center: vec3<f32>,
     radius: f32,
     _pad: vec3<f32>,
     id: u32,
+    mat: Material,
 }
 
 struct Ray {
     origin: vec3<f32>,
     direction: vec3<f32>,
+    pixel: u32,
 }
 
 struct Interval {
@@ -36,11 +45,22 @@ struct HitRecord {
     t: f32,
     normal: vec3<f32>,
     front_face: bool,
+    mat: Material,
     hit: bool,
 }
 
-// Hit object ID
-const SPHERE_ID: u32 = 1;
+struct ScatterResult {
+    attenuation: vec3<f32>,
+    is_scatter: bool,
+    scattered: Ray,
+}
+
+// Hittable object ID
+const SPHERE_ID: u32 = 0x0001;
+
+// Material object ID
+const LAMBTERTIAN_ID: u32 = 0x1000;
+const METAL_ID: u32 = 0x2000;
 
 // Constant parameters
 const INFINITY: f32 = 1e30;
@@ -58,7 +78,7 @@ var<storage, read> scene: Scene;
 var<storage, read> rand: array<vec3<f32>>;
 
 @group(0) @binding(3)
-var ray_image : texture_storage_2d<rgba16float, write>;
+var ray_image : texture_storage_2d<rgba32float, write>;
 
 @compute
 @workgroup_size(8, 8, 1)
@@ -73,10 +93,12 @@ fn main(
     var pixel_color: vec3<f32> = vec3<f32>(0);
     let x = f32(gid.x);
     let y = f32(gid.y);
+    let pixel_id = gid.x * gid.y + gid.x;
 
     for (var sample: u32 = 0; sample < u32(cam.samples_per_pixel); sample++) {
         r = get_ray(x, y, sample_square(sample).xy);
-        pixel_color += ray_color(gid.xy, r);
+        r.pixel = pixel_id;
+        pixel_color += ray_color(r);
     }
 
     textureStore(
@@ -95,10 +117,17 @@ fn length_squared(v: vec3<f32>) -> f32 {
     return dot(v, v);
 }
 
-fn random_unit_vector(gid: vec2<u32>) -> vec3<f32> {
+fn near_zero(v: vec3<f32>) -> bool {
+    const DELTA: f32 = 1e-8;
+    let abs_v = abs(v);
+
+    return (abs_v.x < DELTA) && (abs_v.y < DELTA) && (abs_v.z < DELTA);
+}
+
+fn random_unit_vector(id: u32) -> vec3<f32> {
     var p: vec3<f32>;
     var lensq: f32;
-    var i: u32 = gid.y*gid.x + gid.x;
+    var i: u32 = id;
 
     loop {
         p = random_in_range(rand[i%arrayLength(&rand)], -1, 1);
@@ -112,14 +141,18 @@ fn random_unit_vector(gid: vec2<u32>) -> vec3<f32> {
     return vec3<f32>(0);
 }
 
-fn random_on_hemisphere(gid: vec2<u32>, normal: vec3<f32>) -> vec3<f32> {
-    var on_unit_sphere: vec3<f32> = random_unit_vector(gid);
+fn random_on_hemisphere(normal: vec3<f32>, id: u32) -> vec3<f32> {
+    var on_unit_sphere: vec3<f32> = random_unit_vector(id);
 
     if dot(on_unit_sphere, normal) <= 0 {
         on_unit_sphere = -on_unit_sphere;
     }
 
     return on_unit_sphere;
+}
+
+fn reflect(v: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
+    return v - 2 * dot(v, n) * n;
 }
 
 fn random_in_range(v: vec3<f32>, min: f32, max: f32) -> vec3<f32> {
@@ -166,12 +199,14 @@ fn get_ray(i: f32, j: f32, offset: vec2<f32>) -> Ray {
 
     out.origin = cam.center.xyz;
     out.direction = pixel_center - cam.center.xyz;
+    out.pixel = 0;
 
     return out;
 }
 
-fn ray_color(pixel_id: vec2<u32>, r: Ray) -> vec3<f32> {
-    const WHITE: vec3<f32> = vec3<f32>(1, 1, 1);
+fn ray_color(r: Ray) -> vec3<f32> {
+    const WHITE: vec3<f32> = vec3<f32>(1);
+    const BLACK: vec3<f32> = vec3<f32>(0);
     const BLUE: vec3<f32> = vec3<f32>(0.5, 0.7, 1);
     const RANGE: Interval = Interval(1e-3, INFINITY);
 
@@ -184,11 +219,14 @@ fn ray_color(pixel_id: vec2<u32>, r: Ray) -> vec3<f32> {
     for (; depth < max_depth; depth++) {
         rec = hit(ray, RANGE);
         if rec.hit {
-            let direction = random_on_hemisphere(pixel_id, rec.normal);
-
-            ray = Ray(rec.p, direction);
-            color *= 0.1;
-            continue;
+            let result = scatter(rec.mat, ray, rec);
+            if result.is_scatter {
+                ray = result.scattered;
+                color *= result.attenuation;
+                continue;
+            } else {
+                return BLACK;
+            }
         }
 
         let unit_direction = normalize(ray.direction);
@@ -198,7 +236,7 @@ fn ray_color(pixel_id: vec2<u32>, r: Ray) -> vec3<f32> {
         return color * sky_color;
     }
 
-    return vec3<f32>(0);
+    return BLACK;
 }
 
 fn ray_at(r: Ray, t: f32) -> vec3<f32> {
@@ -298,6 +336,40 @@ fn hit_sphere(sphere: HitObject, r: Ray, ray_t: Interval) -> HitRecord {
             out.p = ray_at(r, out.t);
             let outward_normal = (out.p - sphere.center) / sphere.radius;
             out = hit_record_set_face_normal(out, r, outward_normal);
+            out.mat = sphere.mat;
+        }
+    }
+
+    return out;
+}
+
+/* Material */
+fn scatter(mat: Material, r_in: Ray, rec: HitRecord) -> ScatterResult {
+    var out: ScatterResult = ScatterResult(vec3<f32>(0), false, Ray(vec3<f32>(0), vec3<f32>(0), r_in.pixel));
+
+    switch mat.id {
+        case LAMBTERTIAN_ID: {
+            let scatter_direction = rec.normal + random_unit_vector(r_in.pixel);
+
+            out.scattered.direction = scatter_direction;
+            if near_zero(scatter_direction) {
+                out.scattered.direction = rec.normal;
+            }
+            out.scattered.origin = rec.p;
+            out.attenuation = mat.albedo;
+            out.is_scatter = true;
+        }
+        case METAL_ID: {
+            var reflected: vec3<f32> = reflect(r_in.direction, rec.normal);
+
+            reflected = normalize(reflected) + (mat.fuzz * random_unit_vector(r_in.pixel));
+            out.scattered.origin = rec.p;
+            out.scattered.direction = reflected;
+            out.attenuation = mat.albedo;
+            out.is_scatter = dot(out.scattered.direction, rec.normal) > 0;
+        }
+        default: {
+            // Do nothing
         }
     }
 
