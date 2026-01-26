@@ -2,17 +2,18 @@ mod error;
 mod label;
 pub mod renderer;
 
+use crate::core::renderer::{HitObject, PathTracer};
 pub use error::{RtError, RtResult};
 pub use label::RtLabel;
-use renderer::PathTracer;
 
 use std::{path::PathBuf, sync::Arc};
 use wgpu::{Adapter, Device, DeviceType, Instance, Queue, SurfaceConfiguration, SurfaceTexture};
 use winit::window::Window;
 
 #[derive(Debug, Clone)]
-pub struct StateDescriptor {
+pub struct StateDescriptor<'obj> {
     pub window: Arc<Window>,
+    pub objects: &'obj [HitObject],
 }
 
 #[derive(Debug)]
@@ -55,7 +56,7 @@ impl<'window> Surface<'window> {
 }
 
 impl<'window> State<'window> {
-    pub async fn new(desc: &StateDescriptor) -> RtResult<Self> {
+    pub async fn new<'data>(desc: &StateDescriptor<'data>) -> RtResult<Self> {
         let instance = {
             let desc = wgpu::InstanceDescriptor {
                 backends: wgpu::Backends::PRIMARY,
@@ -67,7 +68,7 @@ impl<'window> State<'window> {
         };
         let (surface, adapter) = Self::create_surface(&instance, desc.window.clone()).await?;
         let (device, queue) = Self::request_device(&adapter).await?;
-        let path_tracer = Self::create_pipeline(&device, &surface)?;
+        let path_tracer = Self::create_pipeline(&device, &surface, desc)?;
 
         Ok(Self {
             window: desc.window.clone(),
@@ -216,31 +217,14 @@ impl<'window> State<'window> {
     }
 
     #[inline]
-    fn create_pipeline(device: &Device, surface: &Surface) -> RtResult<PathTracer> {
+    fn create_pipeline(
+        device: &Device,
+        surface: &Surface,
+        desc: &StateDescriptor,
+    ) -> RtResult<PathTracer> {
         let config = surface.config();
         let resolution = glam::vec2(config.width as f32, config.height as f32);
-        let objects = vec![
-            renderer::HitObject::create_sphere(
-                glam::vec3(0f32, -100.5, -1f32),
-                100f32,
-                renderer::Material::create_lambertian(glam::vec3(0.8, 0.8, 0f32)),
-            ),
-            renderer::HitObject::create_sphere(
-                glam::vec3(0f32, 0f32, -1.2),
-                0.5,
-                renderer::Material::create_lambertian(glam::vec3(0.1, 0.2, 0.5)),
-            ),
-            renderer::HitObject::create_sphere(
-                glam::vec3(-1f32, 0f32, -1f32),
-                0.5,
-                renderer::Material::create_metal(glam::vec3(0.8, 0.8, 0.8), 0.3),
-            ),
-            renderer::HitObject::create_sphere(
-                glam::vec3(1f32, 0f32, -1f32),
-                0.5,
-                renderer::Material::create_metal(glam::vec3(0.8, 0.6, 0.2), 1f32),
-            ),
-        ];
+
         let desc = renderer::PathTracerDescriptor {
             render_pipeline_label: RtLabel::RenderPipeline(Some("Path Tracer")),
             render_shader_desc: renderer::RenderShaderDescriptor {
@@ -259,8 +243,18 @@ impl<'window> State<'window> {
             },
             buffer_desc: renderer::PathTracerBufferDescriptor {
                 label: Some("Path Tracer"),
-                camera: renderer::Camera::new(resolution, 100, 50),
-                objects: &objects,
+                camera: renderer::Camera::new(&renderer::CameraDescriptor {
+                    resolution,
+                    samples_per_pixel: 500,
+                    max_depth: 50,
+                    vfov: 20f32,
+                    look_from: glam::vec3a(13f32, 2f32, 3f32),
+                    look_at: glam::Vec3A::ZERO,
+                    vup: glam::vec3a(0f32, 1f32, 0f32),
+                    defocus_angle: 0.6,
+                    focus_distance: 10f32,
+                }),
+                objects: desc.objects,
             },
         };
 

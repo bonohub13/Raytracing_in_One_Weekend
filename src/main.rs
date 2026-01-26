@@ -3,6 +3,7 @@
 mod app;
 mod base;
 mod core;
+mod scene;
 mod utils;
 
 use anyhow::Result;

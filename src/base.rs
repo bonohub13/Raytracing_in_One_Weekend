@@ -1,4 +1,7 @@
-use crate::core::{RtError, State, StateDescriptor};
+use crate::{
+    core::{RtError, State, StateDescriptor},
+    scene,
+};
 use anyhow::Result;
 use std::{
     sync::Arc,
@@ -31,8 +34,8 @@ impl<'window> AppBase<'window> {
                 PhysicalSize::new(1920, 1080)
             };
             let window_size = PhysicalSize::new(
-                (monitor_size.width as f64 * 0.75).floor() as u32,
-                (monitor_size.height as f64 * 0.75).floor() as u32,
+                (monitor_size.width as f64 * 0.5).floor() as u32,
+                (monitor_size.height as f64 * 0.5).floor() as u32,
             );
             let attribute = Window::default_attributes()
                 .with_title(Self::WINDOW_TITLE)
@@ -44,8 +47,10 @@ impl<'window> AppBase<'window> {
 
             Arc::new(window)
         };
+        let objects = scene::raytracing_in_one_weekend();
         let desc = StateDescriptor {
             window: window.clone(),
+            objects: &objects,
         };
         let state = pollster::block_on(State::new(&desc))?;
 

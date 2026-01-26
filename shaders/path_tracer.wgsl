@@ -6,8 +6,8 @@ struct Camera {
     pixel00_loc: vec4<f32>,
     pixel_delta_u: vec4<f32>,
     pixel_delta_v: vec4<f32>,
-    pixel_samples_scale: f32,
-    reserved: vec3<f32>,
+    defocus_disk_u: vec4<f32>,
+    defocus_disk_v: vec4<f32>,
 }
 
 struct Scene {
@@ -32,7 +32,6 @@ struct HitObject {
 struct Ray {
     origin: vec3<f32>,
     direction: vec3<f32>,
-    pixel: u32,
 }
 
 struct Interval {
@@ -59,8 +58,9 @@ struct ScatterResult {
 const SPHERE_ID: u32 = 0x0001;
 
 // Material object ID
-const LAMBTERTIAN_ID: u32 = 0x1000;
-const METAL_ID: u32 = 0x2000;
+const LAMBTERTIAN_ID: u32 = 0x0100;
+const METAL_ID: u32 = 0x0200;
+const DIELECTRIC_ID: u32 = 0x0300;
 
 // Constant parameters
 const INFINITY: f32 = 1e30;
@@ -75,10 +75,9 @@ var<uniform> cam : Camera;
 var<storage, read> scene: Scene;
 
 @group(0) @binding(2)
-var<storage, read> rand: array<vec3<f32>>;
-
-@group(0) @binding(3)
 var ray_image : texture_storage_2d<rgba32float, write>;
+
+var<private> seed: u32 = 0;
 
 @compute
 @workgroup_size(8, 8, 1)
@@ -95,16 +94,16 @@ fn main(
     let y = f32(gid.y);
     let pixel_id = gid.x * gid.y + gid.x;
 
+    seed = gid.x + gid.y * u32(cam.resolution.x) + 9781u;
     for (var sample: u32 = 0; sample < u32(cam.samples_per_pixel); sample++) {
-        r = get_ray(x, y, sample_square(sample).xy);
-        r.pixel = pixel_id;
+        r = get_ray(x, y);
         pixel_color += ray_color(r);
     }
 
     textureStore(
         ray_image,
         vec2<i32>(gid.xy),
-        write_color(cam.pixel_samples_scale * pixel_color)
+        write_color(pixel_color / f32(cam.samples_per_pixel))
     );
 }
 
@@ -124,25 +123,25 @@ fn near_zero(v: vec3<f32>) -> bool {
     return (abs_v.x < DELTA) && (abs_v.y < DELTA) && (abs_v.z < DELTA);
 }
 
-fn random_unit_vector(id: u32) -> vec3<f32> {
-    var p: vec3<f32>;
-    var lensq: f32;
-    var i: u32 = id;
+fn random_unit_vector() -> vec3<f32> {
+    let z = random() * 2 - 1;
+    let phi = random() * 6.28318530718;
+    let r = sqrt(1 - z * z);
 
-    loop {
-        p = random_in_range(rand[i%arrayLength(&rand)], -1, 1);
-        lensq = length_squared(p);
-        if (1e-160 < lensq) && (lensq <= 1) {
-            return normalize(p);
-        }
-        i++;
-    }
-
-    return vec3<f32>(0);
+    return vec3<f32>(r * cos(phi), r * sin(phi), z);
 }
 
-fn random_on_hemisphere(normal: vec3<f32>, id: u32) -> vec3<f32> {
-    var on_unit_sphere: vec3<f32> = random_unit_vector(id);
+fn random_in_unit_disk() -> vec3<f32> {
+    let r = sqrt(random());
+    let pi = 2 * PI * random();
+    let x = r * cos(pi);
+    let y = r * sin(pi);
+
+    return vec3<f32>(x, y, 0);
+}
+
+fn random_on_hemisphere(normal: vec3<f32>) -> vec3<f32> {
+    var on_unit_sphere: vec3<f32> = random_unit_vector();
 
     if dot(on_unit_sphere, normal) <= 0 {
         on_unit_sphere = -on_unit_sphere;
@@ -155,16 +154,36 @@ fn reflect(v: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
     return v - 2 * dot(v, n) * n;
 }
 
-fn random_in_range(v: vec3<f32>, min: f32, max: f32) -> vec3<f32> {
-    let offset = vec3<f32>(min);
+fn refract(uv: vec3<f32>, n: vec3<f32>, etai_over_etat: f32) -> vec3<f32> {
+    let cos_theta = min(dot(-uv, n), 1);
+    let r_out_perp = etai_over_etat * (uv * cos_theta * n);
+    let r_out_parallel = -sqrt(abs(1 - length_squared(r_out_perp))) * n;
 
-    return offset + (max - min) * v;
+    return r_out_perp + r_out_parallel;
 }
 
-fn sample_square(sample: u32) -> vec3<f32> {
-    const OFFSET: vec2<f32> = vec2<f32>(0.5, 0.5);
+fn reflectance(cosine: f32, refraction_index: f32) -> f32 {
+    let r0 = pow((1 - refraction_index) / (1 + refraction_index), 2);
 
-    return vec3<f32>(rand[sample % arrayLength(&rand)].xy - OFFSET, 0);
+    return r0 + (1 - r0) * pow(1 - cosine, 5);
+}
+
+fn random_in_range(min: f32, max: f32) -> vec3<f32> {
+    let offset = vec3<f32>(min);
+    let rand = vec3<f32>(
+        random(),
+        random(),
+        random(),
+    );
+
+    return offset + (max - min) * rand;
+}
+
+fn sample_square() -> vec3<f32> {
+    const OFFSET: vec2<f32> = vec2<f32>(0.5, 0.5);
+    let rand = vec2<f32>(random(), random());
+
+    return vec3<f32>(rand - OFFSET, 0);
 }
 
 fn linear_to_gamma(linear_component: f32) -> f32 {
@@ -191,17 +210,27 @@ fn write_color(color: vec3<f32>) -> vec4<f32> {
 }
 
 /* Ray functions */
-fn get_ray(i: f32, j: f32, offset: vec2<f32>) -> Ray {
+fn get_ray(i: f32, j: f32) -> Ray {
     var out: Ray;
+    let offset = sample_square();
     let pixel_center = cam.pixel00_loc.xyz
         + ((i + offset.x) * cam.pixel_delta_u.xyz)
         + ((j + offset.y) * cam.pixel_delta_v.xyz);
 
-    out.origin = cam.center.xyz;
-    out.direction = pixel_center - cam.center.xyz;
-    out.pixel = 0;
+    if cam.defocus_disk_u.w <= 0 {
+        out.origin = cam.center.xyz;
+    } else {
+        out.origin = defocus_disk_sample();
+    }
+    out.direction = pixel_center - out.origin;
 
     return out;
+}
+
+fn defocus_disk_sample() -> vec3<f32> {
+    let p = random_in_unit_disk();
+
+    return cam.center.xyz + (p.x * cam.defocus_disk_u.xyz) + (p.y * cam.defocus_disk_v.xyz);
 }
 
 fn ray_color(r: Ray) -> vec3<f32> {
@@ -345,11 +374,11 @@ fn hit_sphere(sphere: HitObject, r: Ray, ray_t: Interval) -> HitRecord {
 
 /* Material */
 fn scatter(mat: Material, r_in: Ray, rec: HitRecord) -> ScatterResult {
-    var out: ScatterResult = ScatterResult(vec3<f32>(0), false, Ray(vec3<f32>(0), vec3<f32>(0), r_in.pixel));
+    var out: ScatterResult = ScatterResult(vec3<f32>(0), false, Ray(vec3<f32>(0), vec3<f32>(0)));
 
     switch mat.id {
         case LAMBTERTIAN_ID: {
-            let scatter_direction = rec.normal + random_unit_vector(r_in.pixel);
+            let scatter_direction = rec.normal + random_unit_vector();
 
             out.scattered.direction = scatter_direction;
             if near_zero(scatter_direction) {
@@ -360,13 +389,36 @@ fn scatter(mat: Material, r_in: Ray, rec: HitRecord) -> ScatterResult {
             out.is_scatter = true;
         }
         case METAL_ID: {
-            var reflected: vec3<f32> = reflect(r_in.direction, rec.normal);
+            var reflected = reflect(r_in.direction, rec.normal);
 
-            reflected = normalize(reflected) + (mat.fuzz * random_unit_vector(r_in.pixel));
+            reflected = normalize(reflected) + (mat.fuzz * random_unit_vector());
             out.scattered.origin = rec.p;
             out.scattered.direction = reflected;
             out.attenuation = mat.albedo;
             out.is_scatter = dot(out.scattered.direction, rec.normal) > 0;
+        }
+        case DIELECTRIC_ID: {
+            var ri = 1.0;
+            var cannot_refract: bool;
+            let unit_direction = normalize(r_in.direction);
+            let cos_theta = min(dot(-unit_direction, rec.normal), 1);
+            let sin_theta = sqrt(1 - cos_theta * cos_theta);
+
+            if rec.front_face {
+                ri /= mat.fuzz;
+            } else {
+                ri = mat.fuzz;
+            }
+            cannot_refract = (ri * sin_theta) > 1;
+
+            out.attenuation = vec3<f32>(1);
+            out.scattered.origin = rec.p;
+            if cannot_refract || (reflectance(cos_theta, ri) > random()) {
+                out.scattered.direction = reflect(unit_direction, rec.normal);
+            } else {
+                out.scattered.direction = refract(unit_direction, rec.normal, ri);
+            }
+            out.is_scatter = true;
         }
         default: {
             // Do nothing
@@ -377,6 +429,26 @@ fn scatter(mat: Material, r_in: Ray, rec: HitRecord) -> ScatterResult {
 }
 
 /* utility function */
+fn hash() {
+    var v = seed;
+
+    v ^= v >> 17u;
+    v *= 0xED5AD4BBu;
+    v ^= v >> 11u;
+    v *= 0xAC4C1B51u;
+    v ^= v >> 15u;
+    v *= 0x31848BABu;
+    v ^= v >> 14u;
+
+    seed = v;
+}
+
+fn random() -> f32 {
+    hash();
+
+    return f32(seed) / 4294967296.0;
+}
+
 fn degrees_to_radians(degrees: f32) -> f32 {
     return degrees * PI / 180;
 }

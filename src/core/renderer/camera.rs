@@ -1,6 +1,19 @@
 use crate::{core::RtLabel, utils};
-use glam::{Vec2, Vec3A};
+use glam::{Vec2, Vec3A, Vec4};
 use wgpu::{Buffer, Device, util::DeviceExt};
+
+#[derive(Debug, Clone, Copy)]
+pub struct CameraDescriptor {
+    pub resolution: Vec2,
+    pub samples_per_pixel: u32,
+    pub max_depth: u32,
+    pub look_from: Vec3A,
+    pub look_at: Vec3A,
+    pub vup: Vec3A,
+    pub vfov: f32,
+    pub defocus_angle: f32,
+    pub focus_distance: f32,
+}
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
@@ -12,35 +25,71 @@ pub struct Camera {
     pixel00_loc: Vec3A,
     pixel_delta_u: Vec3A,
     pixel_delta_v: Vec3A,
-    pixel_samples_scale: Vec3A,
+    defocus_disk_u: Vec4,
+    defocus_disk_v: Vec4,
+}
+
+impl Default for CameraDescriptor {
+    fn default() -> Self {
+        Self {
+            resolution: glam::vec2(1280f32, 800f32),
+            samples_per_pixel: 10,
+            max_depth: 10,
+            look_from: glam::Vec3A::ZERO,
+            look_at: glam::vec3a(0f32, 0f32, -1f32),
+            vup: glam::vec3a(0f32, 1f32, 0f32),
+            vfov: 90f32,
+            defocus_angle: 0f32,
+            focus_distance: 10f32,
+        }
+    }
 }
 
 impl Camera {
-    pub fn new(resolution: Vec2, samples_per_pixel: u32, max_depth: u32) -> Self {
-        const FOCAL_LENGTH: f32 = 1f32;
-        const VIEWPORT_HEIGHT: f32 = 2f32;
-        const VIEWPORT_V: Vec3A = glam::vec3a(0f32, -VIEWPORT_HEIGHT, 0f32);
-        const CAMERA_CENTER: glam::Vec3A = glam::Vec3A::ZERO;
+    pub fn new(desc: &CameraDescriptor) -> Self {
+        let center = desc.look_from;
+        let theta = utils::degrees_to_radians(desc.vfov);
+        let height = (0.5 * theta).tan();
+        let viewport_height = 2f32 * height * desc.focus_distance;
+        let viewport_width = viewport_height * (desc.resolution.x / desc.resolution.y);
+        let w = (desc.look_from - desc.look_at).normalize();
+        let u = desc.vup.cross(w).normalize();
+        let v = w.cross(u);
+        let viewport_u = viewport_width * u;
+        let viewport_v = viewport_height * -v;
 
-        let viewport_width = VIEWPORT_HEIGHT * (resolution.x / resolution.y);
-        let viewport_u = glam::vec3a(viewport_width, 0f32, 0f32);
+        let pixel_delta_u = viewport_u / desc.resolution.x;
+        let pixel_delta_v = viewport_v / desc.resolution.y;
 
-        let pixel_delta_u = viewport_u / resolution.x;
-        let pixel_delta_v = VIEWPORT_V / resolution.y;
-
-        let viewport_upper_left = CAMERA_CENTER
-            - (glam::vec3a(0f32, 0f32, FOCAL_LENGTH) + viewport_u / 2f32 + VIEWPORT_V / 2f32);
+        let viewport_upper_left =
+            center - ((desc.focus_distance * w) + (viewport_u * 0.5) + (viewport_v * 0.5));
         let pixel00_loc = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v);
 
+        let defocus_radius =
+            desc.focus_distance * utils::degrees_to_radians(desc.defocus_angle * 0.5).tan();
+        let defocus_disk_u = u * defocus_radius;
+        let defocus_disk_v = v * defocus_radius;
+
         Self {
-            resolution,
-            samples_per_pixel,
-            max_depth,
-            center: CAMERA_CENTER,
+            resolution: desc.resolution,
+            samples_per_pixel: desc.samples_per_pixel,
+            max_depth: desc.max_depth,
+            center: desc.look_from,
             pixel00_loc,
             pixel_delta_u,
             pixel_delta_v,
-            pixel_samples_scale: glam::vec3a(1f32 / samples_per_pixel as f32, 0f32, 0f32),
+            defocus_disk_u: glam::vec4(
+                defocus_disk_u.x,
+                defocus_disk_u.y,
+                defocus_disk_u.z,
+                desc.defocus_angle,
+            ),
+            defocus_disk_v: glam::vec4(
+                defocus_disk_v.x,
+                defocus_disk_v.y,
+                defocus_disk_v.z,
+                desc.defocus_angle,
+            ),
         }
     }
 
@@ -56,19 +105,6 @@ impl Camera {
             label: Some(&RtLabel::Buffer(label).to_string()),
             contents,
             usage: wgpu::BufferUsages::UNIFORM,
-        })
-    }
-
-    pub fn create_rand_data_buffer(&self, device: &Device, label: Option<&str>) -> Buffer {
-        let rand_data: Vec<glam::Vec3A> = (0..(self.samples_per_pixel * self.samples_per_pixel))
-            .map(|_| glam::vec3a(utils::random(), utils::random(), utils::random()))
-            .collect();
-        let contents = unsafe { utils::data_into_bytes(&rand_data) };
-
-        device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some(&RtLabel::Buffer(label).to_string()),
-            contents,
-            usage: wgpu::BufferUsages::STORAGE,
         })
     }
 }

@@ -20,8 +20,9 @@ pub struct HitObject {
 }
 
 impl Material {
-    const LAMBERTIAN: u32 = 0x1000;
-    const METAL: u32 = 0x2000;
+    const LAMBERTIAN: u32 = 0x0100;
+    const METAL: u32 = 0x0200;
+    const DIELECTRIC: u32 = 0x0300;
 
     #[inline]
     pub const fn create_lambertian(albedo: Vec3) -> Self {
@@ -39,6 +40,16 @@ impl Material {
             albedo,
             fuzz: fuzz.min(1f32),
             id: Self::METAL,
+            _pad: [0f32; 3],
+        }
+    }
+
+    #[inline]
+    pub const fn create_dielectric(refraction_index: f32) -> Self {
+        Self {
+            fuzz: refraction_index,
+            id: Self::DIELECTRIC,
+            albedo: Vec3::ZERO,
             _pad: [0f32; 3],
         }
     }

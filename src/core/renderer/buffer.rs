@@ -30,7 +30,6 @@ struct Texture {
 pub struct PathTracerBuffer {
     camera_buffer: Buffer,
     object_buffer: Buffer,
-    rand_data_buffer: Buffer,
     texture: Texture,
     sampler: Sampler,
 }
@@ -50,9 +49,6 @@ impl BindGroup {
 impl PathTracerBuffer {
     pub fn new(device: &Device, surface: &Surface, desc: &PathTracerBufferDescriptor) -> Self {
         let camera_buffer = desc.camera.create_uniform_buffer(device, None);
-        let rand_data_buffer = desc
-            .camera
-            .create_rand_data_buffer(device, Some("Rand Storage"));
         let object_buffer = Self::create_object_buffer(device, desc);
         let texture = Self::create_texture(device, surface, desc);
         let sampler = Self::create_sampler(device, desc);
@@ -60,7 +56,6 @@ impl PathTracerBuffer {
         Self {
             camera_buffer,
             object_buffer,
-            rand_data_buffer,
             texture,
             sampler,
         }
@@ -143,16 +138,6 @@ impl PathTracerBuffer {
                 wgpu::BindGroupLayoutEntry {
                     binding: 2,
                     visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 3,
-                    visibility: wgpu::ShaderStages::COMPUTE,
                     ty: wgpu::BindingType::StorageTexture {
                         access: wgpu::StorageTextureAccess::WriteOnly,
                         format: wgpu::TextureFormat::Rgba32Float,
@@ -176,10 +161,6 @@ impl PathTracerBuffer {
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
-                    resource: self.rand_data_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 3,
                     resource: wgpu::BindingResource::TextureView(&self.texture.view),
                 },
             ],
