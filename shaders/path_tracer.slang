@@ -39,10 +39,14 @@ float4 Ray_color(in Ray r) {
 
     float3 rayColor;
 
-    float3 unit_direction = normalize(r.direction);
-    float a = 0.5 * (unit_direction.y + 1);
+    if (hit_sphere(SPHERE_POS, SPHERE_RADIUS, r)) {
+        rayColor = RED;
+    } else {
+        float3 unit_direction = normalize(r.direction);
+        float a = 0.5 * (unit_direction.y + 1);
 
-    rayColor = (1 - a) * WHITE + a * BLUE;
+        rayColor = (1 - a) * WHITE + a * BLUE;
+    }
 
     return float4(rayColor, 1);
 }
