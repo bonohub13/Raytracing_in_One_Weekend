@@ -1,21 +1,18 @@
-#[cfg(debug_assertions)]
-use crate::core::error::{RtError, RtResult};
-#[cfg(debug_assertions)]
-use ash::{Entry, Instance};
-use ash::{ext::debug_utils, vk};
-#[cfg(debug_assertions)]
-use std::ffi::{CStr, c_void};
+use crate::core::{RtError, RtResult, instance::Instance};
+use ash::vk::{self, DebugUtilsMessengerEXT};
+use std::{
+    ffi::{CStr, c_void},
+    sync::Arc,
+};
 
-pub struct DebugUtils {
-    instance: debug_utils::Instance,
-    messenger: vk::DebugUtilsMessengerEXT,
+pub struct DebugUtilsMessenger {
+    instance: Arc<Instance>,
+    messenger: DebugUtilsMessengerEXT,
 }
 
-impl DebugUtils {
-    #[cfg(debug_assertions)]
-    pub fn new(entry: &Entry, instance: &Instance) -> RtResult<Self> {
-        let instance = debug_utils::Instance::new(entry, instance);
-        let messenger = Self::create_messenger(&instance)?;
+impl DebugUtilsMessenger {
+    pub fn new(instance: Arc<Instance>) -> RtResult<Self> {
+        let messenger = Self::create_debug_utils_messenger(instance.clone())?;
 
         Ok(Self {
             instance,
@@ -23,8 +20,7 @@ impl DebugUtils {
         })
     }
 
-    #[cfg(debug_assertions)]
-    pub fn messenger_create_info() -> vk::DebugUtilsMessengerCreateInfoEXT<'static> {
+    pub fn create_info() -> vk::DebugUtilsMessengerCreateInfoEXT<'static> {
         vk::DebugUtilsMessengerCreateInfoEXT::default()
             .message_severity(
                 vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE
@@ -36,42 +32,61 @@ impl DebugUtils {
                     | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION
                     | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE,
             )
-            .pfn_user_callback(Some(debug_callback))
+            .pfn_user_callback(Some(Self::debug_callback))
     }
 
-    pub unsafe fn destroy(&mut self) {
-        unsafe {
-            self.instance
-                .destroy_debug_utils_messenger(self.messenger, None)
-        };
-    }
+    fn create_debug_utils_messenger(
+        instance: Arc<Instance>,
+    ) -> RtResult<vk::DebugUtilsMessengerEXT> {
+        if let Some(debug_loader) = instance.debug_loader().as_ref() {
+            let create_info = Self::create_info();
 
-    #[cfg(debug_assertions)]
-    fn create_messenger(instance: &debug_utils::Instance) -> RtResult<vk::DebugUtilsMessengerEXT> {
-        let create_info = Self::messenger_create_info();
-
-        match unsafe { instance.create_debug_utils_messenger(&create_info, None) } {
-            Ok(messenger) => Ok(messenger),
-            Err(e) => Err(RtError::CreateDebugUtilsMessenger(e.into())),
+            match unsafe { debug_loader.create_debug_utils_messenger(&create_info, None) } {
+                Ok(messenger) => Ok(messenger),
+                Err(err) => Err(RtError::CreateDebugUtilsmessenger(err.into())),
+            }
+        } else {
+            Err(RtError::DebugLoaderUninitialized)
         }
+    }
+
+    unsafe extern "system" fn debug_callback(
+        msg_severity: vk::DebugUtilsMessageSeverityFlagsEXT,
+        msg_type: vk::DebugUtilsMessageTypeFlagsEXT,
+        p_cb_data: *const vk::DebugUtilsMessengerCallbackDataEXT,
+        _p_user_data: *mut c_void,
+    ) -> vk::Bool32 {
+        const RED: &str = "\x1b[0;31m";
+        const GREEN: &str = "\x1b[0;32m";
+        const YELLOW: &str = "\x1b[0;33m";
+        const WHITE: &str = "\x1b[0;37m";
+
+        let message = unsafe { CStr::from_ptr((*p_cb_data).p_message) };
+        let msg_severity = match msg_severity {
+            vk::DebugUtilsMessageSeverityFlagsEXT::INFO => "Info".to_string(),
+            vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE => [GREEN, "Verbose", WHITE].concat(),
+            vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => [YELLOW, "Warning", WHITE].concat(),
+            vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => [RED, "Error", WHITE].concat(),
+            _ => "Unknown".to_string(),
+        };
+        let msg_type = match msg_type {
+            vk::DebugUtilsMessageTypeFlagsEXT::GENERAL => "GENERAL",
+            vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION => "VALIDATION",
+            vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE => "PERFORMANCE",
+            vk::DebugUtilsMessageTypeFlagsEXT::DEVICE_ADDRESS_BINDING => "DEVICE_ADDRESS_BINDING",
+            _ => "UNKNOWN",
+        };
+
+        eprintln!("[{} | {}] {:?}", msg_type, msg_severity, message);
+
+        vk::FALSE
     }
 }
 
-#[cfg(debug_assertions)]
-unsafe extern "system" fn debug_callback(
-    serverity: vk::DebugUtilsMessageSeverityFlagsEXT,
-    types: vk::DebugUtilsMessageTypeFlagsEXT,
-    p_callback_data: *const vk::DebugUtilsMessengerCallbackDataEXT,
-    _user_data: *mut c_void,
-) -> vk::Bool32 {
-    let message = unsafe { CStr::from_ptr((*p_callback_data).p_message) };
-
-    eprintln!(
-        "[VULKAN | {:?}] {:?}: {}",
-        serverity,
-        types,
-        message.to_string_lossy()
-    );
-
-    vk::FALSE
+impl Drop for DebugUtilsMessenger {
+    fn drop(&mut self) {
+        if let Some(debug_loader) = self.instance.debug_loader().as_ref() {
+            unsafe { debug_loader.destroy_debug_utils_messenger(self.messenger, None) };
+        }
+    }
 }

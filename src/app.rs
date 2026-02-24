@@ -1,5 +1,8 @@
-use crate::core::{self, State};
-use std::{path::PathBuf, sync::Arc};
+use crate::{
+    core::{self, State},
+    frame_limiter::FrameLimiter,
+};
+use std::sync::Arc;
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
@@ -12,6 +15,7 @@ use winit::{
 #[derive(Default)]
 pub struct PathTracer {
     window: Option<Arc<Window>>,
+    frame_limit: Option<FrameLimiter>,
     state: Option<State>,
 }
 
@@ -28,7 +32,8 @@ impl ApplicationHandler for PathTracer {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         const WINDOW_TITLE: &str = "Ray Tracing in One Weekend (rust+ash)";
         const INITIAL_WINDOW_SIZE: PhysicalSize<u32> = PhysicalSize::new(1280, 800);
-        if self.window.is_none() {
+
+        if self.window.is_none() && self.frame_limit.is_none() && self.state.is_none() {
             let attr = winit::window::WindowAttributes::default()
                 .with_title(WINDOW_TITLE)
                 .with_inner_size(INITIAL_WINDOW_SIZE);
@@ -37,26 +42,15 @@ impl ApplicationHandler for PathTracer {
                     .create_window(attr)
                     .expect("Failed to create window"),
             );
-            let state = match State::new(&core::StateDescriptor {
-                app_name: WINDOW_TITLE,
+            let frame_limit = FrameLimiter::new(Some(30));
+            let state = State::new(&core::StateDescriptor {
                 window: window.clone(),
-                render_shader_desc: core::RenderShaderDescriptor {
-                    vertex_shader_path: PathBuf::from("shaders/spv/vertex.spv"),
-                    fragment_shader_path: PathBuf::from("shaders/spv/fragment.spv"),
-                    vertex_shader_entrypoint: c"main",
-                    fragment_shader_entrypoint: c"main",
-                },
-                compute_shader_desc: core::ComputeShaderDescriptor {
-                    compute_shader_path: PathBuf::from("shaders/spv/path_tracer.spv"),
-                    compute_shader_entrypoint: c"main",
-                },
-            }) {
-                Ok(state) => state,
-                Err(e) => panic!("{e}"),
-            };
+            })
+            .expect("Failed to create Vulkan State object");
 
             self.window = Some(window);
-            self.state = Some(state)
+            self.frame_limit = Some(frame_limit);
+            self.state = Some(state);
         }
     }
 
@@ -66,7 +60,11 @@ impl ApplicationHandler for PathTracer {
         _window_id: WindowId,
         event: WindowEvent,
     ) {
-        if let (Some(window), Some(state)) = (self.window.as_ref(), self.state.as_mut()) {
+        if let (Some(window), Some(vk_state), Some(limiter)) = (
+            self.window.as_ref(),
+            self.state.as_mut(),
+            self.frame_limit.as_mut(),
+        ) {
             match event {
                 WindowEvent::CloseRequested => {
                     event_loop.exit();
@@ -79,21 +77,21 @@ impl ApplicationHandler for PathTracer {
                         },
                     ..
                 } => Self::handle_keypress(key, event_loop),
+                WindowEvent::Resized(_) => {
+                    if let Err(err) = vk_state.resize() {
+                        eprintln!("{err:?}");
+                        event_loop.exit();
+                    }
+                }
                 WindowEvent::RedrawRequested => {
                     window.request_redraw();
-                    if let Err(err) = state.draw_frame(window.clone()) {
-                        panic!("{err}");
+                    if let Err(err) = vk_state.draw_frame() {
+                        eprintln!("{err:?}");
+                        event_loop.exit();
                     }
-                }
-                WindowEvent::Resized(_) => {
-                    if let Err(err) = state.resize(window.clone()) {
-                        panic!("{err}");
-                    }
+                    limiter.wait_frame();
                 }
                 _ => (),
-            }
-            if let Err(err) = state.device_wait_idle() {
-                panic!("{err}");
             }
         }
     }

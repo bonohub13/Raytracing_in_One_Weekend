@@ -1,14 +1,13 @@
-mod buffers;
 mod debug;
+mod device;
 mod error;
-mod objects;
-mod params;
+mod instance;
+pub mod params;
 mod renderer;
-mod shader;
 mod state;
 mod surface;
+#[macro_use]
+mod util;
 
-pub use error::*;
-pub(crate) use params::*;
-pub use shader::{ComputeShaderDescriptor, RenderShaderDescriptor};
-pub use state::*;
+use error::*;
+pub use state::{State, StateDescriptor};

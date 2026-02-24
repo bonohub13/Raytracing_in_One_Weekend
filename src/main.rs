@@ -1,5 +1,6 @@
 mod app;
 mod core;
+mod frame_limiter;
 
 use anyhow::Result;
 use winit::event_loop::EventLoop;
