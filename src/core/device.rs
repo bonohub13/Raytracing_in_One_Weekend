@@ -4,7 +4,10 @@
 use crate::core::{RtError, RtResult, instance::Instance, surface::Surface};
 use ash::{khr::swapchain, vk};
 use gpu_allocator::vulkan::{self, Allocator};
-use std::{ffi::CStr, sync::Arc};
+use std::{
+    ffi::CStr,
+    sync::{Arc, Mutex},
+};
 
 #[derive(Debug, Clone, Copy, Default)]
 struct QueueFamilyIndices {
@@ -34,7 +37,7 @@ pub struct Device {
     instance: Arc<Instance>,
     raw: ash::Device,
     physical_device: vk::PhysicalDevice,
-    allocator: Allocator,
+    allocator: Mutex<Allocator>,
     queue_families: QueueFamilies,
     swapchain_support: SwapchainSupportDetail,
     graphics_queue: vk::Queue,
@@ -224,8 +227,11 @@ impl Device {
             physical_device,
         )?;
         let (device, graphics_queue, present_queue) = Self::create_device(desc, physical_device)?;
-        let allocator =
-            Self::create_allocator(desc.instance.clone(), device.clone(), physical_device)?;
+        let allocator = Mutex::new(Self::create_allocator(
+            desc.instance.clone(),
+            device.clone(),
+            physical_device,
+        )?);
 
         Ok(Self {
             instance: desc.instance.clone(),
@@ -245,8 +251,8 @@ impl Device {
     }
 
     #[inline]
-    pub const fn allocator(&mut self) -> &mut Allocator {
-        &mut self.allocator
+    pub const fn allocator(&self) -> &Mutex<Allocator> {
+        &self.allocator
     }
 
     #[inline]

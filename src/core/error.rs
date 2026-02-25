@@ -50,12 +50,16 @@ pub enum RtError {
     CreateAllocator(Box<dyn Error>),
     #[error("Failed to create allocation in GPU memory: `{0}`")]
     CreateAllocation(Box<dyn Error>),
+    #[error("Failed to free allocation in GPU memory: `{0}`")]
+    FreeAllocation(Box<dyn Error>),
     #[error("Failed to create swapchain: `{0}`")]
     CreateSwapchain(Box<dyn Error>),
     #[error("Failed to get swapchain images: `{0}`")]
     GetSwapchainImages(Box<dyn Error>),
     #[error("Failed to create image: `{0}`")]
     CreateImage(Box<dyn Error>),
+    #[error("Failed to bind image memory: `{0}`")]
+    BindImageMemory(Box<dyn Error>),
     #[error("Failed to create image view: `{0}`")]
     CreateImageView(Box<dyn Error>),
     #[error("Failed to create sampler: `{0}`")]
