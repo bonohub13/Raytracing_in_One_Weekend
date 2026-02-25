@@ -18,6 +18,7 @@ SPIRV_OPT_FLAG := --eliminate-dead-code-aggressive \
 
 METADATA := $(shell $(CARGO) metadata --no-deps --format-version=1)
 AUTHOR   := $(shell echo '$(METADATA)' | jq -r '.packages[0].authors[0]')
+COPYRIGHT_YEAR := 2026
 
 all: build build-shaders
 
@@ -41,7 +42,7 @@ clean:
 	$(CARGO) clean
 
 license:
-	addlicense -c "$(AUTHOR)" -l mit src/
+	addlicense -s=only -c "$(AUTHOR)" -y $(COPYRIGHT_YEAR) -l mit  src/
 
 build-shaders:
 	@[ -d ${SPIRV_DIR} ] || mkdir -pv ${SPIRV_DIR}
