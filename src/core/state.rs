@@ -14,6 +14,7 @@ pub struct StateDescriptor {
     pub window: Arc<Window>,
 }
 
+#[allow(dead_code)]
 pub struct State {
     renderer: PathTracer,
     device: Arc<Device>,
@@ -46,7 +47,6 @@ impl State {
             surface: surface.clone(),
         })?);
         let renderer = PathTracer::new(&renderer::PathTracerDescriptor {
-            window: desc.window.clone(),
             instance: instance.clone(),
             device: device.clone(),
             surface: surface.clone(),

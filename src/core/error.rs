@@ -1,5 +1,6 @@
 use std::error::Error;
 
+#[allow(dead_code)]
 #[derive(Debug, thiserror::Error)]
 pub enum RtError {
     #[error("Failed to lock mutex: `{0}`")]
@@ -52,10 +53,6 @@ pub enum RtError {
     LoadShader(Box<dyn Error>),
     #[error("Failed to create shader module: `{0}`")]
     CreateShaderModule(Box<dyn Error>),
-    #[error("Failed to create render pass: `{0}`")]
-    CreateRenderPass(Box<dyn Error>),
-    #[error("Failed to create framebuffer: `{0}`")]
-    CreateFramebuffer(Box<dyn Error>),
     #[error("Failed to create pipeline layout: `{0}`")]
     CreatePipelineLayout(Box<dyn Error>),
     #[error("Failed to create pipeline: `{0:?}`")]

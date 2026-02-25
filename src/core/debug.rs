@@ -11,6 +11,7 @@ pub struct DebugUtilsMessenger {
 }
 
 impl DebugUtilsMessenger {
+    #[allow(dead_code)]
     pub fn new(instance: Arc<Instance>) -> RtResult<Self> {
         let messenger = Self::create_debug_utils_messenger(instance.clone())?;
 
@@ -20,6 +21,7 @@ impl DebugUtilsMessenger {
         })
     }
 
+    #[allow(dead_code)]
     pub fn create_info() -> vk::DebugUtilsMessengerCreateInfoEXT<'static> {
         vk::DebugUtilsMessengerCreateInfoEXT::default()
             .message_severity(
@@ -35,6 +37,7 @@ impl DebugUtilsMessenger {
             .pfn_user_callback(Some(Self::debug_callback))
     }
 
+    #[allow(dead_code)]
     fn create_debug_utils_messenger(
         instance: Arc<Instance>,
     ) -> RtResult<vk::DebugUtilsMessengerEXT> {
@@ -50,6 +53,7 @@ impl DebugUtilsMessenger {
         }
     }
 
+    #[allow(dead_code)]
     unsafe extern "system" fn debug_callback(
         msg_severity: vk::DebugUtilsMessageSeverityFlagsEXT,
         msg_type: vk::DebugUtilsMessageTypeFlagsEXT,

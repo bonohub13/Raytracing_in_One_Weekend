@@ -10,14 +10,9 @@ use crate::core::{
         sync::{self, SyncObject},
     },
     surface::Surface,
-    util as rt_util,
 };
 use ash::vk;
-use std::{
-    ffi::CStr,
-    sync::{Arc, Mutex},
-};
-use winit::window::Window;
+use std::{ffi::CStr, sync::Arc};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Pipeline {
@@ -25,7 +20,6 @@ pub enum Pipeline {
 }
 
 pub struct PathTracerDescriptor {
-    pub window: Arc<Window>,
     pub instance: Arc<Instance>,
     pub surface: Arc<Surface>,
     pub device: Arc<Device>,
@@ -38,7 +32,7 @@ pub struct PathTracer {
     command: Arc<Command>,
     graphics_pipeline: Pipeline,
     pipeline_layout: vk::PipelineLayout,
-    swapchain: Arc<Mutex<Swapchain>>,
+    swapchain: Arc<Swapchain>,
     device: Arc<Device>,
 }
 
@@ -52,23 +46,19 @@ impl Pipeline {
 
 impl PathTracer {
     pub fn new(desc: &PathTracerDescriptor) -> RtResult<Self> {
-        let swapchain = Arc::new(Mutex::new(Swapchain::new(&SwapchainDescriptor {
+        let swapchain = Arc::new(Swapchain::new(&SwapchainDescriptor {
             instance: desc.instance.clone(),
             device: desc.device.clone(),
             surface: desc.surface.clone(),
-        })?));
+        })?);
         let pipeline_layout = Self::create_pipeline_layout(desc.device.clone())?;
         let graphics_pipeline =
             Self::create_graphics_pipeline(swapchain.clone(), pipeline_layout, desc)?;
         let command = Arc::new(Command::new(&command::CommandDescriptor {
             device: desc.device.clone(),
-            surface: desc.surface.clone(),
-            swapchain: swapchain.clone(),
         })?);
         let sync_object = SyncObject::new(&sync::SyncObjectDescriptor {
             device: desc.device.clone(),
-            swapchain: swapchain.clone(),
-            command: command.clone(),
         })?;
 
         Ok(Self {
@@ -84,11 +74,7 @@ impl PathTracer {
     }
 
     pub fn resize(&mut self) -> RtResult<()> {
-        let mut guard = rt_util::lock_mutex!(self.swapchain);
-
-        guard.recreate_swapchain()?;
-
-        drop(guard);
+        self.swapchain = self.swapchain.recreate_swapchain()?.into();
 
         Ok(())
     }
@@ -96,21 +82,26 @@ impl PathTracer {
     pub fn render_frame(&mut self) -> RtResult<()> {
         self.sync_object.wait_for_fences(self.current_frame)?;
         self.sync_object.reset_fences(self.current_frame)?;
-        if let Some((image_index, is_suboptimal)) =
-            self.sync_object.acquire_next_image(self.current_frame)?
+        if let Some((image_index, _is_suboptimal)) = self
+            .sync_object
+            .acquire_next_image(&mut self.swapchain, self.current_frame)?
         {
             self.image_index = image_index;
         }
         self.command.reset_command_buffer(self.current_frame)?;
         self.command.record_command_buffer(
+            self.swapchain.clone(),
             self.graphics_pipeline,
             self.image_index,
             self.current_frame,
         )?;
-        self.sync_object.graphics_queue_submit(self.current_frame)?;
-        let _ = self
-            .sync_object
-            .present_queue(self.image_index as u32, self.current_frame)?;
+        self.sync_object
+            .graphics_queue_submit(self.command.clone(), self.current_frame)?;
+        let _ = self.sync_object.present_queue(
+            self.swapchain.clone(),
+            self.image_index as u32,
+            self.current_frame,
+        )?;
 
         self.current_frame = (self.current_frame + 1) % params::MAX_FRAMES_IN_FLIGHT;
 
@@ -120,14 +111,14 @@ impl PathTracer {
     fn create_pipeline_layout(device: Arc<Device>) -> RtResult<vk::PipelineLayout> {
         let create_info = vk::PipelineLayoutCreateInfo::default();
 
-        match unsafe { device.device().create_pipeline_layout(&create_info, None) } {
+        match unsafe { device.raw().create_pipeline_layout(&create_info, None) } {
             Ok(layout) => Ok(layout),
             Err(err) => Err(RtError::CreatePipelineLayout(err.into())),
         }
     }
 
     fn create_graphics_pipeline(
-        swapchain: Arc<Mutex<Swapchain>>,
+        swapchain: Arc<Swapchain>,
         pipeline_layout: vk::PipelineLayout,
         desc: &PathTracerDescriptor,
     ) -> RtResult<Pipeline> {
@@ -152,11 +143,7 @@ impl PathTracer {
         let input_assembly = vk::PipelineInputAssemblyStateCreateInfo::default()
             .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
             .primitive_restart_enable(false);
-        let (swapchain_extent, swapchain_format) = {
-            let guard = rt_util::lock_mutex!(swapchain);
-
-            (guard.extent(), guard.image_format())
-        };
+        let (swapchain_extent, swapchain_format) = (swapchain.extent(), swapchain.image_format());
         let viewport = vk::Viewport {
             x: 0f32,
             y: 0f32,
@@ -219,7 +206,7 @@ impl PathTracer {
             .push_next(&mut pipeline_rendering);
 
         match unsafe {
-            desc.device.device().create_graphics_pipelines(
+            desc.device.raw().create_graphics_pipelines(
                 vk::PipelineCache::null(),
                 std::slice::from_ref(&create_info),
                 None,
@@ -241,10 +228,10 @@ impl Drop for PathTracer {
     fn drop(&mut self) {
         unsafe {
             self.device
-                .device()
+                .raw()
                 .destroy_pipeline(self.graphics_pipeline.inner(), None);
             self.device
-                .device()
+                .raw()
                 .destroy_pipeline_layout(self.pipeline_layout, None);
         };
     }

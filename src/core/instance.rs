@@ -1,4 +1,6 @@
-use crate::core::{RtError, RtResult, debug::DebugUtilsMessenger};
+#[cfg(debug_assertions)]
+use crate::core::debug::DebugUtilsMessenger;
+use crate::core::{RtError, RtResult};
 use ash::{ext::debug_utils, khr::surface, vk};
 use std::{ffi::CStr, sync::Arc};
 use winit::{raw_window_handle::HasDisplayHandle, window::Window};
@@ -11,12 +13,13 @@ pub struct InstanceDescriptor<'desc> {
 
 pub struct Instance {
     entry: ash::Entry,
-    instance: ash::Instance,
+    raw: ash::Instance,
     debug_loader: Option<debug_utils::Instance>,
     surface_loader: surface::Instance,
 }
 
 impl Instance {
+    #[allow(dead_code)]
     const VALIDATION_LAYERS: [&CStr; 1] = [c"VK_LAYER_KHRONOS_validation"];
 
     pub fn new(desc: &InstanceDescriptor) -> RtResult<Self> {
@@ -30,7 +33,7 @@ impl Instance {
 
         Ok(Self {
             entry,
-            instance,
+            raw: instance,
             surface_loader,
             debug_loader,
         })
@@ -42,8 +45,8 @@ impl Instance {
     }
 
     #[inline]
-    pub fn instance(&self) -> &ash::Instance {
-        &self.instance
+    pub fn raw(&self) -> &ash::Instance {
+        &self.raw
     }
 
     #[inline]
@@ -57,7 +60,7 @@ impl Instance {
     }
 
     pub fn enumerate_physical_devices(&self) -> RtResult<Vec<vk::PhysicalDevice>> {
-        match unsafe { self.instance.enumerate_physical_devices() } {
+        match unsafe { self.raw.enumerate_physical_devices() } {
             Ok(devices) => Ok(devices),
             Err(err) => Err(RtError::EnumeratePhyicalDevices(err.into())),
         }
@@ -109,6 +112,7 @@ impl Instance {
         }
     }
 
+    #[cfg(debug_assertions)]
     fn enumerate_instance_extension_properties(
         entry: &ash::Entry,
     ) -> RtResult<Vec<vk::ExtensionProperties>> {
@@ -127,6 +131,7 @@ impl Instance {
 
         match ash_window::enumerate_required_extensions(display_handle) {
             Ok(extensions) => {
+                #[allow(unused_mut)]
                 let mut extensions: Vec<&'ext CStr> = extensions
                     .iter()
                     .map(|extension| unsafe { CStr::from_ptr(*extension) })
@@ -141,6 +146,7 @@ impl Instance {
         }
     }
 
+    #[cfg(debug_assertions)]
     fn validation_layer_supported(entry: &ash::Entry) -> RtResult<bool> {
         let available_layers = match unsafe { entry.enumerate_instance_layer_properties() } {
             Ok(properties) => {
@@ -163,6 +169,6 @@ impl Instance {
 
 impl Drop for Instance {
     fn drop(&mut self) {
-        unsafe { self.instance.destroy_instance(None) };
+        unsafe { self.raw.destroy_instance(None) };
     }
 }

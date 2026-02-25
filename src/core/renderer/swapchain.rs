@@ -1,7 +1,6 @@
 use crate::core::{RtError, RtResult, device::Device, instance::Instance, surface::Surface};
 use ash::{khr::swapchain, vk};
 use std::sync::Arc;
-use winit::window::Window;
 
 pub struct SwapchainDescriptor {
     pub instance: Arc<Instance>,
@@ -12,8 +11,8 @@ pub struct SwapchainDescriptor {
 pub struct Swapchain {
     surface: Arc<Surface>,
     device: Arc<Device>,
-    swapchain_loader: swapchain::Device,
-    swapchain: vk::SwapchainKHR,
+    loader: swapchain::Device,
+    raw: vk::SwapchainKHR,
     image_format: vk::Format,
     extent: vk::Extent2D,
     images: Vec<vk::Image>,
@@ -22,19 +21,18 @@ pub struct Swapchain {
 
 impl Swapchain {
     pub fn new(desc: &SwapchainDescriptor) -> RtResult<Self> {
-        let swapchain_loader =
-            swapchain::Device::new(desc.instance.instance(), desc.device.device());
+        let loader = swapchain::Device::new(desc.instance.raw(), desc.device.raw());
         let (swapchain, image_format, extent) =
-            Self::create_swapchain(&swapchain_loader, desc.device.clone(), desc.surface.clone())?;
-        let images = Self::create_swapchain_images(&swapchain_loader, swapchain)?;
+            Self::create_swapchain(&loader, desc.device.clone(), desc.surface.clone())?;
+        let images = Self::create_swapchain_images(&loader, swapchain)?;
         let image_views =
             Self::create_swapchain_image_views(desc.device.clone(), image_format, &images)?;
 
         Ok(Self {
             surface: desc.surface.clone(),
             device: desc.device.clone(),
-            swapchain_loader,
-            swapchain,
+            loader,
+            raw: swapchain,
             image_format,
             extent,
             images,
@@ -44,12 +42,12 @@ impl Swapchain {
 
     #[inline]
     pub const fn loader(&self) -> &swapchain::Device {
-        &self.swapchain_loader
+        &self.loader
     }
 
     #[inline]
-    pub const fn swapchain(&self) -> vk::SwapchainKHR {
-        self.swapchain
+    pub const fn raw(&self) -> vk::SwapchainKHR {
+        self.raw
     }
 
     #[inline]
@@ -72,37 +70,29 @@ impl Swapchain {
         self.image_views.as_slice()
     }
 
-    pub fn recreate_swapchain(&mut self) -> RtResult<()> {
+    pub fn recreate_swapchain(&self) -> RtResult<Self> {
         self.device.device_wait_idle()?;
-        unsafe { self.destroy() };
 
-        (self.swapchain, self.image_format, self.extent) = Self::create_swapchain(
-            &self.swapchain_loader,
-            self.device.clone(),
-            self.surface.clone(),
-        )?;
-        self.images = Self::create_swapchain_images(&self.swapchain_loader, self.swapchain)?;
-        self.image_views = Self::create_swapchain_image_views(
-            self.device.clone(),
-            self.image_format,
-            &self.images,
-        )?;
+        let (raw, image_format, extent) =
+            Self::create_swapchain(&self.loader, self.device.clone(), self.surface.clone())?;
+        let images = Self::create_swapchain_images(&self.loader, raw)?;
+        let image_views =
+            Self::create_swapchain_image_views(self.device.clone(), image_format, &images)?;
 
-        Ok(())
-    }
-
-    unsafe fn destroy(&mut self) {
-        self.image_views.iter().for_each(|image_view| unsafe {
-            self.device.device().destroy_image_view(*image_view, None)
-        });
-        unsafe {
-            self.swapchain_loader
-                .destroy_swapchain(self.swapchain, None)
-        };
+        Ok(Self {
+            surface: self.surface.clone(),
+            device: self.device.clone(),
+            loader: self.loader.clone(),
+            raw,
+            image_format,
+            extent,
+            images,
+            image_views,
+        })
     }
 
     fn create_swapchain(
-        swapchain_loader: &swapchain::Device,
+        loader: &swapchain::Device,
         device: Arc<Device>,
         surface: Arc<Surface>,
     ) -> RtResult<(vk::SwapchainKHR, vk::Format, vk::Extent2D)> {
@@ -118,14 +108,11 @@ impl Swapchain {
         } else {
             swapchain_support.capabilities.min_image_count + 1
         };
-        let indices = device.find_queue_families(surface.clone())?;
-        let queue_family_indices = [
-            indices.graphics_family.unwrap(),
-            indices.present_family.unwrap(),
-        ];
+        let indices = device.queue_families();
+        let queue_family_indices = [indices.graphics_family, indices.present_family];
         let create_info = {
             let create_info = vk::SwapchainCreateInfoKHR::default()
-                .surface(surface.surface())
+                .surface(surface.raw())
                 .min_image_count(image_count)
                 .image_format(surface_format.format)
                 .image_color_space(surface_format.color_space)
@@ -147,17 +134,17 @@ impl Swapchain {
             }
         };
 
-        match unsafe { swapchain_loader.create_swapchain(&create_info, None) } {
+        match unsafe { loader.create_swapchain(&create_info, None) } {
             Ok(swapchain) => Ok((swapchain, surface_format.format, extent)),
             Err(err) => Err(RtError::CreateSwapchain(err.into())),
         }
     }
 
     fn create_swapchain_images(
-        swapchain_loader: &swapchain::Device,
+        loader: &swapchain::Device,
         swapchain: vk::SwapchainKHR,
     ) -> RtResult<Vec<vk::Image>> {
-        match unsafe { swapchain_loader.get_swapchain_images(swapchain) } {
+        match unsafe { loader.get_swapchain_images(swapchain) } {
             Ok(images) => Ok(images),
             Err(err) => Err(RtError::GetSwapchainImages(err.into())),
         }
@@ -190,7 +177,7 @@ impl Swapchain {
             .map(|image| {
                 let create_info = create_info.image(*image);
 
-                match unsafe { device.device().create_image_view(&create_info, None) } {
+                match unsafe { device.raw().create_image_view(&create_info, None) } {
                     Ok(image_view) => Ok(image_view),
                     Err(err) => Err(RtError::CreateImageView(err.into())),
                 }
@@ -201,6 +188,9 @@ impl Swapchain {
 
 impl Drop for Swapchain {
     fn drop(&mut self) {
-        unsafe { self.destroy() }
+        self.image_views.iter().for_each(|image_view| unsafe {
+            self.device.raw().destroy_image_view(*image_view, None)
+        });
+        unsafe { self.loader.destroy_swapchain(self.raw, None) };
     }
 }

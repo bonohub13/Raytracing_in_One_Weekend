@@ -11,7 +11,7 @@ pub struct Texture {
 
 impl Drop for Texture {
     fn drop(&mut self) {
-        let device = self.device.device();
+        let device = self.device.raw();
 
         unsafe {
             device.destroy_sampler(self.sampler, None);

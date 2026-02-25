@@ -51,12 +51,8 @@ impl RenderShaders {
 impl Drop for RenderShaders {
     fn drop(&mut self) {
         unsafe {
-            self.device
-                .device()
-                .destroy_shader_module(self.vertex, None);
-            self.device
-                .device()
-                .destroy_shader_module(self.fragment, None);
+            self.device.raw().destroy_shader_module(self.vertex, None);
+            self.device.raw().destroy_shader_module(self.fragment, None);
         }
     }
 }
@@ -72,7 +68,7 @@ fn load_shader_module(device: Arc<Device>, shader_path: &str) -> RtResult<vk::Sh
     }?;
     let create_info = vk::ShaderModuleCreateInfo::default().code(&shader_payload);
 
-    match unsafe { device.device().create_shader_module(&create_info, None) } {
+    match unsafe { device.raw().create_shader_module(&create_info, None) } {
         Ok(shader_module) => Ok(shader_module),
         Err(err) => Err(RtError::CreateShaderModule(err.into())),
     }

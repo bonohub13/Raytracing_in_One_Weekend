@@ -14,7 +14,7 @@ pub struct SurfaceDescriptor {
 pub struct Surface {
     window: Arc<Window>,
     instance: Arc<Instance>,
-    surface: SurfaceKHR,
+    raw: SurfaceKHR,
 }
 
 impl Surface {
@@ -24,13 +24,13 @@ impl Surface {
         Ok(Self {
             window: desc.window.clone(),
             instance: desc.instance.clone(),
-            surface,
+            raw: surface,
         })
     }
 
     #[inline]
-    pub const fn surface(&self) -> SurfaceKHR {
-        self.surface
+    pub const fn raw(&self) -> SurfaceKHR {
+        self.raw
     }
 
     pub fn inner_size(&self) -> winit::dpi::PhysicalSize<u32> {
@@ -50,7 +50,7 @@ impl Surface {
         match unsafe {
             ash_window::create_surface(
                 desc.instance.entry(),
-                desc.instance.instance(),
+                desc.instance.raw(),
                 raw_display_handle,
                 raw_window_handle,
                 None,
@@ -67,7 +67,7 @@ impl Drop for Surface {
         unsafe {
             self.instance
                 .surface_loader()
-                .destroy_surface(self.surface, None)
+                .destroy_surface(self.raw, None)
         };
     }
 }

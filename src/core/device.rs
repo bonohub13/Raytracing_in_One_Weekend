@@ -3,9 +3,15 @@ use ash::{khr::swapchain, vk};
 use std::{ffi::CStr, sync::Arc};
 
 #[derive(Debug, Clone, Copy, Default)]
-pub struct QueueFamilyIndices {
-    pub graphics_family: Option<u32>,
-    pub present_family: Option<u32>,
+struct QueueFamilyIndices {
+    graphics_family: Option<u32>,
+    present_family: Option<u32>,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct QueueFamilies {
+    pub graphics_family: u32,
+    pub present_family: u32,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -22,8 +28,9 @@ pub struct DeviceDescriptor {
 
 pub struct Device {
     instance: Arc<Instance>,
+    raw: ash::Device,
     physical_device: vk::PhysicalDevice,
-    device: ash::Device,
+    queue_families: QueueFamilies,
     graphics_queue: vk::Queue,
     present_queue: vk::Queue,
 }
@@ -38,7 +45,7 @@ impl QueueFamilyIndices {
 
         for (i, queue_family) in unsafe {
             instance
-                .instance()
+                .raw()
                 .get_physical_device_queue_family_properties(physical_device)
         }
         .iter()
@@ -51,7 +58,7 @@ impl QueueFamilyIndices {
                     .get_physical_device_surface_support(
                         physical_device,
                         current_index,
-                        surface.surface(),
+                        surface.raw(),
                     )
             } {
                 Ok(support) => Ok(support),
@@ -75,7 +82,7 @@ impl QueueFamilyIndices {
     }
 
     #[inline]
-    pub fn is_complete(&self) -> bool {
+    fn is_complete(&self) -> bool {
         self.graphics_family.is_some() && self.present_family.is_some()
     }
 }
@@ -150,7 +157,7 @@ impl SwapchainSupportDetail {
         match unsafe {
             instance
                 .surface_loader()
-                .get_physical_device_surface_capabilities(physical_device, surface.surface())
+                .get_physical_device_surface_capabilities(physical_device, surface.raw())
         } {
             Ok(capabilities) => Ok(capabilities),
             Err(err) => Err(RtError::GetPhysicalDeviceSurfaceCapabilities(err.into())),
@@ -165,7 +172,7 @@ impl SwapchainSupportDetail {
         match unsafe {
             instance
                 .surface_loader()
-                .get_physical_device_surface_formats(physical_device, surface.surface())
+                .get_physical_device_surface_formats(physical_device, surface.raw())
         } {
             Ok(formats) => Ok(formats),
             Err(err) => Err(RtError::GetPhysicalDeviceSurfaceFormats(err.into())),
@@ -180,7 +187,7 @@ impl SwapchainSupportDetail {
         match unsafe {
             instance
                 .surface_loader()
-                .get_physical_device_surface_present_modes(physical_device, surface.surface())
+                .get_physical_device_surface_present_modes(physical_device, surface.raw())
         } {
             Ok(present_modes) => Ok(present_modes),
             Err(err) => Err(RtError::GetPhysicalDeviceSurfacePresentModes(err.into())),
@@ -193,20 +200,38 @@ impl Device {
 
     pub fn new(desc: &DeviceDescriptor) -> RtResult<Self> {
         let physical_device = Self::choose_physical_device(desc)?;
+        let queue_families = {
+            let queue_families = QueueFamilyIndices::find_queue_families(
+                desc.instance.clone(),
+                desc.surface.clone(),
+                physical_device,
+            )?;
+
+            QueueFamilies {
+                graphics_family: queue_families.graphics_family.unwrap(),
+                present_family: queue_families.present_family.unwrap(),
+            }
+        };
         let (device, graphics_queue, present_queue) = Self::create_device(desc, physical_device)?;
 
         Ok(Self {
             instance: desc.instance.clone(),
             physical_device,
-            device,
+            raw: device,
+            queue_families,
             graphics_queue,
             present_queue,
         })
     }
 
     #[inline]
-    pub const fn device(&self) -> &ash::Device {
-        &self.device
+    pub const fn raw(&self) -> &ash::Device {
+        &self.raw
+    }
+
+    #[inline]
+    pub const fn queue_families(&self) -> QueueFamilies {
+        self.queue_families
     }
 
     #[inline]
@@ -220,19 +245,11 @@ impl Device {
     }
 
     pub fn device_wait_idle(&self) -> RtResult<()> {
-        if let Err(err) = unsafe { self.device.device_wait_idle() } {
+        if let Err(err) = unsafe { self.raw.device_wait_idle() } {
             Err(RtError::DeviceWaitIdle(err.into()))
         } else {
             Ok(())
         }
-    }
-
-    pub fn find_queue_families(&self, surface: Arc<Surface>) -> RtResult<QueueFamilyIndices> {
-        QueueFamilyIndices::find_queue_families(
-            self.instance.clone(),
-            surface,
-            self.physical_device,
-        )
     }
 
     pub fn query_swapchain_support(
@@ -250,7 +267,7 @@ impl Device {
         match desc.instance.enumerate_physical_devices() {
             Ok(mut devices) => {
                 devices.sort_by_key(|device| {
-                    Self::rate_device_suitability(desc.instance.instance(), device)
+                    Self::rate_device_suitability(desc.instance.raw(), device)
                 });
                 if let Some(device) = devices
                     .iter()
@@ -309,7 +326,7 @@ impl Device {
             .push_next(&mut syncrhonization2);
         let device = match unsafe {
             desc.instance
-                .instance()
+                .raw()
                 .create_device(physical_device, &device_create_info, None)
         } {
             Ok(device) => Ok(device),
@@ -358,7 +375,7 @@ impl Device {
     ) -> RtResult<bool> {
         let properties = match unsafe {
             desc.instance
-                .instance()
+                .raw()
                 .enumerate_device_extension_properties(physical_device)
         } {
             Ok(properties) => Ok(properties),
@@ -388,7 +405,7 @@ impl Device {
 
         unsafe {
             desc.instance
-                .instance()
+                .raw()
                 .get_physical_device_features2(physical_device, &mut features)
         };
 
@@ -419,6 +436,6 @@ impl Device {
 
 impl Drop for Device {
     fn drop(&mut self) {
-        unsafe { self.device.destroy_device(None) };
+        unsafe { self.raw.destroy_device(None) };
     }
 }
