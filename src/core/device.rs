@@ -1,5 +1,20 @@
+// Copyright 2026 Kensuke
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::core::{RtError, RtResult, instance::Instance, surface::Surface};
 use ash::{khr::swapchain, vk};
+use gpu_allocator::vulkan::{self, Allocator};
 use std::{ffi::CStr, sync::Arc};
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -30,7 +45,9 @@ pub struct Device {
     instance: Arc<Instance>,
     raw: ash::Device,
     physical_device: vk::PhysicalDevice,
+    allocator: Allocator,
     queue_families: QueueFamilies,
+    swapchain_support: SwapchainSupportDetail,
     graphics_queue: vk::Queue,
     present_queue: vk::Queue,
 }
@@ -212,13 +229,22 @@ impl Device {
                 present_family: queue_families.present_family.unwrap(),
             }
         };
+        let swapchain_support = SwapchainSupportDetail::query_swapchain_support(
+            desc.instance.clone(),
+            desc.surface.clone(),
+            physical_device,
+        )?;
         let (device, graphics_queue, present_queue) = Self::create_device(desc, physical_device)?;
+        let allocator =
+            Self::create_allocator(desc.instance.clone(), device.clone(), physical_device)?;
 
         Ok(Self {
             instance: desc.instance.clone(),
             physical_device,
             raw: device,
+            allocator,
             queue_families,
+            swapchain_support,
             graphics_queue,
             present_queue,
         })
@@ -230,8 +256,18 @@ impl Device {
     }
 
     #[inline]
+    pub const fn allocator(&mut self) -> &mut Allocator {
+        &mut self.allocator
+    }
+
+    #[inline]
     pub const fn queue_families(&self) -> QueueFamilies {
         self.queue_families
+    }
+
+    #[inline]
+    pub const fn swapchain_support(&self) -> &SwapchainSupportDetail {
+        &self.swapchain_support
     }
 
     #[inline]
@@ -250,17 +286,6 @@ impl Device {
         } else {
             Ok(())
         }
-    }
-
-    pub fn query_swapchain_support(
-        &self,
-        surface: Arc<Surface>,
-    ) -> RtResult<SwapchainSupportDetail> {
-        SwapchainSupportDetail::query_swapchain_support(
-            self.instance.clone(),
-            surface,
-            self.physical_device,
-        )
     }
 
     fn choose_physical_device(desc: &DeviceDescriptor) -> RtResult<vk::PhysicalDevice> {
@@ -340,6 +365,24 @@ impl Device {
         };
 
         Ok((device, graphics_queue, present_queue))
+    }
+
+    fn create_allocator(
+        instance: Arc<Instance>,
+        device: ash::Device,
+        physical_device: vk::PhysicalDevice,
+    ) -> RtResult<Allocator> {
+        match Allocator::new(&vulkan::AllocatorCreateDesc {
+            instance: instance.raw().clone(),
+            device,
+            physical_device,
+            debug_settings: Default::default(),
+            buffer_device_address: true,
+            allocation_sizes: Default::default(),
+        }) {
+            Ok(allocator) => Ok(allocator),
+            Err(err) => Err(RtError::CreateAllocator(err.into())),
+        }
     }
 
     fn is_suitable_device(

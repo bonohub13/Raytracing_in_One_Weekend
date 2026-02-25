@@ -2,6 +2,9 @@
 name = "Raytracing_in_One_Weekend"
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
+authors = ["Kensuke Saito"]
+repository = "https://github.com/bonohub13/Raytracing_in_One_Weekend"
 
 [dependencies]
 anyhow = "1.0.100"
@@ -12,6 +15,13 @@ glam = "0.31.0"
 gpu-allocator = "0.28.0"
 thiserror = "2.0.18"
 winit = "0.30.12"
+
+[target.x86_64-unknown-linux-gnu]
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+[profile.dev]
+incremental = true
 
 [profile.release]
 strip = true

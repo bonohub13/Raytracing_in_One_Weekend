@@ -16,23 +16,32 @@ SPIRV_OPT_FLAG := --eliminate-dead-code-aggressive \
 				  --eliminate-local-single-block \
 				  -O
 
+METADATA := $(shell $(CARGO) metadata --no-deps --format-version=1)
+AUTHOR   := $(shell echo '$(METADATA)' | jq -r '.packages[0].authors[0]')
+
 all: build build-shaders
 
 build: fmt clippy
-	$(CARGO) build --release
+	$(CARGO) build --target=x86_64-unknown-linux-gnu --release
 
 debug: fmt
-	$(CARGO) clippy
-	$(CARGO) build
+	$(CARGO) check
+	$(CARGO) build --target=x86_64-unknown-linux-gnu
 
 fmt:
 	$(CARGO) fmt
+
+check:
+	$(CARGO) check --all-targets
 
 clippy:
 	$(CARGO) clippy --release
 
 clean:
 	$(CARGO) clean
+
+license:
+	addlicense -c "$(AUTHOR)" -l mit src/
 
 build-shaders:
 	@[ -d ${SPIRV_DIR} ] || mkdir -pv ${SPIRV_DIR}
@@ -44,6 +53,9 @@ build-shader:
 	$(SLANGC) ${SLANG} ${SLANG_FLAG} -entry ${ENTRY} -o $(SLANG:${SHADER_DIR}/%.slang=${SPIRV_DIR}/%.spv)
 	$(SPIRV_OPT) $(SLANG:${SHADER_DIR}/%.slang=${SPIRV_DIR}/%.spv) ${SPIRV_OPT_FLAG} \
 		-o $(SLANG:${SHADER_DIR}/%.slang=${SPIRV_DIR}/%.spv)
+
+docker-license:
+	@TAG="linux" CMD="make license" make docker-exec
 
 docker-build:
 	@TAG="linux" CMD="make build" make docker-exec

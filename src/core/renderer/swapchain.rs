@@ -1,3 +1,17 @@
+// Copyright 2026 Kensuke
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::core::{RtError, RtResult, device::Device, instance::Instance, surface::Surface};
 use ash::{khr::swapchain, vk};
 use std::sync::Arc;
@@ -96,7 +110,7 @@ impl Swapchain {
         device: Arc<Device>,
         surface: Arc<Surface>,
     ) -> RtResult<(vk::SwapchainKHR, vk::Format, vk::Extent2D)> {
-        let swapchain_support = device.query_swapchain_support(surface.clone())?;
+        let swapchain_support = device.swapchain_support();
         let surface_format = swapchain_support.choose_swap_surface_format();
         let present_mode = swapchain_support.choose_swap_present_mode();
         let extent = swapchain_support.choose_swap_extent(surface.inner_size());

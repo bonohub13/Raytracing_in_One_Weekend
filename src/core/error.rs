@@ -1,3 +1,17 @@
+// Copyright 2026 Kensuke
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use std::error::Error;
 
 #[allow(dead_code)]
@@ -27,8 +41,6 @@ pub enum RtError {
     RequiredValidationLayersNotSupported,
     #[error("Failed to enumerate physical devices: `{0}`")]
     EnumeratePhyicalDevices(Box<dyn Error>),
-    #[error("Failed to find any suitable GPU")]
-    NoSuitableDevice,
     #[error("Failed to create surface")]
     CreateSurface(Box<dyn Error>),
     #[error("Failed to get surface support for physical device: `{0}`")]
@@ -39,16 +51,26 @@ pub enum RtError {
     GetPhysicalDeviceSurfaceFormats(Box<dyn Error>),
     #[error("Failed to get surface present modes for physical device: `{0}`")]
     GetPhysicalDeviceSurfacePresentModes(Box<dyn Error>),
+    #[error("Failed to find any suitable GPU")]
+    NoSuitableDevice,
     #[error("Failed to create logical device: `{0}`")]
     CreateDevice(Box<dyn Error>),
     #[error("Failed to wait logical device to idle state: `{0}`")]
     DeviceWaitIdle(Box<dyn Error>),
+    #[error("Failed to create GPU memory allocator: `{0}`")]
+    CreateAllocator(Box<dyn Error>),
+    #[error("Failed to create allocation in GPU memory: `{0}`")]
+    CreateAllocation(Box<dyn Error>),
     #[error("Failed to create swapchain: `{0}`")]
     CreateSwapchain(Box<dyn Error>),
     #[error("Failed to get swapchain images: `{0}`")]
     GetSwapchainImages(Box<dyn Error>),
+    #[error("Failed to create image: `{0}`")]
+    CreateImage(Box<dyn Error>),
     #[error("Failed to create image view: `{0}`")]
     CreateImageView(Box<dyn Error>),
+    #[error("Failed to create sampler: `{0}`")]
+    CreateSampler(Box<dyn Error>),
     #[error("Failed to load shader: `{0}`")]
     LoadShader(Box<dyn Error>),
     #[error("Failed to create shader module: `{0}`")]
