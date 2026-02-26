@@ -51,15 +51,27 @@ impl QueueFamilyIndices {
         physical_device: vk::PhysicalDevice,
     ) -> RtResult<Self> {
         let mut indices = Self::default();
+        let queue_family_properties: Vec<vk::QueueFamilyProperties> = {
+            let count = unsafe {
+                instance
+                    .raw()
+                    .get_physical_device_queue_family_properties2_len(physical_device)
+            };
+            let mut properties = vec![vk::QueueFamilyProperties2::default(); count];
 
-        for (i, queue_family) in unsafe {
-            instance
-                .raw()
-                .get_physical_device_queue_family_properties(physical_device)
-        }
-        .iter()
-        .enumerate()
-        {
+            unsafe {
+                instance
+                    .raw()
+                    .get_physical_device_queue_family_properties2(physical_device, &mut properties)
+            };
+
+            properties
+                .iter()
+                .map(|property| property.queue_family_properties)
+                .collect()
+        };
+
+        for (i, queue_family) in queue_family_properties.iter().enumerate() {
             let current_index = i as u32;
             let present_support = unsafe {
                 instance
@@ -441,8 +453,20 @@ impl Device {
         instance: &ash::Instance,
         physical_device: &vk::PhysicalDevice,
     ) -> u32 {
-        let properties = unsafe { instance.get_physical_device_properties(*physical_device) };
-        let features = unsafe { instance.get_physical_device_features(*physical_device) };
+        let properties = {
+            let mut properties = vk::PhysicalDeviceProperties2::default();
+
+            unsafe { instance.get_physical_device_properties2(*physical_device, &mut properties) };
+
+            properties.properties
+        };
+        let features = {
+            let mut features = vk::PhysicalDeviceFeatures2::default();
+
+            unsafe { instance.get_physical_device_features2(*physical_device, &mut features) };
+
+            features.features
+        };
         let mut score = properties.limits.max_image_dimension2_d;
 
         if properties.device_type == vk::PhysicalDeviceType::DISCRETE_GPU {
