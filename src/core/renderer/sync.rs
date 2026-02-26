@@ -42,6 +42,21 @@ impl SyncObject {
         })
     }
 
+    #[inline]
+    pub const fn image_available_semaphores(&self) -> &[vk::Semaphore] {
+        self.image_available_semaphores.as_slice()
+    }
+
+    #[inline]
+    pub const fn render_finished_semaphores(&self) -> &[vk::Semaphore] {
+        self.render_finished_semaphores.as_slice()
+    }
+
+    #[inline]
+    pub const fn in_flight_fences(&self) -> &[vk::Fence] {
+        self.in_flight_fences.as_slice()
+    }
+
     pub fn wait_for_fences(&self, current_frame: usize) -> RtResult<()> {
         if let Err(err) = unsafe {
             self.device.raw().wait_for_fences(
@@ -68,37 +83,7 @@ impl SyncObject {
         }
     }
 
-    pub fn acquire_next_image(
-        &mut self,
-        swapchain: &mut Arc<Swapchain>,
-        current_frame: usize,
-    ) -> RtResult<Option<(usize, bool)>> {
-        let image_info = vk::AcquireNextImageInfoKHR::default()
-            .swapchain(swapchain.raw())
-            .timeout(u64::MAX)
-            .semaphore(self.image_available_semaphores[current_frame])
-            .fence(vk::Fence::null())
-            .device_mask(1);
-
-        match unsafe { swapchain.loader().acquire_next_image2(&image_info) } {
-            Ok((image_index, is_suboptimal)) => Ok(Some((image_index as usize, is_suboptimal))),
-            Err(err) => match err {
-                vk::Result::ERROR_OUT_OF_DATE_KHR => {
-                    swapchain.recreate_swapchain().map(|new_swapchain| {
-                        *swapchain = Arc::new(new_swapchain);
-                        Ok(None)
-                    })?
-                }
-                _ => Err(RtError::AcquireNextImage(err.into())),
-            },
-        }
-    }
-
-    pub fn graphics_queue_submit(
-        &self,
-        command: Arc<Command>,
-        current_frame: usize,
-    ) -> RtResult<()> {
+    pub fn graphics_queue_submit(&self, command: &Command, current_frame: usize) -> RtResult<()> {
         let wait_info = vk::SemaphoreSubmitInfo::default()
             .semaphore(self.image_available_semaphores[current_frame])
             .stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
@@ -132,7 +117,7 @@ impl SyncObject {
 
     pub fn present_queue(
         &self,
-        swapchain: Arc<Swapchain>,
+        swapchain: &Swapchain,
         image_index: u32,
         current_frame: usize,
     ) -> RtResult<bool> {

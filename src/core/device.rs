@@ -1,7 +1,7 @@
 // Copyright 2026 Kensuke Saito
 // SPDX-License-Identifier: MIT
 
-use crate::core::{instance::Instance, surface::Surface, RtError, RtResult};
+use crate::core::{RtError, RtResult, instance::Instance, surface::Surface};
 use ash::{khr::swapchain, vk};
 use gpu_allocator::vulkan::{self, Allocator};
 use std::{
@@ -37,7 +37,7 @@ pub struct Device {
     instance: Arc<Instance>,
     raw: ash::Device,
     physical_device: vk::PhysicalDevice,
-    allocator: Mutex<Allocator>,
+    allocator: Option<Mutex<Allocator>>,
     queue_families: QueueFamilies,
     swapchain_support: SwapchainSupportDetail,
     graphics_queue: vk::Queue,
@@ -231,11 +231,11 @@ impl Device {
             physical_device,
         )?;
         let (device, graphics_queue, present_queue) = Self::create_device(desc, physical_device)?;
-        let allocator = Mutex::new(Self::create_allocator(
+        let allocator = Some(Mutex::new(Self::create_allocator(
             desc.instance.clone(),
             device.clone(),
             physical_device,
-        )?);
+        )?));
 
         Ok(Self {
             instance: desc.instance.clone(),
@@ -254,9 +254,13 @@ impl Device {
         &self.raw
     }
 
+    /// If this is called AFTER Device has been dropped, it will panic since
+    /// it is set to NONE.
+    /// However, if Device has been dropped, other resources are also no longer
+    /// available, making this a non-issue
     #[inline]
     pub const fn allocator(&self) -> &Mutex<Allocator> {
-        &self.allocator
+        self.allocator.as_ref().expect("Allocator doesn't exist")
     }
 
     #[inline]
@@ -337,6 +341,8 @@ impl Device {
             vk::PhysicalDeviceDynamicRenderingFeatures::default().dynamic_rendering(true);
         let mut syncrhonization2 =
             vk::PhysicalDeviceSynchronization2Features::default().synchronization2(true);
+        let mut buffer_device_address =
+            vk::PhysicalDeviceBufferDeviceAddressFeatures::default().buffer_device_address(true);
         let extension_names: Vec<*const i8> = Self::DEVICE_EXTENSIONS
             .iter()
             .map(|extension| extension.as_ptr())
@@ -346,7 +352,8 @@ impl Device {
             .enabled_extension_names(&extension_names)
             .push_next(&mut shader_draw_parameters)
             .push_next(&mut dynamic_rendering)
-            .push_next(&mut syncrhonization2);
+            .push_next(&mut syncrhonization2)
+            .push_next(&mut buffer_device_address);
         let device = unsafe {
             desc.instance
                 .raw()
@@ -433,10 +440,12 @@ impl Device {
         let mut shader_draw_parameters = vk::PhysicalDeviceShaderDrawParametersFeatures::default();
         let mut dynamic_rendering = vk::PhysicalDeviceDynamicRenderingFeatures::default();
         let mut syncrhonization2 = vk::PhysicalDeviceSynchronization2Features::default();
+        let mut buffer_device_address = vk::PhysicalDeviceBufferDeviceAddressFeatures::default();
         let mut features = vk::PhysicalDeviceFeatures2::default()
             .push_next(&mut shader_draw_parameters)
             .push_next(&mut dynamic_rendering)
-            .push_next(&mut syncrhonization2);
+            .push_next(&mut syncrhonization2)
+            .push_next(&mut buffer_device_address);
 
         unsafe {
             desc.instance
@@ -447,6 +456,7 @@ impl Device {
         (shader_draw_parameters.shader_draw_parameters == vk::TRUE)
             && (dynamic_rendering.dynamic_rendering == vk::TRUE)
             && (syncrhonization2.synchronization2 == vk::TRUE)
+            && (buffer_device_address.buffer_device_address == vk::TRUE)
     }
 
     fn rate_device_suitability(
@@ -483,6 +493,9 @@ impl Device {
 
 impl Drop for Device {
     fn drop(&mut self) {
+        if let Some(allocator) = self.allocator.take() {
+            drop(allocator);
+        }
         unsafe { self.raw.destroy_device(None) };
     }
 }

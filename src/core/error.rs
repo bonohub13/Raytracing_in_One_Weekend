@@ -96,6 +96,12 @@ pub enum RtError {
     SubmitQueue(Box<dyn Error>),
     #[error("Failed to present queue: `{0}`")]
     QueuePresent(Box<dyn Error>),
+    #[error("Failed to create descriptor set layout: `{0}`")]
+    CreateDescriptorSetLayout(Box<dyn Error>),
+    #[error("Failed to create descriptor pool: `{0}`")]
+    CreateDescriptorPool(Box<dyn Error>),
+    #[error("Failed to allocate descriptor sets: `{0}`")]
+    AllocateDescriptorSets(Box<dyn Error>),
 }
 
 pub type RtResult<T> = Result<T, RtError>;

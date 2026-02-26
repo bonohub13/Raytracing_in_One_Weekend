@@ -1,7 +1,9 @@
 // Copyright 2026 Kensuke Saito
 // SPDX-License-Identifier: MIT
 
-use crate::core::{RtError, RtResult, device::Device, instance::Instance, surface::Surface};
+use crate::core::{
+    RtError, RtResult, device::Device, instance::Instance, renderer::sync, surface::Surface,
+};
 use ash::{khr::swapchain, vk};
 use std::sync::Arc;
 
@@ -73,25 +75,47 @@ impl Swapchain {
         self.image_views.as_slice()
     }
 
-    pub fn recreate_swapchain(&self) -> RtResult<Self> {
+    pub fn recreate_swapchain(&mut self) -> RtResult<()> {
         self.device.device_wait_idle()?;
-
-        let (raw, image_format, extent) =
+        unsafe { self.destroy() };
+        (self.raw, self.image_format, self.extent) =
             Self::create_swapchain(&self.loader, self.device.clone(), self.surface.clone())?;
-        let images = Self::create_swapchain_images(&self.loader, raw)?;
-        let image_views =
-            Self::create_swapchain_image_views(self.device.clone(), image_format, &images)?;
+        self.images = Self::create_swapchain_images(&self.loader, self.raw)?;
+        self.image_views = Self::create_swapchain_image_views(
+            self.device.clone(),
+            self.image_format,
+            &self.images,
+        )?;
 
-        Ok(Self {
-            surface: self.surface.clone(),
-            device: self.device.clone(),
-            loader: self.loader.clone(),
-            raw,
-            image_format,
-            extent,
-            images,
-            image_views,
-        })
+        Ok(())
+    }
+
+    pub fn acquire_next_image(
+        &mut self,
+        sync_object: &sync::SyncObject,
+        current_frame: usize,
+    ) -> RtResult<Option<(usize, bool)>> {
+        let image_info = vk::AcquireNextImageInfoKHR::default()
+            .swapchain(self.raw)
+            .timeout(u64::MAX)
+            .semaphore(sync_object.image_available_semaphores()[current_frame])
+            .fence(vk::Fence::null())
+            .device_mask(1);
+
+        match unsafe { self.loader.acquire_next_image2(&image_info) } {
+            Ok((image_index, is_suboptimal)) => Ok(Some((image_index as usize, is_suboptimal))),
+            Err(err) => match err {
+                vk::Result::ERROR_OUT_OF_DATE_KHR => self.recreate_swapchain().map(|_| None),
+                _ => Err(RtError::AcquireNextImage(err.into())),
+            },
+        }
+    }
+
+    unsafe fn destroy(&mut self) {
+        self.image_views.iter().for_each(|image_view| unsafe {
+            self.device.raw().destroy_image_view(*image_view, None)
+        });
+        unsafe { self.loader.destroy_swapchain(self.raw, None) };
     }
 
     fn create_swapchain(
@@ -187,9 +211,6 @@ impl Swapchain {
 
 impl Drop for Swapchain {
     fn drop(&mut self) {
-        self.image_views.iter().for_each(|image_view| unsafe {
-            self.device.raw().destroy_image_view(*image_view, None)
-        });
-        unsafe { self.loader.destroy_swapchain(self.raw, None) };
+        unsafe { self.destroy() }
     }
 }

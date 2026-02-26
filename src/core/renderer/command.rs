@@ -5,13 +5,28 @@ use crate::core::{
     RtError, RtResult,
     device::Device,
     params,
-    renderer::{path_tracer, swapchain::Swapchain},
+    renderer::{
+        buffer::{DescriptorSet, GraphicsBuffer},
+        path_tracer,
+        swapchain::Swapchain,
+    },
 };
 use ash::vk;
 use std::sync::Arc;
 
 pub struct CommandDescriptor {
     pub device: Arc<Device>,
+}
+
+pub struct CommandRecordDescriptor<'desc> {
+    pub swapchain: &'desc Swapchain,
+    pub descriptor_set: &'desc DescriptorSet,
+    pub graphics_buffer: &'desc GraphicsBuffer,
+
+    pub pipeline_layout: vk::PipelineLayout,
+    pub pipeline: path_tracer::Pipeline,
+    pub image_index: usize,
+    pub current_frame: usize,
 }
 
 pub struct Command {
@@ -21,6 +36,14 @@ pub struct Command {
 }
 
 impl Command {
+    const SUBRESOURCE_RANGE: vk::ImageSubresourceRange = vk::ImageSubresourceRange {
+        aspect_mask: vk::ImageAspectFlags::COLOR,
+        base_mip_level: 0,
+        level_count: 1,
+        base_array_layer: 0,
+        layer_count: 1,
+    };
+
     pub fn new(desc: &CommandDescriptor) -> RtResult<Self> {
         let pool = Self::create_command_pool(desc)?;
         let buffers: Vec<vk::CommandBuffer> = (0..params::MAX_FRAMES_IN_FLIGHT)
@@ -39,26 +62,33 @@ impl Command {
         self.buffers.as_slice()
     }
 
-    pub fn record_command_buffer(
-        &self,
-        swapchain: Arc<Swapchain>,
-        pipeline: path_tracer::Pipeline,
-        image_index: usize,
-        current_frame: usize,
-    ) -> RtResult<()> {
-        self.begin_command_buffer(current_frame)?;
-        self.transition_to_color_attachment(swapchain.clone(), image_index, current_frame)?;
-        self.begin_rendering(swapchain.clone(), image_index, current_frame)?;
-        self.bind_pipeline(pipeline, current_frame);
-        self.set_viewport_and_scissor(swapchain.clone(), current_frame)?;
+    pub fn record_command_buffer(&self, desc: &CommandRecordDescriptor) -> RtResult<()> {
+        self.begin_command_buffer(desc.current_frame)?;
+        self.transition_texture_to_read_only(desc.graphics_buffer, desc.current_frame)?;
+        self.transition_surface_to_color_attachment(
+            desc.swapchain,
+            desc.image_index,
+            desc.current_frame,
+        )?;
+        self.begin_rendering(desc.swapchain, desc.image_index, desc.current_frame)?;
+        self.bind_pipeline(desc.pipeline, desc.current_frame);
+        self.set_viewport_and_scissor(desc.swapchain, desc.current_frame)?;
         unsafe {
+            self.device.raw().cmd_bind_descriptor_sets(
+                self.buffers[desc.current_frame],
+                vk::PipelineBindPoint::GRAPHICS,
+                desc.pipeline_layout,
+                0,
+                std::slice::from_ref(&desc.descriptor_set.graphics_sets()[desc.current_frame]),
+                &[],
+            );
             self.device
                 .raw()
-                .cmd_draw(self.buffers[current_frame], 3, 1, 0, 0)
-        };
-        self.end_rendering(current_frame);
-        self.transition_to_present(swapchain, image_index, current_frame)?;
-        self.end_command_buffer(current_frame)
+                .cmd_draw(self.buffers[desc.current_frame], 3, 1, 0, 0);
+        }
+        self.end_rendering(desc.current_frame);
+        self.transition_surface_to_present(desc.swapchain, desc.image_index, desc.current_frame)?;
+        self.end_command_buffer(desc.current_frame)
     }
 
     pub fn reset_command_buffer(&self, current_frame: usize) -> RtResult<()> {
@@ -74,31 +104,12 @@ impl Command {
         }
     }
 
-    fn transition_to_color_attachment(
+    fn transition_texture_to_read_only(
         &self,
-        swapchain: Arc<Swapchain>,
-        image_index: usize,
+        graphics_buffer: &GraphicsBuffer,
         current_frame: usize,
     ) -> RtResult<()> {
-        const SUBRESOURCE_RANGE: vk::ImageSubresourceRange = vk::ImageSubresourceRange {
-            aspect_mask: vk::ImageAspectFlags::COLOR,
-            base_mip_level: 0,
-            level_count: 1,
-            base_array_layer: 0,
-            layer_count: 1,
-        };
-
-        let barrier = vk::ImageMemoryBarrier2::default()
-            .src_stage_mask(vk::PipelineStageFlags2::NONE)
-            .src_access_mask(vk::AccessFlags2::NONE)
-            .dst_stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
-            .dst_access_mask(
-                vk::AccessFlags2::COLOR_ATTACHMENT_WRITE | vk::AccessFlags2::COLOR_ATTACHMENT_READ,
-            )
-            .old_layout(vk::ImageLayout::UNDEFINED)
-            .new_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
-            .image(swapchain.images()[image_index])
-            .subresource_range(SUBRESOURCE_RANGE);
+        let barrier = graphics_buffer.render_transition_barrier(current_frame);
         let dependency_info =
             vk::DependencyInfo::default().image_memory_barriers(std::slice::from_ref(&barrier));
 
@@ -111,20 +122,41 @@ impl Command {
         Ok(())
     }
 
-    fn transition_to_present(
+    fn transition_surface_to_color_attachment(
         &self,
-        swapchain: Arc<Swapchain>,
+        swapchain: &Swapchain,
         image_index: usize,
         current_frame: usize,
     ) -> RtResult<()> {
-        const SUBRESOURCE_RANGE: vk::ImageSubresourceRange = vk::ImageSubresourceRange {
-            aspect_mask: vk::ImageAspectFlags::COLOR,
-            base_mip_level: 0,
-            level_count: 1,
-            base_array_layer: 0,
-            layer_count: 1,
+        let barrier = vk::ImageMemoryBarrier2::default()
+            .src_stage_mask(vk::PipelineStageFlags2::NONE)
+            .src_access_mask(vk::AccessFlags2::NONE)
+            .dst_stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
+            .dst_access_mask(
+                vk::AccessFlags2::COLOR_ATTACHMENT_WRITE | vk::AccessFlags2::COLOR_ATTACHMENT_READ,
+            )
+            .old_layout(vk::ImageLayout::UNDEFINED)
+            .new_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+            .image(swapchain.images()[image_index])
+            .subresource_range(Self::SUBRESOURCE_RANGE);
+        let dependency_info =
+            vk::DependencyInfo::default().image_memory_barriers(std::slice::from_ref(&barrier));
+
+        unsafe {
+            self.device
+                .raw()
+                .cmd_pipeline_barrier2(self.buffers[current_frame], &dependency_info)
         };
 
+        Ok(())
+    }
+
+    fn transition_surface_to_present(
+        &self,
+        swapchain: &Swapchain,
+        image_index: usize,
+        current_frame: usize,
+    ) -> RtResult<()> {
         let barrier = vk::ImageMemoryBarrier2::default()
             .src_stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
             .src_access_mask(vk::AccessFlags2::COLOR_ATTACHMENT_WRITE)
@@ -133,7 +165,7 @@ impl Command {
             .old_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
             .new_layout(vk::ImageLayout::PRESENT_SRC_KHR)
             .image(swapchain.images()[image_index])
-            .subresource_range(SUBRESOURCE_RANGE);
+            .subresource_range(Self::SUBRESOURCE_RANGE);
         let dependency_info =
             vk::DependencyInfo::default().image_memory_barriers(std::slice::from_ref(&barrier));
 
@@ -174,7 +206,7 @@ impl Command {
 
     fn begin_rendering(
         &self,
-        swapchain: Arc<Swapchain>,
+        swapchain: &Swapchain,
         image_index: usize,
         current_frame: usize,
     ) -> RtResult<()> {
@@ -233,7 +265,7 @@ impl Command {
 
     fn set_viewport_and_scissor(
         &self,
-        swapchain: Arc<Swapchain>,
+        swapchain: &Swapchain,
         current_frame: usize,
     ) -> RtResult<()> {
         let swapchain_extent = swapchain.extent();

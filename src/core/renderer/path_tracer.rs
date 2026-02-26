@@ -7,6 +7,7 @@ use crate::core::{
     instance::Instance,
     params,
     renderer::{
+        buffer::{self, DescriptorSet, GraphicsBuffer},
         command::{self, Command},
         shader::{self},
         swapchain::{Swapchain, SwapchainDescriptor},
@@ -32,10 +33,12 @@ pub struct PathTracer {
     image_index: usize,
     current_frame: usize,
     sync_object: SyncObject,
-    command: Arc<Command>,
+    command: Command,
     graphics_pipeline: Pipeline,
     pipeline_layout: vk::PipelineLayout,
-    swapchain: Arc<Swapchain>,
+    descriptor_set: DescriptorSet,
+    graphics_buffer: GraphicsBuffer,
+    swapchain: Swapchain,
     device: Arc<Device>,
 }
 
@@ -48,18 +51,28 @@ impl Pipeline {
 }
 
 impl PathTracer {
+    const PROJECTION_TEXTURE_NAME: &str = "Frame image texture";
     pub fn new(desc: &PathTracerDescriptor) -> RtResult<Self> {
-        let swapchain = Arc::new(Swapchain::new(&SwapchainDescriptor {
+        let swapchain = Swapchain::new(&SwapchainDescriptor {
             instance: desc.instance.clone(),
-            device: desc.device.clone(),
             surface: desc.surface.clone(),
-        })?);
-        let pipeline_layout = Self::create_pipeline_layout(desc.device.clone())?;
-        let graphics_pipeline =
-            Self::create_graphics_pipeline(swapchain.clone(), pipeline_layout, desc)?;
-        let command = Arc::new(Command::new(&command::CommandDescriptor {
             device: desc.device.clone(),
-        })?);
+        })?;
+        let graphics_buffer = GraphicsBuffer::new(&buffer::GraphicsBufferDescriptor {
+            projection_texture_name: Self::PROJECTION_TEXTURE_NAME,
+            surface: desc.surface.clone(),
+            device: desc.device.clone(),
+        })?;
+        let descriptor_set = DescriptorSet::new(&buffer::DescriptorSetDescriptor {
+            device: desc.device.clone(),
+            bindings: &[GraphicsBuffer::layout_bindings()].concat(),
+        })?;
+        let pipeline_layout =
+            Self::create_pipeline_layout(desc.device.clone(), &[descriptor_set.layout()])?;
+        let graphics_pipeline = Self::create_graphics_pipeline(&swapchain, pipeline_layout, desc)?;
+        let command = Command::new(&command::CommandDescriptor {
+            device: desc.device.clone(),
+        })?;
         let sync_object = SyncObject::new(&sync::SyncObjectDescriptor {
             device: desc.device.clone(),
         })?;
@@ -67,6 +80,8 @@ impl PathTracer {
         Ok(Self {
             device: desc.device.clone(),
             swapchain,
+            graphics_buffer,
+            descriptor_set,
             pipeline_layout,
             graphics_pipeline,
             command,
@@ -77,7 +92,7 @@ impl PathTracer {
     }
 
     pub fn resize(&mut self) -> RtResult<()> {
-        self.swapchain = self.swapchain.recreate_swapchain()?.into();
+        self.swapchain.recreate_swapchain()?;
 
         Ok(())
     }
@@ -86,22 +101,26 @@ impl PathTracer {
         self.sync_object.wait_for_fences(self.current_frame)?;
         self.sync_object.reset_fences(self.current_frame)?;
         if let Some((image_index, _is_suboptimal)) = self
-            .sync_object
-            .acquire_next_image(&mut self.swapchain, self.current_frame)?
+            .swapchain
+            .acquire_next_image(&self.sync_object, self.current_frame)?
         {
             self.image_index = image_index;
         }
         self.command.reset_command_buffer(self.current_frame)?;
-        self.command.record_command_buffer(
-            self.swapchain.clone(),
-            self.graphics_pipeline,
-            self.image_index,
-            self.current_frame,
-        )?;
+        self.command
+            .record_command_buffer(&command::CommandRecordDescriptor {
+                swapchain: &self.swapchain,
+                descriptor_set: &self.descriptor_set,
+                graphics_buffer: &self.graphics_buffer,
+                pipeline_layout: self.pipeline_layout,
+                pipeline: self.graphics_pipeline,
+                image_index: self.image_index,
+                current_frame: self.current_frame,
+            })?;
         self.sync_object
-            .graphics_queue_submit(self.command.clone(), self.current_frame)?;
+            .graphics_queue_submit(&self.command, self.current_frame)?;
         let _ = self.sync_object.present_queue(
-            self.swapchain.clone(),
+            &self.swapchain,
             self.image_index as u32,
             self.current_frame,
         )?;
@@ -111,8 +130,11 @@ impl PathTracer {
         Ok(())
     }
 
-    fn create_pipeline_layout(device: Arc<Device>) -> RtResult<vk::PipelineLayout> {
-        let create_info = vk::PipelineLayoutCreateInfo::default();
+    fn create_pipeline_layout(
+        device: Arc<Device>,
+        set_layouts: &[vk::DescriptorSetLayout],
+    ) -> RtResult<vk::PipelineLayout> {
+        let create_info = vk::PipelineLayoutCreateInfo::default().set_layouts(set_layouts);
 
         match unsafe { device.raw().create_pipeline_layout(&create_info, None) } {
             Ok(layout) => Ok(layout),
@@ -121,7 +143,7 @@ impl PathTracer {
     }
 
     fn create_graphics_pipeline(
-        swapchain: Arc<Swapchain>,
+        swapchain: &Swapchain,
         pipeline_layout: vk::PipelineLayout,
         desc: &PathTracerDescriptor,
     ) -> RtResult<Pipeline> {

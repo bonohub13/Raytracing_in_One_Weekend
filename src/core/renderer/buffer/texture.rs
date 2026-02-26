@@ -10,7 +10,7 @@ use crate::core::{
 };
 use ash::vk;
 use gpu_allocator::vulkan::{self, Allocation};
-use std::sync::Arc;
+use std::sync::{Arc, MutexGuard};
 
 pub struct TextureDescriptor<'desc> {
     pub name: &'desc str,
@@ -47,7 +47,7 @@ impl Texture {
             .map(|image| Self::create_image_view(desc.device.clone(), *image))
             .collect::<RtResult<_>>()?;
         let samplers: Vec<vk::Sampler> = (0..params::MAX_FRAMES_IN_FLIGHT)
-            .map(|_| Self::create_sampler())
+            .map(|_| Self::create_sampler(desc.device.clone()))
             .collect::<RtResult<_>>()?;
 
         Ok(Self {
@@ -73,6 +73,19 @@ impl Texture {
     #[inline]
     pub const fn samplers(&self) -> &[vk::Sampler] {
         self.samplers.as_slice()
+    }
+
+    pub fn read_only_image_info(&self, current_frame: usize) -> vk::DescriptorImageInfo {
+        vk::DescriptorImageInfo::default()
+            .sampler(self.samplers[current_frame])
+            .image_view(self.image_views[current_frame])
+            .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
+    }
+
+    pub fn storage_image_info(&self, current_frame: usize) -> vk::DescriptorImageInfo {
+        vk::DescriptorImageInfo::default()
+            .image_view(self.image_views[current_frame])
+            .image_layout(vk::ImageLayout::GENERAL)
     }
 
     fn create_image(surface: Arc<Surface>, device: Arc<Device>) -> RtResult<vk::Image> {
@@ -171,8 +184,24 @@ impl Texture {
             .map_err(|err| RtError::CreateImageView(err.into()))
     }
 
-    fn create_sampler() -> RtResult<vk::Sampler> {
-        todo!()
+    fn create_sampler(device: Arc<Device>) -> RtResult<vk::Sampler> {
+        let create_info = vk::SamplerCreateInfo::default()
+            .mag_filter(vk::Filter::LINEAR)
+            .min_filter(vk::Filter::LINEAR)
+            .mipmap_mode(vk::SamplerMipmapMode::LINEAR)
+            .address_mode_u(vk::SamplerAddressMode::CLAMP_TO_EDGE)
+            .address_mode_v(vk::SamplerAddressMode::CLAMP_TO_EDGE)
+            .address_mode_w(vk::SamplerAddressMode::CLAMP_TO_EDGE)
+            .anisotropy_enable(false)
+            .max_anisotropy(1f32)
+            .border_color(vk::BorderColor::FLOAT_OPAQUE_BLACK)
+            .unnormalized_coordinates(false)
+            .compare_enable(false)
+            .min_lod(0f32)
+            .max_lod(0f32);
+
+        unsafe { device.raw().create_sampler(&create_info, None) }
+            .map_err(|err| RtError::CreateSampler(err.into()))
     }
 }
 
@@ -200,6 +229,7 @@ impl Drop for Texture {
         }) {
             eprintln!("{err}");
         }
+        drop(guard);
         self.images
             .iter()
             .for_each(|image| unsafe { device.destroy_image(*image, None) });
