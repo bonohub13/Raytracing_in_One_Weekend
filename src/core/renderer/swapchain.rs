@@ -147,10 +147,8 @@ impl Swapchain {
         loader: &swapchain::Device,
         swapchain: vk::SwapchainKHR,
     ) -> RtResult<Vec<vk::Image>> {
-        match unsafe { loader.get_swapchain_images(swapchain) } {
-            Ok(images) => Ok(images),
-            Err(err) => Err(RtError::GetSwapchainImages(err.into())),
-        }
+        unsafe { loader.get_swapchain_images(swapchain) }
+            .map_err(|err| RtError::GetSwapchainImages(err.into()))
     }
 
     fn create_swapchain_image_views(
@@ -180,10 +178,8 @@ impl Swapchain {
             .map(|image| {
                 let create_info = create_info.image(*image);
 
-                match unsafe { device.raw().create_image_view(&create_info, None) } {
-                    Ok(image_view) => Ok(image_view),
-                    Err(err) => Err(RtError::CreateImageView(err.into())),
-                }
+                unsafe { device.raw().create_image_view(&create_info, None) }
+                    .map_err(|err| RtError::CreateImageView(err.into()))
             })
             .collect()
     }

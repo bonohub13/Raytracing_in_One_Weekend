@@ -41,16 +41,18 @@ impl Surface {
     }
 
     fn create_surface(desc: &SurfaceDescriptor) -> RtResult<SurfaceKHR> {
-        let raw_window_handle = match desc.window.window_handle() {
-            Ok(window_handle) => Ok(window_handle.as_raw()),
-            Err(err) => Err(RtError::WindowHandle(err.into())),
-        }?;
-        let raw_display_handle = match desc.window.display_handle() {
-            Ok(display_handle) => Ok(display_handle.as_raw()),
-            Err(err) => Err(RtError::DisplayHandle(err.into())),
-        }?;
+        let raw_window_handle = desc
+            .window
+            .window_handle()
+            .map_err(|err| RtError::WindowHandle(err.into()))?
+            .as_raw();
+        let raw_display_handle = desc
+            .window
+            .display_handle()
+            .map_err(|err| RtError::DisplayHandle(err.into()))?
+            .as_raw();
 
-        match unsafe {
+        unsafe {
             ash_window::create_surface(
                 desc.instance.entry(),
                 desc.instance.raw(),
@@ -58,10 +60,8 @@ impl Surface {
                 raw_window_handle,
                 None,
             )
-        } {
-            Ok(surface) => Ok(surface),
-            Err(err) => Err(RtError::CreateSurface(err.into())),
         }
+        .map_err(|err| RtError::CreateSurface(err.into()))
     }
 }
 

@@ -83,14 +83,12 @@ impl SyncObject {
         match unsafe { swapchain.loader().acquire_next_image2(&image_info) } {
             Ok((image_index, is_suboptimal)) => Ok(Some((image_index as usize, is_suboptimal))),
             Err(err) => match err {
-                vk::Result::ERROR_OUT_OF_DATE_KHR => match swapchain.recreate_swapchain() {
-                    Ok(new_swapchain) => {
+                vk::Result::ERROR_OUT_OF_DATE_KHR => {
+                    swapchain.recreate_swapchain().map(|new_swapchain| {
                         *swapchain = Arc::new(new_swapchain);
-
                         Ok(None)
-                    }
-                    Err(err) => Err(err),
-                },
+                    })?
+                }
                 _ => Err(RtError::AcquireNextImage(err.into())),
             },
         }
@@ -146,32 +144,26 @@ impl SyncObject {
             .swapchains(&swapchains)
             .image_indices(std::slice::from_ref(&image_index));
 
-        match unsafe {
+        unsafe {
             swapchain
                 .loader()
                 .queue_present(self.device.present_queue(), &present_info)
-        } {
-            Ok(queue_presented) => Ok(queue_presented),
-            Err(err) => Err(RtError::QueuePresent(err.into())),
         }
+        .map_err(|err| RtError::QueuePresent(err.into()))
     }
 
     fn create_semaphore(desc: &SyncObjectDescriptor) -> RtResult<vk::Semaphore> {
         let create_info = vk::SemaphoreCreateInfo::default();
 
-        match unsafe { desc.device.raw().create_semaphore(&create_info, None) } {
-            Ok(semaphore) => Ok(semaphore),
-            Err(err) => Err(RtError::CreateSemaphore(err.into())),
-        }
+        unsafe { desc.device.raw().create_semaphore(&create_info, None) }
+            .map_err(|err| RtError::CreateSemaphore(err.into()))
     }
 
     fn create_fence(desc: &SyncObjectDescriptor) -> RtResult<vk::Fence> {
         let create_info = vk::FenceCreateInfo::default().flags(vk::FenceCreateFlags::SIGNALED);
 
-        match unsafe { desc.device.raw().create_fence(&create_info, None) } {
-            Ok(fence) => Ok(fence),
-            Err(err) => Err(RtError::CreateFence(err.into())),
-        }
+        unsafe { desc.device.raw().create_fence(&create_info, None) }
+            .map_err(|err| RtError::CreateFence(err.into()))
     }
 }
 

@@ -1,7 +1,13 @@
 // Copyright 2026 Kensuke Saito
 // SPDX-License-Identifier: MIT
 
-use crate::core::{RtError, RtResult, device::Device, params, surface::Surface, util::lock_mutex};
+use crate::core::{
+    RtError, RtResult,
+    device::Device,
+    params,
+    surface::Surface,
+    util::{lock_mutex, lock_mutex_with_fallback},
+};
 use ash::vk;
 use gpu_allocator::vulkan::{self, Allocation};
 use std::sync::Arc;
@@ -92,10 +98,8 @@ impl Texture {
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
             .initial_layout(vk::ImageLayout::UNDEFINED);
 
-        match unsafe { device.raw().create_image(&create_info, None) } {
-            Ok(image) => Ok(image),
-            Err(err) => Err(RtError::CreateImage(err.into())),
-        }
+        unsafe { device.raw().create_image(&create_info, None) }
+            .map_err(|err| RtError::CreateImage(err.into()))
     }
 
     fn create_allocation(
@@ -163,10 +167,8 @@ impl Texture {
             .format(vk::Format::R32G32B32A32_SFLOAT)
             .subresource_range(SUBRESOUCE_RANGE);
 
-        match unsafe { device.raw().create_image_view(&create_info, None) } {
-            Ok(image_view) => Ok(image_view),
-            Err(err) => Err(RtError::CreateImageView(err.into())),
-        }
+        unsafe { device.raw().create_image_view(&create_info, None) }
+            .map_err(|err| RtError::CreateImageView(err.into()))
     }
 
     fn create_sampler() -> RtResult<vk::Sampler> {
@@ -177,14 +179,7 @@ impl Texture {
 impl Drop for Texture {
     fn drop(&mut self) {
         let device = self.device.raw();
-        let mut guard = match self.device.allocator().lock() {
-            Ok(guard) => guard,
-            Err(err) => {
-                eprintln!("{}", RtError::MutexLock(err.to_string()));
-
-                err.into_inner()
-            }
-        };
+        let mut guard = lock_mutex_with_fallback!(self.device.allocator());
 
         self.samplers
             .iter()

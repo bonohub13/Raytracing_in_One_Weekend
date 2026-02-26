@@ -63,10 +63,8 @@ impl Instance {
     }
 
     pub fn enumerate_physical_devices(&self) -> RtResult<Vec<vk::PhysicalDevice>> {
-        match unsafe { self.raw.enumerate_physical_devices() } {
-            Ok(devices) => Ok(devices),
-            Err(err) => Err(RtError::EnumeratePhyicalDevices(err.into())),
-        }
+        unsafe { self.raw.enumerate_physical_devices() }
+            .map_err(|err| RtError::EnumeratePhyicalDevices(err.into()))
     }
 
     fn create_instance(entry: &ash::Entry, desc: &InstanceDescriptor) -> RtResult<ash::Instance> {
@@ -109,28 +107,23 @@ impl Instance {
             .enabled_layer_names(&validation_layers)
             .push_next(&mut debug_create_info);
 
-        match unsafe { entry.create_instance(&create_info, None) } {
-            Ok(instance) => Ok(instance),
-            Err(err) => Err(RtError::CreateInstance(err.into())),
-        }
+        unsafe { entry.create_instance(&create_info, None) }
+            .map_err(|err| RtError::CreateInstance(err.into()))
     }
 
     #[cfg(debug_assertions)]
     fn enumerate_instance_extension_properties(
         entry: &ash::Entry,
     ) -> RtResult<Vec<vk::ExtensionProperties>> {
-        match unsafe { entry.enumerate_instance_extension_properties(None) } {
-            Ok(properties) => Ok(properties),
-            Err(err) => Err(RtError::EnumerateInstanceExtensionProperties(err.into())),
-        }
+        unsafe { entry.enumerate_instance_extension_properties(None) }
+            .map_err(|err| RtError::EnumerateInstanceExtensionProperties(err.into()))
     }
 
     fn get_required_extensions<'ext>(window: Arc<Window>) -> RtResult<Vec<&'ext CStr>> {
-        let display_handle = match window.display_handle() {
-            Ok(display_handle) => Ok(display_handle),
-            Err(err) => Err(RtError::DisplayHandle(err.into())),
-        }?
-        .as_raw();
+        let display_handle = window
+            .display_handle()
+            .map_err(|err| RtError::DisplayHandle(err.into()))?
+            .as_raw();
 
         match ash_window::enumerate_required_extensions(display_handle) {
             Ok(extensions) => {

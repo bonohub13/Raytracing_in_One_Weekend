@@ -272,10 +272,8 @@ impl Command {
             .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
             .queue_family_index(queue_family_indices.graphics_family);
 
-        match unsafe { desc.device.raw().create_command_pool(&create_info, None) } {
-            Ok(command_pool) => Ok(command_pool),
-            Err(err) => Err(RtError::CreateCommandPool(err.into())),
-        }
+        unsafe { desc.device.raw().create_command_pool(&create_info, None) }
+            .map_err(|err| RtError::CreateCommandPool(err.into()))
     }
 
     fn create_command_buffer(

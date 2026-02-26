@@ -1,7 +1,7 @@
 // Copyright 2026 Kensuke Saito
 // SPDX-License-Identifier: MIT
 
-use crate::core::{RtError, RtResult, instance::Instance, surface::Surface};
+use crate::core::{instance::Instance, surface::Surface, RtError, RtResult};
 use ash::{khr::swapchain, vk};
 use gpu_allocator::vulkan::{self, Allocator};
 use std::{
@@ -61,7 +61,7 @@ impl QueueFamilyIndices {
         .enumerate()
         {
             let current_index = i as u32;
-            let present_support = match unsafe {
+            let present_support = unsafe {
                 instance
                     .surface_loader()
                     .get_physical_device_surface_support(
@@ -69,10 +69,8 @@ impl QueueFamilyIndices {
                         current_index,
                         surface.raw(),
                     )
-            } {
-                Ok(support) => Ok(support),
-                Err(err) => Err(RtError::GetPhysicalDeviceSurfaceSupport(err.into())),
-            }?;
+            }
+            .map_err(|err| RtError::GetPhysicalDeviceSurfaceSupport(err.into()))?;
 
             if queue_family.queue_flags.contains(vk::QueueFlags::GRAPHICS) {
                 indices.graphics_family = Some(current_index);
@@ -163,14 +161,12 @@ impl SwapchainSupportDetail {
         surface: Arc<Surface>,
         physical_device: vk::PhysicalDevice,
     ) -> RtResult<vk::SurfaceCapabilitiesKHR> {
-        match unsafe {
+        unsafe {
             instance
                 .surface_loader()
                 .get_physical_device_surface_capabilities(physical_device, surface.raw())
-        } {
-            Ok(capabilities) => Ok(capabilities),
-            Err(err) => Err(RtError::GetPhysicalDeviceSurfaceCapabilities(err.into())),
         }
+        .map_err(|err| RtError::GetPhysicalDeviceSurfaceCapabilities(err.into()))
     }
 
     fn get_physical_device_surface_formats(
@@ -178,14 +174,12 @@ impl SwapchainSupportDetail {
         surface: Arc<Surface>,
         physical_device: vk::PhysicalDevice,
     ) -> RtResult<Vec<vk::SurfaceFormatKHR>> {
-        match unsafe {
+        unsafe {
             instance
                 .surface_loader()
                 .get_physical_device_surface_formats(physical_device, surface.raw())
-        } {
-            Ok(formats) => Ok(formats),
-            Err(err) => Err(RtError::GetPhysicalDeviceSurfaceFormats(err.into())),
         }
+        .map_err(|err| RtError::GetPhysicalDeviceSurfaceFormats(err.into()))
     }
 
     fn get_physical_device_surface_present_modes(
@@ -193,14 +187,12 @@ impl SwapchainSupportDetail {
         surface: Arc<Surface>,
         physical_device: vk::PhysicalDevice,
     ) -> RtResult<Vec<vk::PresentModeKHR>> {
-        match unsafe {
+        unsafe {
             instance
                 .surface_loader()
                 .get_physical_device_surface_present_modes(physical_device, surface.raw())
-        } {
-            Ok(present_modes) => Ok(present_modes),
-            Err(err) => Err(RtError::GetPhysicalDeviceSurfacePresentModes(err.into())),
         }
+        .map_err(|err| RtError::GetPhysicalDeviceSurfacePresentModes(err.into()))
     }
 }
 
@@ -284,8 +276,9 @@ impl Device {
     }
 
     fn choose_physical_device(desc: &DeviceDescriptor) -> RtResult<vk::PhysicalDevice> {
-        match desc.instance.enumerate_physical_devices() {
-            Ok(mut devices) => {
+        desc.instance
+            .enumerate_physical_devices()
+            .map(|mut devices| {
                 devices.sort_by_key(|device| {
                     Self::rate_device_suitability(desc.instance.raw(), device)
                 });
@@ -297,9 +290,7 @@ impl Device {
                 } else {
                     Err(RtError::NoSuitableDevice)
                 }
-            }
-            Err(err) => Err(err),
-        }
+            })?
     }
 
     fn create_device(
@@ -344,14 +335,12 @@ impl Device {
             .push_next(&mut shader_draw_parameters)
             .push_next(&mut dynamic_rendering)
             .push_next(&mut syncrhonization2);
-        let device = match unsafe {
+        let device = unsafe {
             desc.instance
                 .raw()
                 .create_device(physical_device, &device_create_info, None)
-        } {
-            Ok(device) => Ok(device),
-            Err(err) => Err(RtError::CreateDevice(err.into())),
-        }?;
+        }
+        .map_err(|err| RtError::CreateDevice(err.into()))?;
         let graphics_queue = unsafe { device.get_device_queue(graphics_queue_family_index, 0) };
         let present_queue = if present_queue_family_index == graphics_queue_family_index {
             graphics_queue
@@ -367,17 +356,15 @@ impl Device {
         device: ash::Device,
         physical_device: vk::PhysicalDevice,
     ) -> RtResult<Allocator> {
-        match Allocator::new(&vulkan::AllocatorCreateDesc {
+        Allocator::new(&vulkan::AllocatorCreateDesc {
             instance: instance.raw().clone(),
             device,
             physical_device,
             debug_settings: Default::default(),
             buffer_device_address: true,
             allocation_sizes: Default::default(),
-        }) {
-            Ok(allocator) => Ok(allocator),
-            Err(err) => Err(RtError::CreateAllocator(err.into())),
-        }
+        })
+        .map_err(|err| RtError::CreateAllocator(err.into()))
     }
 
     fn is_suitable_device(
@@ -411,14 +398,12 @@ impl Device {
         desc: &DeviceDescriptor,
         physical_device: vk::PhysicalDevice,
     ) -> RtResult<bool> {
-        let properties = match unsafe {
+        let properties = unsafe {
             desc.instance
                 .raw()
                 .enumerate_device_extension_properties(physical_device)
-        } {
-            Ok(properties) => Ok(properties),
-            Err(err) => Err(RtError::EnumerateDeviceExtensionProperties(err.into())),
-        }?;
+        }
+        .map_err(|err| RtError::EnumerateDeviceExtensionProperties(err.into()))?;
         let available_extensions: Vec<&CStr> = properties
             .iter()
             .map(|extension| unsafe { CStr::from_ptr(extension.extension_name.as_ptr()) })

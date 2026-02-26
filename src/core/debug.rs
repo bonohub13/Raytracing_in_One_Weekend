@@ -47,10 +47,8 @@ impl DebugUtilsMessenger {
         if let Some(debug_loader) = instance.debug_loader().as_ref() {
             let create_info = Self::create_info();
 
-            match unsafe { debug_loader.create_debug_utils_messenger(&create_info, None) } {
-                Ok(messenger) => Ok(messenger),
-                Err(err) => Err(RtError::CreateDebugUtilsmessenger(err.into())),
-            }
+            unsafe { debug_loader.create_debug_utils_messenger(&create_info, None) }
+                .map_err(|err| RtError::CreateDebugUtilsmessenger(err.into()))
         } else {
             Err(RtError::DebugLoaderUninitialized)
         }
