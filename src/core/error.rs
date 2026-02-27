@@ -58,8 +58,6 @@ pub enum RtError {
     GetSwapchainImages(Box<dyn Error>),
     #[error("Failed to create image: `{0}`")]
     CreateImage(Box<dyn Error>),
-    #[error("Failed to bind image memory: `{0}`")]
-    BindImageMemory(Box<dyn Error>),
     #[error("Failed to create image view: `{0}`")]
     CreateImageView(Box<dyn Error>),
     #[error("Failed to create sampler: `{0}`")]
@@ -102,6 +100,12 @@ pub enum RtError {
     CreateDescriptorPool(Box<dyn Error>),
     #[error("Failed to allocate descriptor sets: `{0}`")]
     AllocateDescriptorSets(Box<dyn Error>),
+    #[error("Failed to create buffer: `{0}`")]
+    CreateBuffer(Box<dyn Error>),
+    #[error("Failed to bind image memory: `{0}`")]
+    BindImageMemory(Box<dyn Error>),
+    #[error("Failed to bind buffer memory: `{0}`")]
+    BindBufferMemory(Box<dyn Error>),
 }
 
 pub type RtResult<T> = Result<T, RtError>;

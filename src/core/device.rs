@@ -39,7 +39,6 @@ pub struct Device {
     physical_device: vk::PhysicalDevice,
     allocator: Option<Mutex<Allocator>>,
     queue_families: QueueFamilies,
-    swapchain_support: SwapchainSupportDetail,
     graphics_queue: vk::Queue,
     present_queue: vk::Queue,
 }
@@ -225,11 +224,6 @@ impl Device {
                 present_family: queue_families.present_family.unwrap(),
             }
         };
-        let swapchain_support = SwapchainSupportDetail::query_swapchain_support(
-            desc.instance.clone(),
-            desc.surface.clone(),
-            physical_device,
-        )?;
         let (device, graphics_queue, present_queue) = Self::create_device(desc, physical_device)?;
         let allocator = Some(Mutex::new(Self::create_allocator(
             desc.instance.clone(),
@@ -243,7 +237,6 @@ impl Device {
             raw: device,
             allocator,
             queue_families,
-            swapchain_support,
             graphics_queue,
             present_queue,
         })
@@ -268,9 +261,15 @@ impl Device {
         self.queue_families
     }
 
-    #[inline]
-    pub const fn swapchain_support(&self) -> &SwapchainSupportDetail {
-        &self.swapchain_support
+    pub fn query_swapchain_support(
+        &self,
+        surface: Arc<Surface>,
+    ) -> RtResult<SwapchainSupportDetail> {
+        SwapchainSupportDetail::query_swapchain_support(
+            self.instance.clone(),
+            surface,
+            self.physical_device,
+        )
     }
 
     #[inline]

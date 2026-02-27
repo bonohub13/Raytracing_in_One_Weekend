@@ -77,6 +77,9 @@ impl PathTracer {
             device: desc.device.clone(),
         })?;
 
+        // Update descriptor sets for graphics buffer (initialization)
+        graphics_buffer.write_descriptor_sets(&descriptor_set);
+
         Ok(Self {
             device: desc.device.clone(),
             swapchain,

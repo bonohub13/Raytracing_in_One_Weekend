@@ -28,7 +28,7 @@ impl Swapchain {
     pub fn new(desc: &SwapchainDescriptor) -> RtResult<Self> {
         let loader = swapchain::Device::new(desc.instance.raw(), desc.device.raw());
         let (swapchain, image_format, extent) =
-            Self::create_swapchain(&loader, desc.device.clone(), desc.surface.clone())?;
+            Self::create_swapchain(&loader, desc.device.clone(), desc.surface.clone(), None)?;
         let images = Self::create_swapchain_images(&loader, swapchain)?;
         let image_views =
             Self::create_swapchain_image_views(desc.device.clone(), image_format, &images)?;
@@ -77,9 +77,16 @@ impl Swapchain {
 
     pub fn recreate_swapchain(&mut self) -> RtResult<()> {
         self.device.device_wait_idle()?;
+        let (raw, image_format, extent) = Self::create_swapchain(
+            &self.loader,
+            self.device.clone(),
+            self.surface.clone(),
+            Some(self.raw),
+        )?;
         unsafe { self.destroy() };
-        (self.raw, self.image_format, self.extent) =
-            Self::create_swapchain(&self.loader, self.device.clone(), self.surface.clone())?;
+        self.raw = raw;
+        self.image_format = image_format;
+        self.extent = extent;
         self.images = Self::create_swapchain_images(&self.loader, self.raw)?;
         self.image_views = Self::create_swapchain_image_views(
             self.device.clone(),
@@ -122,8 +129,9 @@ impl Swapchain {
         loader: &swapchain::Device,
         device: Arc<Device>,
         surface: Arc<Surface>,
+        old_swapchain: Option<vk::SwapchainKHR>,
     ) -> RtResult<(vk::SwapchainKHR, vk::Format, vk::Extent2D)> {
-        let swapchain_support = device.swapchain_support();
+        let swapchain_support = device.query_swapchain_support(surface.clone())?;
         let surface_format = swapchain_support.choose_swap_surface_format();
         let present_mode = swapchain_support.choose_swap_present_mode();
         let extent = swapchain_support.choose_swap_extent(surface.inner_size());
@@ -150,7 +158,7 @@ impl Swapchain {
                 .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
                 .present_mode(present_mode)
                 .clipped(true)
-                .old_swapchain(vk::SwapchainKHR::null());
+                .old_swapchain(old_swapchain.unwrap_or(vk::SwapchainKHR::null()));
 
             if queue_family_indices[0] != queue_family_indices[1] {
                 create_info

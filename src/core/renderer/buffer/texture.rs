@@ -120,7 +120,6 @@ impl Texture {
         device: Arc<Device>,
         image: vk::Image,
     ) -> RtResult<Allocation> {
-        let mut guard = lock_mutex!(device.allocator())?;
         let mut dedicated_requirements = vk::MemoryDedicatedRequirements::default();
         let mem_requirements = {
             let mut mem_requirements =
@@ -146,15 +145,17 @@ impl Texture {
                 vulkan::AllocationScheme::GpuAllocatorManaged
             },
         };
-        let allocation = guard
-            .allocate(&alloc_desc)
-            .map_err(|err| RtError::CreateAllocation(err.into()))?;
+        let allocation = {
+            let mut guard = lock_mutex!(device.allocator())?;
+            guard
+                .allocate(&alloc_desc)
+                .map_err(|err| RtError::CreateAllocation(err.into()))
+        }?;
         let bind_info = vk::BindImageMemoryInfo::default()
             .image(image)
             .memory(unsafe { allocation.memory() })
             .memory_offset(allocation.offset());
 
-        drop(guard);
         unsafe {
             device
                 .raw()
@@ -208,7 +209,6 @@ impl Texture {
 impl Drop for Texture {
     fn drop(&mut self) {
         let device = self.device.raw();
-        let mut guard = lock_mutex_with_fallback!(self.device.allocator());
 
         self.samplers
             .iter()
@@ -217,6 +217,8 @@ impl Drop for Texture {
             .iter()
             .for_each(|image_view| unsafe { device.destroy_image_view(*image_view, None) });
         if let Err(err) = self.allocations.iter_mut().try_for_each(|allocation| {
+            let mut guard = lock_mutex_with_fallback!(self.device.allocator());
+
             if let Some(allocation) = allocation.take() {
                 guard
                     .free(allocation)
@@ -229,7 +231,6 @@ impl Drop for Texture {
         }) {
             eprintln!("{err}");
         }
-        drop(guard);
         self.images
             .iter()
             .for_each(|image| unsafe { device.destroy_image(*image, None) });
