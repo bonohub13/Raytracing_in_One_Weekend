@@ -1,23 +1,21 @@
 use ash::vk;
+use glam::Vec4;
 use gpu_allocator::vulkan as vk_alloc;
 
 pub struct CameraDescriptor {}
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
-pub struct Camera {}
+pub struct Camera {
+    origin: Vec4,
+    lower_left_corner: Vec4,
+    horizontal: Vec4,
+    vertical: Vec4,
+}
 
 impl Camera {
     pub fn new(desc: &CameraDescriptor) -> Self {
-        Self {}
-    }
-
-    pub fn layout_binding() -> vk::DescriptorSetLayoutBinding<'static> {
-        vk::DescriptorSetLayoutBinding::default()
-            .binding(0)
-            .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-            .descriptor_count(1)
-            .stage_flags(vk::ShaderStageFlags::RAYGEN_KHR | vk::ShaderStageFlags::CLOSEST_HIT_KHR)
+        Self::default()
     }
 
     pub fn buffer_create_info() -> vk::BufferCreateInfo<'static> {

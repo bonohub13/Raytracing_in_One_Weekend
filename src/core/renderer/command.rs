@@ -62,35 +62,6 @@ impl Command {
         self.buffers.as_slice()
     }
 
-    pub fn record_command_buffer(&self, desc: &CommandRecordDescriptor) -> RtResult<()> {
-        self.begin_command_buffer(desc.current_frame)?;
-        self.transition_texture_to_read_only(desc.graphics_buffer, desc.current_frame)?;
-        self.transition_surface_to_color_attachment(
-            desc.swapchain,
-            desc.image_index,
-            desc.current_frame,
-        )?;
-        self.begin_rendering(desc.swapchain, desc.image_index, desc.current_frame)?;
-        self.bind_pipeline(desc.pipeline, desc.current_frame);
-        self.set_viewport_and_scissor(desc.swapchain, desc.current_frame)?;
-        unsafe {
-            self.device.raw().cmd_bind_descriptor_sets(
-                self.buffers[desc.current_frame],
-                vk::PipelineBindPoint::GRAPHICS,
-                desc.pipeline_layout,
-                0,
-                std::slice::from_ref(&desc.descriptor_set.graphics_sets()[desc.current_frame]),
-                &[],
-            );
-            self.device
-                .raw()
-                .cmd_draw(self.buffers[desc.current_frame], 3, 1, 0, 0);
-        }
-        self.end_rendering(desc.current_frame);
-        self.transition_surface_to_present(desc.swapchain, desc.image_index, desc.current_frame)?;
-        self.end_command_buffer(desc.current_frame)
-    }
-
     pub fn reset_command_buffer(&self, current_frame: usize) -> RtResult<()> {
         if let Err(err) = unsafe {
             self.device.raw().reset_command_buffer(
@@ -104,150 +75,27 @@ impl Command {
         }
     }
 
-    fn transition_texture_to_read_only(
-        &self,
-        graphics_buffer: &GraphicsBuffer,
-        current_frame: usize,
-    ) -> RtResult<()> {
-        let barrier = graphics_buffer.render_transition_barrier(current_frame);
-        let dependency_info =
-            vk::DependencyInfo::default().image_memory_barriers(std::slice::from_ref(&barrier));
-
-        unsafe {
-            self.device
-                .raw()
-                .cmd_pipeline_barrier2(self.buffers[current_frame], &dependency_info)
-        };
-
-        Ok(())
-    }
-
-    fn transition_surface_to_color_attachment(
-        &self,
-        swapchain: &Swapchain,
-        image_index: usize,
-        current_frame: usize,
-    ) -> RtResult<()> {
-        let barrier = vk::ImageMemoryBarrier2::default()
-            .src_stage_mask(vk::PipelineStageFlags2::NONE)
-            .src_access_mask(vk::AccessFlags2::NONE)
-            .dst_stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
-            .dst_access_mask(
-                vk::AccessFlags2::COLOR_ATTACHMENT_WRITE | vk::AccessFlags2::COLOR_ATTACHMENT_READ,
-            )
-            .old_layout(vk::ImageLayout::UNDEFINED)
-            .new_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
-            .image(swapchain.images()[image_index])
-            .subresource_range(Self::SUBRESOURCE_RANGE);
-        let dependency_info =
-            vk::DependencyInfo::default().image_memory_barriers(std::slice::from_ref(&barrier));
-
-        unsafe {
-            self.device
-                .raw()
-                .cmd_pipeline_barrier2(self.buffers[current_frame], &dependency_info)
-        };
-
-        Ok(())
-    }
-
-    fn transition_surface_to_present(
-        &self,
-        swapchain: &Swapchain,
-        image_index: usize,
-        current_frame: usize,
-    ) -> RtResult<()> {
-        let barrier = vk::ImageMemoryBarrier2::default()
-            .src_stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
-            .src_access_mask(vk::AccessFlags2::COLOR_ATTACHMENT_WRITE)
-            .dst_stage_mask(vk::PipelineStageFlags2::NONE)
-            .dst_access_mask(vk::AccessFlags2::NONE)
-            .old_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
-            .new_layout(vk::ImageLayout::PRESENT_SRC_KHR)
-            .image(swapchain.images()[image_index])
-            .subresource_range(Self::SUBRESOURCE_RANGE);
-        let dependency_info =
-            vk::DependencyInfo::default().image_memory_barriers(std::slice::from_ref(&barrier));
-
-        unsafe {
-            self.device
-                .raw()
-                .cmd_pipeline_barrier2(self.buffers[current_frame], &dependency_info)
-        };
-
-        Ok(())
-    }
-
-    fn begin_command_buffer(&self, current_frame: usize) -> RtResult<()> {
+    pub fn begin_command_buffer(&self, current_frame: usize) -> RtResult<()> {
         let begin_info = vk::CommandBufferBeginInfo::default();
 
-        if let Err(err) = unsafe {
+        unsafe {
             self.device
                 .raw()
                 .begin_command_buffer(self.buffers[current_frame], &begin_info)
-        } {
-            Err(RtError::BeginCommandBuffer(err.into()))
-        } else {
-            Ok(())
         }
+        .map_err(|err| RtError::BeginCommandBuffer(err.into()))
     }
 
-    fn end_command_buffer(&self, current_frame: usize) -> RtResult<()> {
-        if let Err(err) = unsafe {
+    pub fn end_command_buffer(&self, current_frame: usize) -> RtResult<()> {
+        unsafe {
             self.device
                 .raw()
                 .end_command_buffer(self.buffers[current_frame])
-        } {
-            Err(RtError::EndCommandBuffer(err.into()))
-        } else {
-            Ok(())
         }
+        .map_err(|err| RtError::EndCommandBuffer(err.into()))
     }
 
-    fn begin_rendering(
-        &self,
-        swapchain: &Swapchain,
-        image_index: usize,
-        current_frame: usize,
-    ) -> RtResult<()> {
-        const BLACK: vk::ClearValue = vk::ClearValue {
-            color: vk::ClearColorValue {
-                float32: [0f32, 0f32, 0f32, 1f32],
-            },
-        };
-
-        let attachment_info = vk::RenderingAttachmentInfo::default()
-            .image_view(swapchain.image_view()[image_index])
-            .image_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
-            .load_op(vk::AttachmentLoadOp::CLEAR)
-            .store_op(vk::AttachmentStoreOp::STORE)
-            .clear_value(BLACK);
-        let rendering_info = vk::RenderingInfo::default()
-            .render_area(vk::Rect2D {
-                offset: vk::Offset2D { x: 0, y: 0 },
-                extent: swapchain.extent(),
-            })
-            .layer_count(1)
-            .color_attachments(std::slice::from_ref(&attachment_info));
-
-        unsafe {
-            self.device
-                .raw()
-                .cmd_begin_rendering(self.buffers[current_frame], &rendering_info)
-        };
-
-        Ok(())
-    }
-
-    fn end_rendering(&self, current_frame: usize) {
-        unsafe {
-            self.device
-                .raw()
-                .cmd_end_rendering(self.buffers[current_frame])
-        }
-    }
-
-    fn bind_pipeline(&self, pipeline: path_tracer::Pipeline, current_frame: usize) {
+    pub fn bind_pipeline(&self, pipeline: path_tracer::Pipeline, current_frame: usize) {
         let (pipeline_bind_point, pipeline) = match pipeline {
             path_tracer::Pipeline::Graphics(pipeline) => {
                 (vk::PipelineBindPoint::GRAPHICS, pipeline)
@@ -261,41 +109,6 @@ impl Command {
                 pipeline,
             )
         }
-    }
-
-    fn set_viewport_and_scissor(
-        &self,
-        swapchain: &Swapchain,
-        current_frame: usize,
-    ) -> RtResult<()> {
-        let swapchain_extent = swapchain.extent();
-        let viewport = vk::Viewport {
-            x: 0f32,
-            y: 0f32,
-            width: swapchain_extent.width as f32,
-            height: swapchain_extent.height as f32,
-            min_depth: 0f32,
-            max_depth: 1f32,
-        };
-        let scissor = vk::Rect2D {
-            offset: vk::Offset2D { x: 0, y: 0 },
-            extent: swapchain_extent,
-        };
-
-        unsafe {
-            self.device.raw().cmd_set_viewport(
-                self.buffers[current_frame],
-                0,
-                std::slice::from_ref(&viewport),
-            );
-            self.device.raw().cmd_set_scissor(
-                self.buffers[current_frame],
-                0,
-                std::slice::from_ref(&scissor),
-            );
-        }
-
-        Ok(())
     }
 
     fn create_command_pool(desc: &CommandDescriptor) -> RtResult<vk::CommandPool> {

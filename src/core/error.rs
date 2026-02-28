@@ -50,6 +50,8 @@ pub enum RtError {
     CreateAllocator(Box<dyn Error>),
     #[error("Failed to create allocation in GPU memory: `{0}`")]
     CreateAllocation(Box<dyn Error>),
+    #[error("Allocated GPU memory has been freed")]
+    NoAllocation,
     #[error("Failed to free allocation in GPU memory: `{0}`")]
     FreeAllocation(Box<dyn Error>),
     #[error("Failed to create swapchain: `{0}`")]
@@ -106,6 +108,10 @@ pub enum RtError {
     BindImageMemory(Box<dyn Error>),
     #[error("Failed to bind buffer memory: `{0}`")]
     BindBufferMemory(Box<dyn Error>),
+    #[error("Failed to flush mapped memory ranges: `{0}`")]
+    FlushMappedMemoryRanges(Box<dyn Error>),
+    #[error("No data were passed for AS geometry")]
+    NoGemoetryData,
 }
 
 pub type RtResult<T> = Result<T, RtError>;

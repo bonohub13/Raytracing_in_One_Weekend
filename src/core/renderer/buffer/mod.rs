@@ -1,10 +1,14 @@
+mod acceleration;
+mod blas;
 mod descriptor_set;
 mod graphics;
 mod objects;
 mod texture;
 
+pub(crate) use acceleration::*;
 pub(crate) use descriptor_set::*;
 pub(crate) use graphics::*;
+pub(crate) use objects::*;
 
 use crate::core::{
     RtError, RtResult,
@@ -16,12 +20,18 @@ use ash::vk;
 use gpu_allocator::vulkan::{self as vk_alloc, Allocation, AllocationCreateDesc};
 use std::{marker::PhantomData, sync::Arc};
 
+pub enum BufferType {
+    ExlusiveToFrame,
+    Shared,
+}
+
 pub struct BufferDescriptor<'desc, T>
 where
     T: Sized + Clone + Copy,
 {
     pub device: Arc<Device>,
-    pub data: Option<Vec<T>>,
+    pub data: Option<&'desc [T]>,
+    pub ty: BufferType,
     pub create_info: vk::BufferCreateInfo<'desc>,
     pub alloc_info: AllocationCreateDesc<'desc>,
 }
@@ -33,6 +43,8 @@ where
     device: Arc<Device>,
     buffers: Vec<vk::Buffer>,
     allocations: Option<Vec<Allocation>>,
+    size: vk::DeviceSize,
+    device_address: Option<Vec<vk::DeviceAddress>>,
     _buffer_type: PhantomData<T>,
 }
 
@@ -41,22 +53,111 @@ where
     T: Sized + Clone + Copy,
 {
     pub fn new(desc: &BufferDescriptor<T>) -> RtResult<Self> {
-        let buffers: Vec<vk::Buffer> = (0..params::MAX_FRAMES_IN_FLIGHT)
+        let max_buffers = match desc.ty {
+            BufferType::ExlusiveToFrame => params::MAX_FRAMES_IN_FLIGHT,
+            BufferType::Shared => 1,
+        };
+        let buffers: Vec<vk::Buffer> = (0..max_buffers)
             .map(|_| Self::create_buffer(desc.device.clone(), &desc.create_info))
-            .collect::<RtResult<_>>()?;
+            .collect::<RtResult<Vec<_>>>()?;
         let allocations: Vec<Allocation> = buffers
             .iter()
             .map(|buffer| {
-                Self::create_allocation(desc.device.clone(), desc.alloc_info.clone(), *buffer)
+                let mut allocation =
+                    Self::create_allocation(desc.device.clone(), desc.alloc_info.clone(), *buffer)?;
+
+                if let Some(data) = desc.data
+                    && let Some(mapped_ptr) = allocation.mapped_slice_mut()
+                {
+                    unsafe {
+                        std::ptr::copy_nonoverlapping(
+                            data.as_ptr() as *const u8,
+                            mapped_ptr.as_mut_ptr(),
+                            size_of_val(data),
+                        )
+                    }
+                }
+
+                Ok(allocation)
             })
             .collect::<RtResult<_>>()?;
+        let size = desc.create_info.size;
+        let device_address = buffers
+            .iter()
+            .map(|buffer| {
+                if desc
+                    .create_info
+                    .usage
+                    .contains(vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS)
+                {
+                    Some(unsafe {
+                        desc.device.raw().get_buffer_device_address(
+                            &vk::BufferDeviceAddressInfo::default().buffer(*buffer),
+                        )
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect();
 
         Ok(Self {
             device: desc.device.clone(),
             buffers,
             allocations: Some(allocations),
+            size,
+            device_address,
             _buffer_type: PhantomData::<T>,
         })
+    }
+
+    #[inline]
+    pub const fn buffers(&self) -> &[vk::Buffer] {
+        self.buffers.as_slice()
+    }
+
+    pub fn write(&mut self, data: &[T]) -> RtResult<()> {
+        if let Some(allocations) = self.allocations.as_mut() {
+            let mapped_ranges = allocations
+                .iter()
+                .map(|allocation| {
+                    vk::MappedMemoryRange::default()
+                        .memory(unsafe { allocation.memory() })
+                        .offset(allocation.offset())
+                        .size(allocation.size())
+                })
+                .collect::<Vec<_>>();
+
+            allocations
+                .iter_mut()
+                .zip(mapped_ranges)
+                .try_for_each(|(allocation, mapped_range)| {
+                    if let Some(mapped_ptr) = allocation.mapped_slice_mut() {
+                        unsafe {
+                            std::ptr::copy_nonoverlapping(
+                                data.as_ptr() as *const u8,
+                                mapped_ptr.as_mut_ptr(),
+                                size_of_val(data),
+                            );
+                            self.device
+                                .raw()
+                                .flush_mapped_memory_ranges(std::slice::from_ref(&mapped_range))
+                                .map_err(|err| RtError::FlushMappedMemoryRanges(err.into()))
+                        }
+                    } else {
+                        Ok(())
+                    }
+                })
+        } else {
+            Err(RtError::NoAllocation)
+        }
+    }
+
+    fn buffer_info(&self, data: &[T], current_frame: usize) -> vk::DescriptorBufferInfo {
+        vk::DescriptorBufferInfo::default()
+            .buffer(self.buffers[current_frame])
+            .offset(0)
+            .range(size_of_val(data) as u64)
     }
 
     fn create_buffer(
@@ -138,9 +239,9 @@ where
                     }
                 });
             }
+            self.buffers
+                .iter()
+                .for_each(|buffer| unsafe { device.destroy_buffer(*buffer, None) });
         }
-        self.buffers
-            .iter()
-            .for_each(|buffer| unsafe { device.destroy_buffer(*buffer, None) });
     }
 }

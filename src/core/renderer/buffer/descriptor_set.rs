@@ -1,41 +1,65 @@
-use crate::core::{RtError, RtResult, device::Device, params, renderer::buffer::GraphicsBuffer};
+use crate::core::{
+    RtError, RtResult,
+    device::Device,
+    params,
+    renderer::buffer::{AccelerationBuffer, GraphicsBuffer},
+};
 use ash::vk;
 use std::sync::Arc;
 
 pub struct DescriptorSetDescriptor<'desc> {
     pub device: Arc<Device>,
-    pub bindings: &'desc [vk::DescriptorSetLayoutBinding<'desc>],
+    pub graphics_bindings: &'desc [vk::DescriptorSetLayoutBinding<'desc>],
+    pub acceleration_bindings: &'desc [vk::DescriptorSetLayoutBinding<'desc>],
 }
 
 pub struct DescriptorSet {
     device: Arc<Device>,
-    layout: vk::DescriptorSetLayout,
+    graphics_layout: vk::DescriptorSetLayout,
+    acceleration_layout: vk::DescriptorSetLayout,
     pool: vk::DescriptorPool,
     graphics_sets: Vec<vk::DescriptorSet>,
+    acceleration_sets: Vec<vk::DescriptorSet>,
 }
 
 impl DescriptorSet {
     pub fn new(desc: &DescriptorSetDescriptor) -> RtResult<Self> {
-        let layout = Self::create_layout(desc.device.clone(), desc.bindings)?;
+        let graphics_layout = Self::create_layout(desc.device.clone(), desc.graphics_bindings)?;
+        let acceleration_layout =
+            Self::create_layout(desc.device.clone(), desc.acceleration_bindings)?;
         let pool = Self::create_pool(desc.device.clone())?;
-        let graphics_sets = Self::allocate_sets(desc.device.clone(), layout, pool)?;
+        let graphics_sets = Self::allocate_sets(desc.device.clone(), graphics_layout, pool)?;
+        let acceleration_sets =
+            Self::allocate_sets(desc.device.clone(), acceleration_layout, pool)?;
 
         Ok(Self {
             device: desc.device.clone(),
-            layout,
+            graphics_layout,
+            acceleration_layout,
             pool,
             graphics_sets,
+            acceleration_sets,
         })
     }
 
     #[inline]
-    pub const fn layout(&self) -> vk::DescriptorSetLayout {
-        self.layout
+    pub const fn graphics_layout(&self) -> vk::DescriptorSetLayout {
+        self.graphics_layout
+    }
+
+    #[inline]
+    pub const fn acceleration_layout(&self) -> vk::DescriptorSetLayout {
+        self.acceleration_layout
     }
 
     #[inline]
     pub const fn graphics_sets(&self) -> &[vk::DescriptorSet] {
         self.graphics_sets.as_slice()
+    }
+
+    #[inline]
+    pub const fn acceleration_sets(&self) -> &[vk::DescriptorSet] {
+        self.acceleration_sets.as_slice()
     }
 
     fn create_layout(
@@ -56,7 +80,11 @@ impl DescriptorSet {
         const PER_PIPELINE_DESCRIPTOR_SET_COUNT: u32 = params::MAX_FRAMES_IN_FLIGHT as u32;
         const DESCRIPTOR_SET_TYPES: u32 = 2;
 
-        let pool_sizes = [GraphicsBuffer::pool_sizes()].concat();
+        let pool_sizes = [
+            GraphicsBuffer::pool_sizes(),
+            AccelerationBuffer::pool_sizes(),
+        ]
+        .concat();
         let create_info = vk::DescriptorPoolCreateInfo::default()
             .pool_sizes(&pool_sizes)
             .max_sets(PER_PIPELINE_DESCRIPTOR_SET_COUNT * DESCRIPTOR_SET_TYPES);
@@ -86,7 +114,8 @@ impl Drop for DescriptorSet {
 
         unsafe {
             device.destroy_descriptor_pool(self.pool, None);
-            device.destroy_descriptor_set_layout(self.layout, None);
+            device.destroy_descriptor_set_layout(self.graphics_layout, None);
+            device.destroy_descriptor_set_layout(self.acceleration_layout, None);
         }
     }
 }

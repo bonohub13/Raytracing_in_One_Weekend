@@ -10,7 +10,7 @@ use crate::core::{
 };
 use ash::vk;
 use gpu_allocator::vulkan::{self, Allocation};
-use std::sync::{Arc, MutexGuard};
+use std::sync::Arc;
 
 pub struct TextureDescriptor<'desc> {
     pub name: &'desc str,
@@ -63,16 +63,6 @@ impl Texture {
     #[inline]
     pub const fn images(&self) -> &[vk::Image] {
         self.images.as_slice()
-    }
-
-    #[inline]
-    pub const fn image_views(&self) -> &[vk::ImageView] {
-        self.image_views.as_slice()
-    }
-
-    #[inline]
-    pub const fn samplers(&self) -> &[vk::Sampler] {
-        self.samplers.as_slice()
     }
 
     pub fn read_only_image_info(&self, current_frame: usize) -> vk::DescriptorImageInfo {

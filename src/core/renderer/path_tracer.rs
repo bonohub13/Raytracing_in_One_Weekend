@@ -7,7 +7,7 @@ use crate::core::{
     instance::Instance,
     params,
     renderer::{
-        buffer::{self, DescriptorSet, GraphicsBuffer},
+        buffer::{self, AccelerationBuffer, DescriptorSet, GraphicsBuffer},
         command::{self, Command},
         shader::{self},
         swapchain::{Swapchain, SwapchainDescriptor},
@@ -33,11 +33,13 @@ pub struct PathTracer {
     image_index: usize,
     current_frame: usize,
     sync_object: SyncObject,
-    command: Command,
+    graphics_command: Command,
+    acceleration_command: Command,
     graphics_pipeline: Pipeline,
     pipeline_layout: vk::PipelineLayout,
     descriptor_set: DescriptorSet,
     graphics_buffer: GraphicsBuffer,
+    acceleration_buffer: AccelerationBuffer,
     swapchain: Swapchain,
     device: Arc<Device>,
 }
@@ -52,6 +54,14 @@ impl Pipeline {
 
 impl PathTracer {
     const PROJECTION_TEXTURE_NAME: &str = "Frame image texture";
+    const SUBRESOURCE_RANGE: vk::ImageSubresourceRange = vk::ImageSubresourceRange {
+        aspect_mask: vk::ImageAspectFlags::COLOR,
+        base_mip_level: 0,
+        level_count: 1,
+        base_array_layer: 0,
+        layer_count: 1,
+    };
+
     pub fn new(desc: &PathTracerDescriptor) -> RtResult<Self> {
         let swapchain = Swapchain::new(&SwapchainDescriptor {
             instance: desc.instance.clone(),
@@ -63,14 +73,27 @@ impl PathTracer {
             surface: desc.surface.clone(),
             device: desc.device.clone(),
         })?;
+        let acceleration_buffer = AccelerationBuffer::new(&buffer::AccelerationBufferDescriptor {
+            device: desc.device.clone(),
+            camera_desc: buffer::CameraDescriptor {},
+        })?;
         let descriptor_set = DescriptorSet::new(&buffer::DescriptorSetDescriptor {
             device: desc.device.clone(),
-            bindings: &[GraphicsBuffer::layout_bindings()].concat(),
+            graphics_bindings: &GraphicsBuffer::layout_bindings(),
+            acceleration_bindings: &AccelerationBuffer::layout_binding(),
         })?;
-        let pipeline_layout =
-            Self::create_pipeline_layout(desc.device.clone(), &[descriptor_set.layout()])?;
+        let pipeline_layout = Self::create_pipeline_layout(
+            desc.device.clone(),
+            &[
+                descriptor_set.graphics_layout(),
+                descriptor_set.acceleration_layout(),
+            ],
+        )?;
         let graphics_pipeline = Self::create_graphics_pipeline(&swapchain, pipeline_layout, desc)?;
-        let command = Command::new(&command::CommandDescriptor {
+        let graphics_command = Command::new(&command::CommandDescriptor {
+            device: desc.device.clone(),
+        })?;
+        let acceleration_command = Command::new(&command::CommandDescriptor {
             device: desc.device.clone(),
         })?;
         let sync_object = SyncObject::new(&sync::SyncObjectDescriptor {
@@ -84,10 +107,12 @@ impl PathTracer {
             device: desc.device.clone(),
             swapchain,
             graphics_buffer,
+            acceleration_buffer,
             descriptor_set,
             pipeline_layout,
             graphics_pipeline,
-            command,
+            graphics_command,
+            acceleration_command,
             sync_object,
             image_index: 0,
             current_frame: 0,
@@ -102,6 +127,7 @@ impl PathTracer {
 
     pub fn render_frame(&mut self) -> RtResult<()> {
         self.sync_object.wait_for_fences(self.current_frame)?;
+        self.acceleration_buffer.update_camera()?;
         self.sync_object.reset_fences(self.current_frame)?;
         if let Some((image_index, _is_suboptimal)) = self
             .swapchain
@@ -109,19 +135,11 @@ impl PathTracer {
         {
             self.image_index = image_index;
         }
-        self.command.reset_command_buffer(self.current_frame)?;
-        self.command
-            .record_command_buffer(&command::CommandRecordDescriptor {
-                swapchain: &self.swapchain,
-                descriptor_set: &self.descriptor_set,
-                graphics_buffer: &self.graphics_buffer,
-                pipeline_layout: self.pipeline_layout,
-                pipeline: self.graphics_pipeline,
-                image_index: self.image_index,
-                current_frame: self.current_frame,
-            })?;
+        self.graphics_command
+            .reset_command_buffer(self.current_frame)?;
+        self.record_graphics_command_buffer()?;
         self.sync_object
-            .graphics_queue_submit(&self.command, self.current_frame)?;
+            .graphics_queue_submit(&self.graphics_command, self.current_frame)?;
         let _ = self.sync_object.present_queue(
             &self.swapchain,
             self.image_index as u32,
@@ -131,6 +149,195 @@ impl PathTracer {
         self.current_frame = (self.current_frame + 1) % params::MAX_FRAMES_IN_FLIGHT;
 
         Ok(())
+    }
+
+    fn record_graphics_command_buffer(&self) -> RtResult<()> {
+        let device = self.device.raw();
+
+        self.graphics_command
+            .begin_command_buffer(self.current_frame)?;
+        self.transition_texture_to_read_only()?;
+        self.transition_surface_to_color_attachment()?;
+        self.begin_rendering();
+        self.graphics_command
+            .bind_pipeline(self.graphics_pipeline, self.current_frame);
+        self.set_viewport_and_scissor();
+        unsafe {
+            device.cmd_bind_descriptor_sets(
+                self.graphics_command.buffers()[self.current_frame],
+                vk::PipelineBindPoint::GRAPHICS,
+                self.pipeline_layout,
+                0,
+                std::slice::from_ref(&self.descriptor_set.graphics_sets()[self.current_frame]),
+                &[],
+            );
+            device.cmd_draw(
+                self.graphics_command.buffers()[self.current_frame],
+                3,
+                1,
+                0,
+                0,
+            );
+        }
+        self.end_rendering();
+        self.transition_surface_to_present()?;
+        self.graphics_command.end_command_buffer(self.current_frame)
+    }
+
+    fn record_acceleration_command_buffer(&self) -> RtResult<()> {
+        self.acceleration_command
+            .begin_command_buffer(self.current_frame)?;
+        self.transition_texture_to_rt_write()?;
+        self.acceleration_command
+            .end_command_buffer(self.current_frame)
+    }
+
+    fn begin_rendering(&self) {
+        const BLACK: vk::ClearValue = vk::ClearValue {
+            color: vk::ClearColorValue {
+                float32: [0f32, 0f32, 0f32, 1f32],
+            },
+        };
+
+        let attachment_info = vk::RenderingAttachmentInfo::default()
+            .image_view(self.swapchain.image_view()[self.image_index])
+            .image_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+            .load_op(vk::AttachmentLoadOp::CLEAR)
+            .store_op(vk::AttachmentStoreOp::STORE)
+            .clear_value(BLACK);
+        let rendering_info = vk::RenderingInfo::default()
+            .render_area(vk::Rect2D {
+                offset: vk::Offset2D { x: 0, y: 0 },
+                extent: self.swapchain.extent(),
+            })
+            .layer_count(1)
+            .color_attachments(std::slice::from_ref(&attachment_info));
+
+        unsafe {
+            self.device.raw().cmd_begin_rendering(
+                self.graphics_command.buffers()[self.current_frame],
+                &rendering_info,
+            )
+        };
+    }
+
+    fn end_rendering(&self) {
+        unsafe {
+            self.device
+                .raw()
+                .cmd_end_rendering(self.graphics_command.buffers()[self.current_frame])
+        }
+    }
+
+    fn transition_texture_to_rt_write(&self) -> RtResult<()> {
+        let barrier = self
+            .graphics_buffer
+            .write_transition_barrier(self.current_frame);
+        let dependency_info =
+            vk::DependencyInfo::default().image_memory_barriers(std::slice::from_ref(&barrier));
+
+        unsafe {
+            self.device.raw().cmd_pipeline_barrier2(
+                self.graphics_command.buffers()[self.current_frame],
+                &dependency_info,
+            )
+        };
+
+        Ok(())
+    }
+
+    fn transition_texture_to_read_only(&self) -> RtResult<()> {
+        let barrier = self
+            .graphics_buffer
+            .render_transition_barrier(self.current_frame);
+        let dependency_info =
+            vk::DependencyInfo::default().image_memory_barriers(std::slice::from_ref(&barrier));
+
+        unsafe {
+            self.device.raw().cmd_pipeline_barrier2(
+                self.graphics_command.buffers()[self.current_frame],
+                &dependency_info,
+            )
+        };
+
+        Ok(())
+    }
+
+    fn transition_surface_to_color_attachment(&self) -> RtResult<()> {
+        let barrier = vk::ImageMemoryBarrier2::default()
+            .src_stage_mask(vk::PipelineStageFlags2::NONE)
+            .src_access_mask(vk::AccessFlags2::NONE)
+            .dst_stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
+            .dst_access_mask(
+                vk::AccessFlags2::COLOR_ATTACHMENT_WRITE | vk::AccessFlags2::COLOR_ATTACHMENT_READ,
+            )
+            .old_layout(vk::ImageLayout::UNDEFINED)
+            .new_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+            .image(self.swapchain.images()[self.image_index])
+            .subresource_range(Self::SUBRESOURCE_RANGE);
+        let dependency_info =
+            vk::DependencyInfo::default().image_memory_barriers(std::slice::from_ref(&barrier));
+
+        unsafe {
+            self.device.raw().cmd_pipeline_barrier2(
+                self.graphics_command.buffers()[self.current_frame],
+                &dependency_info,
+            )
+        };
+
+        Ok(())
+    }
+
+    fn transition_surface_to_present(&self) -> RtResult<()> {
+        let barrier = vk::ImageMemoryBarrier2::default()
+            .src_stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
+            .src_access_mask(vk::AccessFlags2::COLOR_ATTACHMENT_WRITE)
+            .dst_stage_mask(vk::PipelineStageFlags2::NONE)
+            .dst_access_mask(vk::AccessFlags2::NONE)
+            .old_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+            .new_layout(vk::ImageLayout::PRESENT_SRC_KHR)
+            .image(self.swapchain.images()[self.image_index])
+            .subresource_range(Self::SUBRESOURCE_RANGE);
+        let dependency_info =
+            vk::DependencyInfo::default().image_memory_barriers(std::slice::from_ref(&barrier));
+
+        unsafe {
+            self.device.raw().cmd_pipeline_barrier2(
+                self.graphics_command.buffers()[self.current_frame],
+                &dependency_info,
+            )
+        };
+
+        Ok(())
+    }
+
+    fn set_viewport_and_scissor(&self) {
+        let swapchain_extent = self.swapchain.extent();
+        let viewport = vk::Viewport {
+            x: 0f32,
+            y: 0f32,
+            width: swapchain_extent.width as f32,
+            height: swapchain_extent.height as f32,
+            min_depth: 0f32,
+            max_depth: 1f32,
+        };
+        let scissor = vk::Rect2D {
+            offset: vk::Offset2D { x: 0, y: 0 },
+            extent: swapchain_extent,
+        };
+
+        unsafe {
+            self.device.raw().cmd_set_viewport(
+                self.graphics_command.buffers()[self.current_frame],
+                0,
+                std::slice::from_ref(&viewport),
+            );
+            self.device.raw().cmd_set_scissor(
+                self.graphics_command.buffers()[self.current_frame],
+                0,
+                std::slice::from_ref(&scissor),
+            );
+        }
     }
 
     fn create_pipeline_layout(

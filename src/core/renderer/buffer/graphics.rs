@@ -24,6 +24,13 @@ pub struct GraphicsBuffer {
 
 impl GraphicsBuffer {
     const PER_DESCRIPTOR_SET_COUNT: u32 = params::MAX_FRAMES_IN_FLIGHT as u32;
+    const SUBRESOURCE_RANGE: vk::ImageSubresourceRange = vk::ImageSubresourceRange {
+        aspect_mask: vk::ImageAspectFlags::COLOR,
+        base_mip_level: 0,
+        level_count: 1,
+        base_array_layer: 0,
+        layer_count: 1,
+    };
 
     pub fn new(desc: &GraphicsBufferDescriptor) -> RtResult<Self> {
         let texture = Texture::new(&texture::TextureDescriptor {
@@ -38,52 +45,68 @@ impl GraphicsBuffer {
         })
     }
 
+    pub fn write_transition_barrier(
+        &self,
+        current_frame: usize,
+    ) -> vk::ImageMemoryBarrier2<'static> {
+        vk::ImageMemoryBarrier2::default()
+            .src_stage_mask(vk::PipelineStageFlags2::NONE)
+            .src_access_mask(vk::AccessFlags2::NONE)
+            .dst_stage_mask(vk::PipelineStageFlags2::RAY_TRACING_SHADER_KHR)
+            .dst_access_mask(vk::AccessFlags2::SHADER_WRITE)
+            .old_layout(vk::ImageLayout::UNDEFINED)
+            .new_layout(vk::ImageLayout::GENERAL)
+            .image(self.texture.images()[current_frame])
+            .subresource_range(Self::SUBRESOURCE_RANGE)
+    }
+
     pub fn render_transition_barrier(
         &self,
         current_frame: usize,
     ) -> vk::ImageMemoryBarrier2<'static> {
-        const SUBRESOURCE_RANGE: vk::ImageSubresourceRange = vk::ImageSubresourceRange {
-            aspect_mask: vk::ImageAspectFlags::COLOR,
-            base_mip_level: 0,
-            level_count: 1,
-            base_array_layer: 0,
-            layer_count: 1,
-        };
-
         vk::ImageMemoryBarrier2::default()
-            .src_stage_mask(vk::PipelineStageFlags2::NONE)
+            .src_stage_mask(vk::PipelineStageFlags2::RAY_TRACING_SHADER_KHR)
+            .src_access_mask(vk::AccessFlags2::SHADER_WRITE)
             .src_access_mask(vk::AccessFlags2::NONE)
             .dst_stage_mask(vk::PipelineStageFlags2::FRAGMENT_SHADER)
             .dst_access_mask(vk::AccessFlags2::SHADER_READ)
             .old_layout(vk::ImageLayout::GENERAL)
             .new_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
-            // TODO: Remove UNDEFINED after acceleration pipeline is implementated
-            .old_layout(vk::ImageLayout::UNDEFINED)
-            .new_layout(vk::ImageLayout::UNDEFINED)
             .image(self.texture.images()[current_frame])
-            .subresource_range(SUBRESOURCE_RANGE)
+            .subresource_range(Self::SUBRESOURCE_RANGE)
+            // TODO: Remove after implementing PathTracer::trace_frame()
+            .src_stage_mask(vk::PipelineStageFlags2::NONE)
+            .src_access_mask(vk::AccessFlags2::NONE)
+            .old_layout(vk::ImageLayout::UNDEFINED)
     }
 
     pub fn write_descriptor_sets(&self, descriptor_set: &DescriptorSet) {
         descriptor_set
             .graphics_sets()
             .iter()
+            .zip(descriptor_set.acceleration_sets())
             .enumerate()
-            .for_each(|(current_frame, set)| {
-                let image_info = self.texture.read_only_image_info(current_frame);
-                let write = vk::WriteDescriptorSet::default()
-                    .dst_set(*set)
-                    .dst_binding(0)
-                    .dst_array_element(0)
-                    .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
-                    .descriptor_count(1)
-                    .image_info(std::slice::from_ref(&image_info));
+            .for_each(|(current_frame, (graphics_set, acceleration_set))| {
+                let graphics_image_info = self.texture.read_only_image_info(current_frame);
+                let acceleration_image_info = self.texture.storage_image_info(current_frame);
+                let writes = [
+                    vk::WriteDescriptorSet::default()
+                        .dst_set(*graphics_set)
+                        .dst_binding(0)
+                        .dst_array_element(0)
+                        .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+                        .descriptor_count(1)
+                        .image_info(std::slice::from_ref(&graphics_image_info)),
+                    vk::WriteDescriptorSet::default()
+                        .dst_set(*acceleration_set)
+                        .dst_binding(0)
+                        .dst_array_element(0)
+                        .descriptor_type(vk::DescriptorType::STORAGE_IMAGE)
+                        .descriptor_count(1)
+                        .image_info(std::slice::from_ref(&acceleration_image_info)),
+                ];
 
-                unsafe {
-                    self.device
-                        .raw()
-                        .update_descriptor_sets(std::slice::from_ref(&write), &[])
-                }
+                unsafe { self.device.raw().update_descriptor_sets(&writes, &[]) }
             })
     }
 

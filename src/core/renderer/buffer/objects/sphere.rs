@@ -1,5 +1,4 @@
 use super::Aabb;
-use ash::vk;
 use glam::Vec3A;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -16,17 +15,15 @@ impl Sphere {
         }
     }
 
-    pub fn create_blas() {
-        const AABB: Aabb = Aabb {
+    pub const fn aabb() -> Aabb {
+        Aabb {
             min_x: -1f32,
             min_y: -1f32,
             min_z: -1f32,
             max_x: 1f32,
             max_y: 1f32,
             max_z: 1f32,
-        };
-
-        let aabb_data = vk::AccelerationStructureGeometryAabbsDataKHR::default();
+        }
     }
 
     pub fn create_tlas(&self) {

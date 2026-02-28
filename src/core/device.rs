@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: MIT
 
 use crate::core::{RtError, RtResult, instance::Instance, surface::Surface};
-use ash::{khr::swapchain, vk};
+use ash::{
+    khr::{acceleration_structure, deferred_host_operations, ray_tracing_pipeline, swapchain},
+    vk,
+};
 use gpu_allocator::vulkan::{self, Allocator};
 use std::{
     ffi::CStr,
@@ -36,6 +39,7 @@ pub struct DeviceDescriptor {
 pub struct Device {
     instance: Arc<Instance>,
     raw: ash::Device,
+    rt_loader: acceleration_structure::Device,
     physical_device: vk::PhysicalDevice,
     allocator: Option<Mutex<Allocator>>,
     queue_families: QueueFamilies,
@@ -208,7 +212,12 @@ impl SwapchainSupportDetail {
 }
 
 impl Device {
-    const DEVICE_EXTENSIONS: [&CStr; 1] = [swapchain::NAME];
+    const DEVICE_EXTENSIONS: [&CStr; 4] = [
+        swapchain::NAME,
+        deferred_host_operations::NAME,
+        acceleration_structure::NAME,
+        ray_tracing_pipeline::NAME,
+    ];
 
     pub fn new(desc: &DeviceDescriptor) -> RtResult<Self> {
         let physical_device = Self::choose_physical_device(desc)?;
@@ -225,6 +234,7 @@ impl Device {
             }
         };
         let (device, graphics_queue, present_queue) = Self::create_device(desc, physical_device)?;
+        let rt_loader = acceleration_structure::Device::new(desc.instance.raw(), &device);
         let allocator = Some(Mutex::new(Self::create_allocator(
             desc.instance.clone(),
             device.clone(),
@@ -235,6 +245,7 @@ impl Device {
             instance: desc.instance.clone(),
             physical_device,
             raw: device,
+            rt_loader,
             allocator,
             queue_families,
             graphics_queue,
@@ -245,6 +256,11 @@ impl Device {
     #[inline]
     pub const fn raw(&self) -> &ash::Device {
         &self.raw
+    }
+
+    #[inline]
+    pub const fn rt_loader(&self) -> &acceleration_structure::Device {
+        &self.rt_loader
     }
 
     /// If this is called AFTER Device has been dropped, it will panic since
@@ -342,6 +358,9 @@ impl Device {
             vk::PhysicalDeviceSynchronization2Features::default().synchronization2(true);
         let mut buffer_device_address =
             vk::PhysicalDeviceBufferDeviceAddressFeatures::default().buffer_device_address(true);
+        let mut acceleration_structure =
+            vk::PhysicalDeviceAccelerationStructureFeaturesKHR::default()
+                .acceleration_structure(true);
         let extension_names: Vec<*const i8> = Self::DEVICE_EXTENSIONS
             .iter()
             .map(|extension| extension.as_ptr())
@@ -352,7 +371,8 @@ impl Device {
             .push_next(&mut shader_draw_parameters)
             .push_next(&mut dynamic_rendering)
             .push_next(&mut syncrhonization2)
-            .push_next(&mut buffer_device_address);
+            .push_next(&mut buffer_device_address)
+            .push_next(&mut acceleration_structure);
         let device = unsafe {
             desc.instance
                 .raw()
@@ -440,11 +460,14 @@ impl Device {
         let mut dynamic_rendering = vk::PhysicalDeviceDynamicRenderingFeatures::default();
         let mut syncrhonization2 = vk::PhysicalDeviceSynchronization2Features::default();
         let mut buffer_device_address = vk::PhysicalDeviceBufferDeviceAddressFeatures::default();
+        let mut acceleration_structure =
+            vk::PhysicalDeviceAccelerationStructureFeaturesKHR::default();
         let mut features = vk::PhysicalDeviceFeatures2::default()
             .push_next(&mut shader_draw_parameters)
             .push_next(&mut dynamic_rendering)
             .push_next(&mut syncrhonization2)
-            .push_next(&mut buffer_device_address);
+            .push_next(&mut buffer_device_address)
+            .push_next(&mut acceleration_structure);
 
         unsafe {
             desc.instance
@@ -456,6 +479,7 @@ impl Device {
             && (dynamic_rendering.dynamic_rendering == vk::TRUE)
             && (syncrhonization2.synchronization2 == vk::TRUE)
             && (buffer_device_address.buffer_device_address == vk::TRUE)
+            && (acceleration_structure.acceleration_structure == vk::TRUE)
     }
 
     fn rate_device_suitability(
