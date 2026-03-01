@@ -9,8 +9,8 @@ use std::sync::Arc;
 
 pub struct DescriptorSetDescriptor<'desc> {
     pub device: Arc<Device>,
-    pub graphics_bindings: &'desc [vk::DescriptorSetLayoutBinding<'desc>],
     pub acceleration_bindings: &'desc [vk::DescriptorSetLayoutBinding<'desc>],
+    pub graphics_bindings: &'desc [vk::DescriptorSetLayoutBinding<'desc>],
 }
 
 pub struct DescriptorSet {
@@ -28,9 +28,9 @@ impl DescriptorSet {
         let acceleration_layout =
             Self::create_layout(desc.device.clone(), desc.acceleration_bindings)?;
         let pool = Self::create_pool(desc.device.clone())?;
-        let graphics_sets = Self::allocate_sets(desc.device.clone(), graphics_layout, pool)?;
         let acceleration_sets =
             Self::allocate_sets(desc.device.clone(), acceleration_layout, pool)?;
+        let graphics_sets = Self::allocate_sets(desc.device.clone(), graphics_layout, pool)?;
 
         Ok(Self {
             device: desc.device.clone(),
@@ -81,8 +81,8 @@ impl DescriptorSet {
         const DESCRIPTOR_SET_TYPES: u32 = 2;
 
         let pool_sizes = [
-            GraphicsBuffer::pool_sizes(),
             AccelerationBuffer::pool_sizes(),
+            GraphicsBuffer::pool_sizes(),
         ]
         .concat();
         let create_info = vk::DescriptorPoolCreateInfo::default()

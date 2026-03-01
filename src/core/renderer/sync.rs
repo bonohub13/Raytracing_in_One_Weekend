@@ -58,29 +58,23 @@ impl SyncObject {
     }
 
     pub fn wait_for_fences(&self, current_frame: usize) -> RtResult<()> {
-        if let Err(err) = unsafe {
+        unsafe {
             self.device.raw().wait_for_fences(
                 std::slice::from_ref(&self.in_flight_fences[current_frame]),
                 true,
                 u64::MAX,
             )
-        } {
-            Err(RtError::WaitForFences(err.into()))
-        } else {
-            Ok(())
         }
+        .map_err(|err| RtError::WaitForFences(err.into()))
     }
 
     pub fn reset_fences(&self, current_frame: usize) -> RtResult<()> {
-        if let Err(err) = unsafe {
+        unsafe {
             self.device
                 .raw()
                 .reset_fences(std::slice::from_ref(&self.in_flight_fences[current_frame]))
-        } {
-            Err(RtError::ResetFences(err.into()))
-        } else {
-            Ok(())
         }
+        .map_err(|err| RtError::ResetFences(err.into()))
     }
 
     pub fn graphics_queue_submit(&self, command: &Command, current_frame: usize) -> RtResult<()> {
@@ -102,17 +96,14 @@ impl SyncObject {
             .command_buffer_infos(std::slice::from_ref(&cmd_info))
             .signal_semaphore_infos(std::slice::from_ref(&signal_info));
 
-        if let Err(err) = unsafe {
+        unsafe {
             self.device.raw().queue_submit2(
                 self.device.graphics_queue(),
                 std::slice::from_ref(&submit_info),
                 self.in_flight_fences[current_frame],
             )
-        } {
-            Err(RtError::SubmitQueue(err.into()))
-        } else {
-            Ok(())
         }
+        .map_err(|err| RtError::SubmitQueue(err.into()))
     }
 
     pub fn present_queue(

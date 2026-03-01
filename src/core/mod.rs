@@ -14,6 +14,7 @@ use error::*;
 pub use state::{State, StateDescriptor};
 
 pub mod util {
+
     macro_rules! lock_mutex {
         ($mutex:expr) => {{
             $mutex
@@ -35,6 +36,19 @@ pub mod util {
         }};
     }
 
+    macro_rules! align_up {
+        ($value:expr, $alignment:expr) => {{
+            if $alignment == 0 {
+                $value
+            } else {
+                let alignment_mask = $alignment - 1;
+
+                ($value + alignment_mask) & !alignment_mask
+            }
+        }};
+    }
+
+    pub(crate) use align_up;
     pub(crate) use lock_mutex;
     pub(crate) use lock_mutex_with_fallback;
 }

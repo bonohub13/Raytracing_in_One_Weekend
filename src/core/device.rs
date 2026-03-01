@@ -39,7 +39,8 @@ pub struct DeviceDescriptor {
 pub struct Device {
     instance: Arc<Instance>,
     raw: ash::Device,
-    rt_loader: acceleration_structure::Device,
+    rt_loader: ray_tracing_pipeline::Device,
+    as_loader: acceleration_structure::Device,
     physical_device: vk::PhysicalDevice,
     allocator: Option<Mutex<Allocator>>,
     queue_families: QueueFamilies,
@@ -233,18 +234,20 @@ impl Device {
                 present_family: queue_families.present_family.unwrap(),
             }
         };
-        let (device, graphics_queue, present_queue) = Self::create_device(desc, physical_device)?;
-        let rt_loader = acceleration_structure::Device::new(desc.instance.raw(), &device);
+        let (raw, graphics_queue, present_queue) = Self::create_device(desc, physical_device)?;
+        let rt_loader = ray_tracing_pipeline::Device::new(desc.instance.raw(), &raw);
+        let as_loader = acceleration_structure::Device::new(desc.instance.raw(), &raw);
         let allocator = Some(Mutex::new(Self::create_allocator(
             desc.instance.clone(),
-            device.clone(),
+            raw.clone(),
             physical_device,
         )?));
 
         Ok(Self {
             instance: desc.instance.clone(),
             physical_device,
-            raw: device,
+            raw,
+            as_loader,
             rt_loader,
             allocator,
             queue_families,
@@ -259,7 +262,12 @@ impl Device {
     }
 
     #[inline]
-    pub const fn rt_loader(&self) -> &acceleration_structure::Device {
+    pub const fn as_loader(&self) -> &acceleration_structure::Device {
+        &self.as_loader
+    }
+
+    #[inline]
+    pub const fn rt_loader(&self) -> &ray_tracing_pipeline::Device {
         &self.rt_loader
     }
 
@@ -306,6 +314,14 @@ impl Device {
         }
     }
 
+    pub fn query_device_properties(&self, properties: &mut vk::PhysicalDeviceProperties2) {
+        unsafe {
+            self.instance
+                .raw()
+                .get_physical_device_properties2(self.physical_device, properties)
+        }
+    }
+
     fn choose_physical_device(desc: &DeviceDescriptor) -> RtResult<vk::PhysicalDevice> {
         desc.instance
             .enumerate_physical_devices()
@@ -315,6 +331,7 @@ impl Device {
                 });
                 if let Some(device) = devices
                     .iter()
+                    .rev()
                     .find(|device| Self::is_suitable_device(desc, device).unwrap_or(false))
                 {
                     Ok(*device)
@@ -358,9 +375,13 @@ impl Device {
             vk::PhysicalDeviceSynchronization2Features::default().synchronization2(true);
         let mut buffer_device_address =
             vk::PhysicalDeviceBufferDeviceAddressFeatures::default().buffer_device_address(true);
+        let mut ray_tracing_pipeline =
+            vk::PhysicalDeviceRayTracingPipelineFeaturesKHR::default().ray_tracing_pipeline(true);
         let mut acceleration_structure =
             vk::PhysicalDeviceAccelerationStructureFeaturesKHR::default()
                 .acceleration_structure(true);
+        let mut shader_object =
+            vk::PhysicalDeviceShaderObjectFeaturesEXT::default().shader_object(true);
         let extension_names: Vec<*const i8> = Self::DEVICE_EXTENSIONS
             .iter()
             .map(|extension| extension.as_ptr())
@@ -372,7 +393,9 @@ impl Device {
             .push_next(&mut dynamic_rendering)
             .push_next(&mut syncrhonization2)
             .push_next(&mut buffer_device_address)
-            .push_next(&mut acceleration_structure);
+            .push_next(&mut ray_tracing_pipeline)
+            .push_next(&mut acceleration_structure)
+            .push_next(&mut shader_object);
         let device = unsafe {
             desc.instance
                 .raw()
@@ -460,14 +483,18 @@ impl Device {
         let mut dynamic_rendering = vk::PhysicalDeviceDynamicRenderingFeatures::default();
         let mut syncrhonization2 = vk::PhysicalDeviceSynchronization2Features::default();
         let mut buffer_device_address = vk::PhysicalDeviceBufferDeviceAddressFeatures::default();
+        let mut ray_tracing_pipeline = vk::PhysicalDeviceRayTracingPipelineFeaturesKHR::default();
         let mut acceleration_structure =
             vk::PhysicalDeviceAccelerationStructureFeaturesKHR::default();
+        let mut shader_object = vk::PhysicalDeviceShaderObjectFeaturesEXT::default();
         let mut features = vk::PhysicalDeviceFeatures2::default()
             .push_next(&mut shader_draw_parameters)
             .push_next(&mut dynamic_rendering)
             .push_next(&mut syncrhonization2)
             .push_next(&mut buffer_device_address)
-            .push_next(&mut acceleration_structure);
+            .push_next(&mut ray_tracing_pipeline)
+            .push_next(&mut acceleration_structure)
+            .push_next(&mut shader_object);
 
         unsafe {
             desc.instance
@@ -479,7 +506,9 @@ impl Device {
             && (dynamic_rendering.dynamic_rendering == vk::TRUE)
             && (syncrhonization2.synchronization2 == vk::TRUE)
             && (buffer_device_address.buffer_device_address == vk::TRUE)
+            && (ray_tracing_pipeline.ray_tracing_pipeline == vk::TRUE)
             && (acceleration_structure.acceleration_structure == vk::TRUE)
+            && (shader_object.shader_object == vk::TRUE)
     }
 
     fn rate_device_suitability(

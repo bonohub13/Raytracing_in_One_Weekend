@@ -74,10 +74,6 @@ impl GraphicsBuffer {
             .new_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
             .image(self.texture.images()[current_frame])
             .subresource_range(Self::SUBRESOURCE_RANGE)
-            // TODO: Remove after implementing PathTracer::trace_frame()
-            .src_stage_mask(vk::PipelineStageFlags2::NONE)
-            .src_access_mask(vk::AccessFlags2::NONE)
-            .old_layout(vk::ImageLayout::UNDEFINED)
     }
 
     pub fn write_descriptor_sets(&self, descriptor_set: &DescriptorSet) {
@@ -99,7 +95,7 @@ impl GraphicsBuffer {
                         .image_info(std::slice::from_ref(&graphics_image_info)),
                     vk::WriteDescriptorSet::default()
                         .dst_set(*acceleration_set)
-                        .dst_binding(0)
+                        .dst_binding(1)
                         .dst_array_element(0)
                         .descriptor_type(vk::DescriptorType::STORAGE_IMAGE)
                         .descriptor_count(1)

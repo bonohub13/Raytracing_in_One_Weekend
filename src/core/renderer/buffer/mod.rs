@@ -3,12 +3,14 @@ mod blas;
 mod descriptor_set;
 mod graphics;
 mod objects;
+mod sbt;
 mod texture;
 
 pub(crate) use acceleration::*;
 pub(crate) use descriptor_set::*;
 pub(crate) use graphics::*;
 pub(crate) use objects::*;
+pub(crate) use sbt::*;
 
 use crate::core::{
     RtError, RtResult,
@@ -114,6 +116,14 @@ where
     #[inline]
     pub const fn buffers(&self) -> &[vk::Buffer] {
         self.buffers.as_slice()
+    }
+
+    #[inline]
+    pub const fn device_address(&self) -> RtResult<&[vk::DeviceAddress]> {
+        match &self.device_address {
+            Some(device_address) => Ok(device_address.as_slice()),
+            None => Err(RtError::NoDeviceAddress),
+        }
     }
 
     pub fn write(&mut self, data: &[T]) -> RtResult<()> {

@@ -1,14 +1,20 @@
 struct VSOutput {
-    float4 position : SV_Position;
-    float2 uv : TEXCOORD0;
+  float4 position : SV_Position;
+  float2 uv : TEXCOORD0;
+}
+
+struct RayPayload {
+  float3 color;
 }
 
 struct Camera {
-    uint width;
-    uint height;
-    float2 _pad;
-    float4 center;
-    float4 pixel_delta_u;
-    float4 pixel_delta_v;
-    float4 pixel00_loc;
+  float4 origin;
+  float4 lower_left_corner;
+
+  float4 horizontal;
+  float4 vertical;
+}
+
+struct SphereAttr {
+  float3 normal;
 }

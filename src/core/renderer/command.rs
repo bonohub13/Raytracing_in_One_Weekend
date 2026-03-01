@@ -36,14 +36,6 @@ pub struct Command {
 }
 
 impl Command {
-    const SUBRESOURCE_RANGE: vk::ImageSubresourceRange = vk::ImageSubresourceRange {
-        aspect_mask: vk::ImageAspectFlags::COLOR,
-        base_mip_level: 0,
-        level_count: 1,
-        base_array_layer: 0,
-        layer_count: 1,
-    };
-
     pub fn new(desc: &CommandDescriptor) -> RtResult<Self> {
         let pool = Self::create_command_pool(desc)?;
         let buffers: Vec<vk::CommandBuffer> = (0..params::MAX_FRAMES_IN_FLIGHT)
@@ -62,12 +54,20 @@ impl Command {
         self.buffers.as_slice()
     }
 
-    pub fn reset_command_buffer(&self, current_frame: usize) -> RtResult<()> {
+    pub fn allocate_temporary_command_buffer(&self) -> RtResult<vk::CommandBuffer> {
+        Self::create_command_buffer(
+            self.pool,
+            &CommandDescriptor {
+                device: self.device.clone(),
+            },
+        )
+    }
+
+    pub fn reset_command_buffer(&self, command_buffer: vk::CommandBuffer) -> RtResult<()> {
         if let Err(err) = unsafe {
-            self.device.raw().reset_command_buffer(
-                self.buffers[current_frame],
-                vk::CommandBufferResetFlags::empty(),
-            )
+            self.device
+                .raw()
+                .reset_command_buffer(command_buffer, vk::CommandBufferResetFlags::empty())
         } {
             Err(RtError::ResetCommandBuffer(err.into()))
         } else {
@@ -75,39 +75,40 @@ impl Command {
         }
     }
 
-    pub fn begin_command_buffer(&self, current_frame: usize) -> RtResult<()> {
+    pub fn begin_command_buffer(&self, command_buffer: vk::CommandBuffer) -> RtResult<()> {
         let begin_info = vk::CommandBufferBeginInfo::default();
 
         unsafe {
             self.device
                 .raw()
-                .begin_command_buffer(self.buffers[current_frame], &begin_info)
+                .begin_command_buffer(command_buffer, &begin_info)
         }
         .map_err(|err| RtError::BeginCommandBuffer(err.into()))
     }
 
-    pub fn end_command_buffer(&self, current_frame: usize) -> RtResult<()> {
-        unsafe {
-            self.device
-                .raw()
-                .end_command_buffer(self.buffers[current_frame])
-        }
-        .map_err(|err| RtError::EndCommandBuffer(err.into()))
+    pub fn end_command_buffer(&self, command_buffer: vk::CommandBuffer) -> RtResult<()> {
+        unsafe { self.device.raw().end_command_buffer(command_buffer) }
+            .map_err(|err| RtError::EndCommandBuffer(err.into()))
     }
 
-    pub fn bind_pipeline(&self, pipeline: path_tracer::Pipeline, current_frame: usize) {
+    pub fn bind_pipeline(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        pipeline: path_tracer::Pipeline,
+    ) {
         let (pipeline_bind_point, pipeline) = match pipeline {
             path_tracer::Pipeline::Graphics(pipeline) => {
                 (vk::PipelineBindPoint::GRAPHICS, pipeline)
             }
+            path_tracer::Pipeline::RayTracing(pipeline) => {
+                (vk::PipelineBindPoint::RAY_TRACING_KHR, pipeline)
+            }
         };
 
         unsafe {
-            self.device.raw().cmd_bind_pipeline(
-                self.buffers[current_frame],
-                pipeline_bind_point,
-                pipeline,
-            )
+            self.device
+                .raw()
+                .cmd_bind_pipeline(command_buffer, pipeline_bind_point, pipeline)
         }
     }
 

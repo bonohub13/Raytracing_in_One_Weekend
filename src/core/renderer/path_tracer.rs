@@ -7,9 +7,9 @@ use crate::core::{
     instance::Instance,
     params,
     renderer::{
-        buffer::{self, AccelerationBuffer, DescriptorSet, GraphicsBuffer},
+        buffer::{self, AccelerationBuffer, DescriptorSet, GraphicsBuffer, ShaderBindingTable},
         command::{self, Command},
-        shader::{self},
+        shader,
         swapchain::{Swapchain, SwapchainDescriptor},
         sync::{self, SyncObject},
     },
@@ -21,6 +21,7 @@ use std::{ffi::CStr, sync::Arc};
 #[derive(Debug, Clone, Copy)]
 pub enum Pipeline {
     Graphics(vk::Pipeline),
+    RayTracing(vk::Pipeline),
 }
 
 pub struct PathTracerDescriptor {
@@ -33,13 +34,14 @@ pub struct PathTracer {
     image_index: usize,
     current_frame: usize,
     sync_object: SyncObject,
-    graphics_command: Command,
-    acceleration_command: Command,
+    command: Command,
+    sbt: ShaderBindingTable,
     graphics_pipeline: Pipeline,
+    rt_pipeline: Pipeline,
     pipeline_layout: vk::PipelineLayout,
     descriptor_set: DescriptorSet,
     graphics_buffer: GraphicsBuffer,
-    acceleration_buffer: AccelerationBuffer,
+    rt_buffer: AccelerationBuffer,
     swapchain: Swapchain,
     device: Arc<Device>,
 }
@@ -47,7 +49,7 @@ pub struct PathTracer {
 impl Pipeline {
     pub fn inner(&self) -> vk::Pipeline {
         match self {
-            Self::Graphics(pipeline) => *pipeline,
+            Self::Graphics(pipeline) | Self::RayTracing(pipeline) => *pipeline,
         }
     }
 }
@@ -61,6 +63,7 @@ impl PathTracer {
         base_array_layer: 0,
         layer_count: 1,
     };
+    const SBT_NAME: &str = "Shader binding table allocation";
 
     pub fn new(desc: &PathTracerDescriptor) -> RtResult<Self> {
         let swapchain = Swapchain::new(&SwapchainDescriptor {
@@ -73,31 +76,36 @@ impl PathTracer {
             surface: desc.surface.clone(),
             device: desc.device.clone(),
         })?;
-        let acceleration_buffer = AccelerationBuffer::new(&buffer::AccelerationBufferDescriptor {
+        let sync_object = SyncObject::new(&sync::SyncObjectDescriptor {
             device: desc.device.clone(),
+        })?;
+        let command = Command::new(&command::CommandDescriptor {
+            device: desc.device.clone(),
+        })?;
+        let rt_buffer = AccelerationBuffer::new(&buffer::AccelerationBufferDescriptor {
+            device: desc.device.clone(),
+            sync_object: &sync_object,
+            command: &command,
             camera_desc: buffer::CameraDescriptor {},
         })?;
         let descriptor_set = DescriptorSet::new(&buffer::DescriptorSetDescriptor {
             device: desc.device.clone(),
-            graphics_bindings: &GraphicsBuffer::layout_bindings(),
             acceleration_bindings: &AccelerationBuffer::layout_binding(),
+            graphics_bindings: &GraphicsBuffer::layout_bindings(),
         })?;
         let pipeline_layout = Self::create_pipeline_layout(
             desc.device.clone(),
             &[
-                descriptor_set.graphics_layout(),
                 descriptor_set.acceleration_layout(),
+                descriptor_set.graphics_layout(),
             ],
         )?;
         let graphics_pipeline = Self::create_graphics_pipeline(&swapchain, pipeline_layout, desc)?;
-        let graphics_command = Command::new(&command::CommandDescriptor {
+        let rt_pipeline = Self::create_ray_tracing_pipeline(desc.device.clone(), pipeline_layout)?;
+        let sbt = ShaderBindingTable::new(&buffer::ShaderBindingTableDescriptor {
             device: desc.device.clone(),
-        })?;
-        let acceleration_command = Command::new(&command::CommandDescriptor {
-            device: desc.device.clone(),
-        })?;
-        let sync_object = SyncObject::new(&sync::SyncObjectDescriptor {
-            device: desc.device.clone(),
+            rt_pipeline,
+            name: Self::SBT_NAME,
         })?;
 
         // Update descriptor sets for graphics buffer (initialization)
@@ -107,12 +115,13 @@ impl PathTracer {
             device: desc.device.clone(),
             swapchain,
             graphics_buffer,
-            acceleration_buffer,
+            rt_buffer,
             descriptor_set,
             pipeline_layout,
             graphics_pipeline,
-            graphics_command,
-            acceleration_command,
+            rt_pipeline,
+            sbt,
+            command,
             sync_object,
             image_index: 0,
             current_frame: 0,
@@ -126,8 +135,10 @@ impl PathTracer {
     }
 
     pub fn render_frame(&mut self) -> RtResult<()> {
+        let command_buffer = self.command.buffers()[self.current_frame];
+
         self.sync_object.wait_for_fences(self.current_frame)?;
-        self.acceleration_buffer.update_camera()?;
+        self.rt_buffer.update_camera()?;
         self.sync_object.reset_fences(self.current_frame)?;
         if let Some((image_index, _is_suboptimal)) = self
             .swapchain
@@ -135,11 +146,10 @@ impl PathTracer {
         {
             self.image_index = image_index;
         }
-        self.graphics_command
-            .reset_command_buffer(self.current_frame)?;
-        self.record_graphics_command_buffer()?;
+        self.command.reset_command_buffer(command_buffer)?;
+        self.record_command_buffer(command_buffer)?;
         self.sync_object
-            .graphics_queue_submit(&self.graphics_command, self.current_frame)?;
+            .graphics_queue_submit(&self.command, self.current_frame)?;
         let _ = self.sync_object.present_queue(
             &self.swapchain,
             self.image_index as u32,
@@ -151,48 +161,73 @@ impl PathTracer {
         Ok(())
     }
 
-    fn record_graphics_command_buffer(&self) -> RtResult<()> {
+    fn record_command_buffer(&self, command_buffer: vk::CommandBuffer) -> RtResult<()> {
         let device = self.device.raw();
 
-        self.graphics_command
-            .begin_command_buffer(self.current_frame)?;
-        self.transition_texture_to_read_only()?;
-        self.transition_surface_to_color_attachment()?;
-        self.begin_rendering();
-        self.graphics_command
-            .bind_pipeline(self.graphics_pipeline, self.current_frame);
-        self.set_viewport_and_scissor();
+        self.command.begin_command_buffer(command_buffer)?;
+        // Ray tracing pipeline
+        // TODO: Record TLAS build
+        self.transition_to_trace(command_buffer);
+        self.trace_rays(command_buffer);
+        self.command.bind_pipeline(command_buffer, self.rt_pipeline);
         unsafe {
             device.cmd_bind_descriptor_sets(
-                self.graphics_command.buffers()[self.current_frame],
+                command_buffer,
+                vk::PipelineBindPoint::RAY_TRACING_KHR,
+                self.pipeline_layout,
+                0,
+                &[
+                    self.descriptor_set.acceleration_sets()[self.current_frame],
+                    self.descriptor_set.graphics_sets()[self.current_frame],
+                ],
+                &[],
+            );
+        }
+        self.transition_texture_to_rt_write(command_buffer);
+        // Graphics pipeline
+        self.transition_texture_to_read_only(command_buffer);
+        self.transition_surface_to_color_attachment(command_buffer);
+        self.begin_rendering(command_buffer);
+        self.command
+            .bind_pipeline(command_buffer, self.graphics_pipeline);
+        self.set_viewport_and_scissor(command_buffer);
+        unsafe {
+            device.cmd_bind_descriptor_sets(
+                command_buffer,
                 vk::PipelineBindPoint::GRAPHICS,
                 self.pipeline_layout,
                 0,
-                std::slice::from_ref(&self.descriptor_set.graphics_sets()[self.current_frame]),
+                &[
+                    self.descriptor_set.acceleration_sets()[self.current_frame],
+                    self.descriptor_set.graphics_sets()[self.current_frame],
+                ],
                 &[],
             );
-            device.cmd_draw(
-                self.graphics_command.buffers()[self.current_frame],
-                3,
-                1,
-                0,
-                0,
-            );
+            device.cmd_draw(command_buffer, 3, 1, 0, 0);
         }
-        self.end_rendering();
-        self.transition_surface_to_present()?;
-        self.graphics_command.end_command_buffer(self.current_frame)
+        self.end_rendering(command_buffer);
+        self.transition_surface_to_present(command_buffer);
+        self.command.end_command_buffer(command_buffer)
     }
 
-    fn record_acceleration_command_buffer(&self) -> RtResult<()> {
-        self.acceleration_command
-            .begin_command_buffer(self.current_frame)?;
-        self.transition_texture_to_rt_write()?;
-        self.acceleration_command
-            .end_command_buffer(self.current_frame)
+    fn trace_rays(&self, command_buffer: vk::CommandBuffer) {
+        let extent = self.swapchain.extent();
+
+        unsafe {
+            self.device.rt_loader().cmd_trace_rays(
+                command_buffer,
+                self.sbt.ray_generation_region(),
+                self.sbt.miss_region(),
+                self.sbt.hit_region(),
+                self.sbt.call_region(),
+                extent.width,
+                extent.height,
+                1,
+            )
+        }
     }
 
-    fn begin_rendering(&self) {
+    fn begin_rendering(&self, command_buffer: vk::CommandBuffer) {
         const BLACK: vk::ClearValue = vk::ClearValue {
             color: vk::ClearColorValue {
                 float32: [0f32, 0f32, 0f32, 1f32],
@@ -214,22 +249,33 @@ impl PathTracer {
             .color_attachments(std::slice::from_ref(&attachment_info));
 
         unsafe {
-            self.device.raw().cmd_begin_rendering(
-                self.graphics_command.buffers()[self.current_frame],
-                &rendering_info,
-            )
+            self.device
+                .raw()
+                .cmd_begin_rendering(command_buffer, &rendering_info)
         };
     }
 
-    fn end_rendering(&self) {
+    fn end_rendering(&self, command_buffer: vk::CommandBuffer) {
+        unsafe { self.device.raw().cmd_end_rendering(command_buffer) }
+    }
+
+    fn transition_to_trace(&self, command_buffer: vk::CommandBuffer) {
+        let barrier = vk::MemoryBarrier2::default()
+            .src_stage_mask(vk::PipelineStageFlags2::ACCELERATION_STRUCTURE_BUILD_KHR)
+            .src_access_mask(vk::AccessFlags2::ACCELERATION_STRUCTURE_WRITE_KHR)
+            .dst_stage_mask(vk::PipelineStageFlags2::RAY_TRACING_SHADER_KHR)
+            .dst_access_mask(vk::AccessFlags2::ACCELERATION_STRUCTURE_READ_KHR);
+        let dependency =
+            vk::DependencyInfo::default().memory_barriers(std::slice::from_ref(&barrier));
+
         unsafe {
             self.device
                 .raw()
-                .cmd_end_rendering(self.graphics_command.buffers()[self.current_frame])
+                .cmd_pipeline_barrier2(command_buffer, &dependency)
         }
     }
 
-    fn transition_texture_to_rt_write(&self) -> RtResult<()> {
+    fn transition_texture_to_rt_write(&self, command_buffer: vk::CommandBuffer) {
         let barrier = self
             .graphics_buffer
             .write_transition_barrier(self.current_frame);
@@ -237,16 +283,13 @@ impl PathTracer {
             vk::DependencyInfo::default().image_memory_barriers(std::slice::from_ref(&barrier));
 
         unsafe {
-            self.device.raw().cmd_pipeline_barrier2(
-                self.graphics_command.buffers()[self.current_frame],
-                &dependency_info,
-            )
-        };
-
-        Ok(())
+            self.device
+                .raw()
+                .cmd_pipeline_barrier2(command_buffer, &dependency_info)
+        }
     }
 
-    fn transition_texture_to_read_only(&self) -> RtResult<()> {
+    fn transition_texture_to_read_only(&self, command_buffer: vk::CommandBuffer) {
         let barrier = self
             .graphics_buffer
             .render_transition_barrier(self.current_frame);
@@ -254,16 +297,13 @@ impl PathTracer {
             vk::DependencyInfo::default().image_memory_barriers(std::slice::from_ref(&barrier));
 
         unsafe {
-            self.device.raw().cmd_pipeline_barrier2(
-                self.graphics_command.buffers()[self.current_frame],
-                &dependency_info,
-            )
-        };
-
-        Ok(())
+            self.device
+                .raw()
+                .cmd_pipeline_barrier2(command_buffer, &dependency_info)
+        }
     }
 
-    fn transition_surface_to_color_attachment(&self) -> RtResult<()> {
+    fn transition_surface_to_color_attachment(&self, command_buffer: vk::CommandBuffer) {
         let barrier = vk::ImageMemoryBarrier2::default()
             .src_stage_mask(vk::PipelineStageFlags2::NONE)
             .src_access_mask(vk::AccessFlags2::NONE)
@@ -279,16 +319,13 @@ impl PathTracer {
             vk::DependencyInfo::default().image_memory_barriers(std::slice::from_ref(&barrier));
 
         unsafe {
-            self.device.raw().cmd_pipeline_barrier2(
-                self.graphics_command.buffers()[self.current_frame],
-                &dependency_info,
-            )
-        };
-
-        Ok(())
+            self.device
+                .raw()
+                .cmd_pipeline_barrier2(command_buffer, &dependency_info)
+        }
     }
 
-    fn transition_surface_to_present(&self) -> RtResult<()> {
+    fn transition_surface_to_present(&self, command_buffer: vk::CommandBuffer) {
         let barrier = vk::ImageMemoryBarrier2::default()
             .src_stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
             .src_access_mask(vk::AccessFlags2::COLOR_ATTACHMENT_WRITE)
@@ -302,16 +339,13 @@ impl PathTracer {
             vk::DependencyInfo::default().image_memory_barriers(std::slice::from_ref(&barrier));
 
         unsafe {
-            self.device.raw().cmd_pipeline_barrier2(
-                self.graphics_command.buffers()[self.current_frame],
-                &dependency_info,
-            )
-        };
-
-        Ok(())
+            self.device
+                .raw()
+                .cmd_pipeline_barrier2(command_buffer, &dependency_info)
+        }
     }
 
-    fn set_viewport_and_scissor(&self) {
+    fn set_viewport_and_scissor(&self, command_buffer: vk::CommandBuffer) {
         let swapchain_extent = self.swapchain.extent();
         let viewport = vk::Viewport {
             x: 0f32,
@@ -327,16 +361,12 @@ impl PathTracer {
         };
 
         unsafe {
-            self.device.raw().cmd_set_viewport(
-                self.graphics_command.buffers()[self.current_frame],
-                0,
-                std::slice::from_ref(&viewport),
-            );
-            self.device.raw().cmd_set_scissor(
-                self.graphics_command.buffers()[self.current_frame],
-                0,
-                std::slice::from_ref(&scissor),
-            );
+            self.device
+                .raw()
+                .cmd_set_viewport(command_buffer, 0, std::slice::from_ref(&viewport));
+            self.device
+                .raw()
+                .cmd_set_scissor(command_buffer, 0, std::slice::from_ref(&scissor));
         }
     }
 
@@ -457,17 +487,97 @@ impl PathTracer {
             Err((_, err)) => Err(RtError::CreatePipeline(Some(err.into()))),
         }
     }
+
+    fn create_ray_tracing_pipeline(
+        device: Arc<Device>,
+        pipeline_layout: vk::PipelineLayout,
+    ) -> RtResult<Pipeline> {
+        const RAY_GENERATION_PATH: &str = "shaders/spv/raygen.spv";
+        const RAY_GENERATION_MAIN: &CStr = c"main";
+        const MISS_PATH: &str = "shaders/spv/miss.spv";
+        const MISS_MAIN: &CStr = c"main";
+        const TRIANGLE_CLOSEST_HIT_PATH: &str = "shaders/spv/mesh_closest_hit.spv";
+        const TRIANGLE_CLOSEST_HIT_MAIN: &CStr = c"main";
+        const INTERSECTION_PATH: &str = "shaders/spv/intersection.spv";
+        const INTERSECTION_MAIN: &CStr = c"main";
+        const PROCEDURAL_CLOSEST_HIT_PATH: &str = "shaders/spv/proc_closest_hit.spv";
+        const PROCEDURAL_CLOSEST_HIT_MAIN: &CStr = c"main";
+
+        let shader_module = shader::RayTracingShaders::new(&shader::RayTracingShadersDescriptor {
+            device: device.clone(),
+            ray_generation_shader_path: RAY_GENERATION_PATH,
+            ray_generation_main: RAY_GENERATION_MAIN,
+            miss_shader_path: MISS_PATH,
+            miss_main: MISS_MAIN,
+            triangle_closest_hit_shader_path: TRIANGLE_CLOSEST_HIT_PATH,
+            triangle_closest_hit_main: TRIANGLE_CLOSEST_HIT_MAIN,
+            intersection_shader_path: INTERSECTION_PATH,
+            intersection_main: INTERSECTION_MAIN,
+            procedural_closest_hit_shader_path: PROCEDURAL_CLOSEST_HIT_PATH,
+            procedural_closest_hit_main: PROCEDURAL_CLOSEST_HIT_MAIN,
+        })?;
+        let shader_stages = shader_module.shader_stages();
+        let shader_groups = [
+            // Ray Generation
+            vk::RayTracingShaderGroupCreateInfoKHR::default()
+                .ty(vk::RayTracingShaderGroupTypeKHR::GENERAL)
+                .general_shader(0)
+                .intersection_shader(vk::SHADER_UNUSED_KHR)
+                .closest_hit_shader(vk::SHADER_UNUSED_KHR)
+                .any_hit_shader(vk::SHADER_UNUSED_KHR),
+            // Miss
+            vk::RayTracingShaderGroupCreateInfoKHR::default()
+                .ty(vk::RayTracingShaderGroupTypeKHR::GENERAL)
+                .general_shader(1)
+                .intersection_shader(vk::SHADER_UNUSED_KHR)
+                .closest_hit_shader(vk::SHADER_UNUSED_KHR)
+                .any_hit_shader(vk::SHADER_UNUSED_KHR),
+            // Closest Hit (Triangles)
+            vk::RayTracingShaderGroupCreateInfoKHR::default()
+                .ty(vk::RayTracingShaderGroupTypeKHR::TRIANGLES_HIT_GROUP)
+                .general_shader(vk::SHADER_UNUSED_KHR)
+                .intersection_shader(vk::SHADER_UNUSED_KHR)
+                .closest_hit_shader(2)
+                .any_hit_shader(vk::SHADER_UNUSED_KHR),
+            // Closest Hit (AABBs)
+            vk::RayTracingShaderGroupCreateInfoKHR::default()
+                .ty(vk::RayTracingShaderGroupTypeKHR::PROCEDURAL_HIT_GROUP)
+                .general_shader(vk::SHADER_UNUSED_KHR)
+                .intersection_shader(3)
+                .closest_hit_shader(4)
+                .any_hit_shader(vk::SHADER_UNUSED_KHR),
+        ];
+        let create_info = vk::RayTracingPipelineCreateInfoKHR::default()
+            .stages(&shader_stages)
+            .groups(&shader_groups)
+            .max_pipeline_ray_recursion_depth(params::RAY_BOUNCE_MAX_DEPTH)
+            .layout(pipeline_layout);
+        let rt_pipelines = unsafe {
+            device.rt_loader().create_ray_tracing_pipelines(
+                vk::DeferredOperationKHR::null(),
+                vk::PipelineCache::null(),
+                std::slice::from_ref(&create_info),
+                None,
+            )
+        }
+        .map_err(|(_, err)| RtError::CreatePipeline(Some(err.into())))?;
+
+        if let Some(pipeline) = rt_pipelines.first() {
+            Ok(Pipeline::RayTracing(*pipeline))
+        } else {
+            Err(RtError::CreatePipeline(None))
+        }
+    }
 }
 
 impl Drop for PathTracer {
     fn drop(&mut self) {
+        let device = self.device.raw();
+
         unsafe {
-            self.device
-                .raw()
-                .destroy_pipeline(self.graphics_pipeline.inner(), None);
-            self.device
-                .raw()
-                .destroy_pipeline_layout(self.pipeline_layout, None);
+            device.destroy_pipeline(self.graphics_pipeline.inner(), None);
+            device.destroy_pipeline(self.rt_pipeline.inner(), None);
+            device.destroy_pipeline_layout(self.pipeline_layout, None);
         };
     }
 }

@@ -1,19 +1,25 @@
 use crate::core::{
-    RtError, RtResult,
+    RtResult,
     device::Device,
     params,
-    renderer::buffer::{
-        self, Aabb, Buffer, DescriptorSet,
-        blas::{self, BottomLevelAs},
-        objects::{Camera, CameraDescriptor},
+    renderer::{
+        buffer::{
+            self, Aabb, Buffer, DescriptorSet,
+            blas::{self, BottomLevelAs},
+            objects::{Camera, CameraDescriptor},
+        },
+        command::Command,
+        sync::SyncObject,
     },
 };
 use ash::vk;
 use gpu_allocator::vulkan as vk_alloc;
 use std::sync::Arc;
 
-pub struct AccelerationBufferDescriptor {
+pub struct AccelerationBufferDescriptor<'desc> {
     pub device: Arc<Device>,
+    pub sync_object: &'desc SyncObject,
+    pub command: &'desc Command,
     pub camera_desc: CameraDescriptor,
 }
 
@@ -22,7 +28,7 @@ pub struct AccelerationBuffer {
     camera_buffer: Buffer<Camera>,
     camera: Camera,
     aabb_buffer: Buffer<Aabb>,
-    scratch_buffer: Buffer<()>,
+    blas: BottomLevelAs,
 }
 
 impl AccelerationBuffer {
@@ -47,30 +53,20 @@ impl AccelerationBuffer {
             create_info: buffer::Aabb::buffer_create_info(),
             alloc_info: buffer::Aabb::allocation_info(),
         })?;
-        let geometries = Self::create_geometry(desc.device.clone(), &aabbs, &aabb_buffer)?;
-        let size_info = {
-            let mut size_info = vk::AccelerationStructureBuildSizesInfoKHR::default();
-
-            Self::query_build_sizes_info(desc.device.clone(), &aabbs, &geometries, &mut size_info);
-
-            size_info
-        };
-        let scratch_buffer = Self::create_scratch_buffer(desc.device.clone(), &size_info)?;
-        /*
         let blas = BottomLevelAs::new(&blas::BottomLevelAsDescriptor {
             device: desc.device.clone(),
             aabb_data: &aabbs,
             aabb_buffer: &aabb_buffer,
-            size_info,
+            sync_object: desc.sync_object,
+            command: desc.command,
         })?;
-        */
 
         Ok(Self {
             device: desc.device.clone(),
             camera,
             camera_buffer,
             aabb_buffer,
-            scratch_buffer,
+            blas,
         })
     }
 
@@ -84,7 +80,7 @@ impl AccelerationBuffer {
             .buffer_info(std::slice::from_ref(&self.camera), current_frame);
         let write = vk::WriteDescriptorSet::default()
             .dst_set(descriptor_set.acceleration_sets()[current_frame])
-            .dst_binding(1)
+            .dst_binding(2)
             .dst_array_element(0)
             .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
             .descriptor_count(1)
@@ -101,13 +97,20 @@ impl AccelerationBuffer {
         vec![
             vk::DescriptorSetLayoutBinding::default()
                 .binding(0)
-                .descriptor_type(vk::DescriptorType::STORAGE_IMAGE)
+                .descriptor_type(vk::DescriptorType::ACCELERATION_STRUCTURE_KHR)
                 .descriptor_count(1)
                 .stage_flags(
                     vk::ShaderStageFlags::RAYGEN_KHR | vk::ShaderStageFlags::CLOSEST_HIT_KHR,
                 ),
             vk::DescriptorSetLayoutBinding::default()
                 .binding(1)
+                .descriptor_type(vk::DescriptorType::STORAGE_IMAGE)
+                .descriptor_count(1)
+                .stage_flags(
+                    vk::ShaderStageFlags::RAYGEN_KHR | vk::ShaderStageFlags::CLOSEST_HIT_KHR,
+                ),
+            vk::DescriptorSetLayoutBinding::default()
+                .binding(2)
                 .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
                 .descriptor_count(1)
                 .stage_flags(
@@ -119,6 +122,9 @@ impl AccelerationBuffer {
     pub fn pool_sizes() -> Vec<vk::DescriptorPoolSize> {
         vec![
             vk::DescriptorPoolSize::default()
+                .ty(vk::DescriptorType::ACCELERATION_STRUCTURE_KHR)
+                .descriptor_count(Self::PER_DESCRIPTOR_SET_COUNT),
+            vk::DescriptorPoolSize::default()
                 .ty(vk::DescriptorType::STORAGE_IMAGE)
                 .descriptor_count(Self::PER_DESCRIPTOR_SET_COUNT),
             vk::DescriptorPoolSize::default()
@@ -126,88 +132,28 @@ impl AccelerationBuffer {
                 .descriptor_count(Self::PER_DESCRIPTOR_SET_COUNT),
         ]
     }
+}
 
-    fn create_geometry<'geom>(
-        device: Arc<Device>,
-        aabb_data: &[Aabb],
-        aabb_buffer: &Buffer<Aabb>,
-    ) -> RtResult<Vec<vk::AccelerationStructureGeometryKHR<'geom>>> {
-        if aabb_data.is_empty() {
-            return Err(RtError::NoGemoetryData);
-        }
+pub fn create_scratch_buffer(device: Arc<Device>, scratch_size: u64) -> RtResult<Buffer<()>> {
+    const ALLOCATION_NAME: &str = "Scratch buffer allocation";
+    const ALIGNMENT: u64 = 0x100;
 
-        let aabb_geometry = if !aabb_data.is_empty() {
-            let address_info =
-                vk::BufferDeviceAddressInfo::default().buffer(aabb_buffer.buffers()[0]);
-            let device_address = unsafe { device.raw().get_buffer_device_address(&address_info) };
-            let buffer_data = vk::AccelerationStructureGeometryAabbsDataKHR::default()
-                .data(vk::DeviceOrHostAddressConstKHR { device_address })
-                .stride(size_of_val(aabb_data) as u64);
-
-            Some(
-                vk::AccelerationStructureGeometryKHR::default()
-                    .geometry_type(vk::GeometryTypeKHR::AABBS)
-                    .geometry(vk::AccelerationStructureGeometryDataKHR { aabbs: buffer_data })
-                    .flags(vk::GeometryFlagsKHR::OPAQUE),
-            )
-        } else {
-            None
-        };
-
-        Ok(match aabb_geometry {
-            Some(aabb_geometry) => vec![aabb_geometry],
-            None => vec![],
-        })
-    }
-
-    fn query_build_sizes_info(
-        device: Arc<Device>,
-        aabb_data: &[Aabb],
-        geometries: &[vk::AccelerationStructureGeometryKHR],
-        size_info: &mut vk::AccelerationStructureBuildSizesInfoKHR,
-    ) {
-        let build_info = vk::AccelerationStructureBuildGeometryInfoKHR::default()
-            .ty(vk::AccelerationStructureTypeKHR::BOTTOM_LEVEL)
-            .flags(vk::BuildAccelerationStructureFlagsKHR::PREFER_FAST_TRACE)
-            .mode(vk::BuildAccelerationStructureModeKHR::BUILD)
-            .geometries(&geometries);
-        let primitive_counts = [
-            // AABBs
-            aabb_data.len() as u32,
-        ];
-
-        unsafe {
-            device.rt_loader().get_acceleration_structure_build_sizes(
-                vk::AccelerationStructureBuildTypeKHR::DEVICE,
-                &build_info,
-                &primitive_counts,
-                size_info,
-            )
-        }
-    }
-
-    fn create_scratch_buffer(
-        device: Arc<Device>,
-        size_info: &vk::AccelerationStructureBuildSizesInfoKHR,
-    ) -> RtResult<Buffer<()>> {
-        const ALLOCATION_NAME: &str = "Scratch buffer allocation";
-
-        let scratch_size = size_info.update_scratch_size;
-
-        Buffer::new(&buffer::BufferDescriptor {
-            device,
-            data: None,
-            ty: buffer::BufferType::Shared,
-            create_info: vk::BufferCreateInfo::default().size(scratch_size).usage(
+    Buffer::new(&buffer::BufferDescriptor {
+        device,
+        data: None,
+        ty: buffer::BufferType::Shared,
+        create_info: vk::BufferCreateInfo::default()
+            .size(scratch_size + ALIGNMENT)
+            .usage(
                 vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS,
-            ),
-            alloc_info: vk_alloc::AllocationCreateDesc {
-                name: ALLOCATION_NAME,
-                requirements: vk::MemoryRequirements::default(),
-                location: gpu_allocator::MemoryLocation::GpuOnly,
-                linear: false,
-                allocation_scheme: vk_alloc::AllocationScheme::GpuAllocatorManaged,
-            },
-        })
-    }
+            )
+            .sharing_mode(vk::SharingMode::EXCLUSIVE),
+        alloc_info: vk_alloc::AllocationCreateDesc {
+            name: ALLOCATION_NAME,
+            requirements: vk::MemoryRequirements::default(),
+            location: gpu_allocator::MemoryLocation::GpuOnly,
+            linear: false,
+            allocation_scheme: vk_alloc::AllocationScheme::GpuAllocatorManaged,
+        },
+    })
 }

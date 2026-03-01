@@ -104,14 +104,18 @@ pub enum RtError {
     AllocateDescriptorSets(Box<dyn Error>),
     #[error("Failed to create buffer: `{0}`")]
     CreateBuffer(Box<dyn Error>),
+    #[error("Expected device address to be available")]
+    NoDeviceAddress,
     #[error("Failed to bind image memory: `{0}`")]
     BindImageMemory(Box<dyn Error>),
     #[error("Failed to bind buffer memory: `{0}`")]
     BindBufferMemory(Box<dyn Error>),
     #[error("Failed to flush mapped memory ranges: `{0}`")]
     FlushMappedMemoryRanges(Box<dyn Error>),
-    #[error("No data were passed for AS geometry")]
-    NoGemoetryData,
+    #[error("Failed to create acceleration structure: `{0}`")]
+    CreateAccelerationStructure(Box<dyn Error>),
+    #[error("Failed to get ray tracing shader group handles: `{0}`")]
+    GetRTShaderGroupHandles(Box<dyn Error>),
 }
 
 pub type RtResult<T> = Result<T, RtError>;
