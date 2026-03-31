@@ -43,6 +43,7 @@ clean:
 
 license:
 	addlicense -s=only -c "$(AUTHOR)" -y $(COPYRIGHT_YEAR) -l mit  src/
+	addlicense -s=only -c "$(AUTHOR)" -y $(COPYRIGHT_YEAR) -l mit  rtiow/src
 
 build-shaders:
 	@[ -d ${SPIRV_DIR} ] || mkdir -pv ${SPIRV_DIR}

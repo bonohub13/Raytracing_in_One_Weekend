@@ -1,14 +1,13 @@
 [package]
-name = "Raytracing_in_One_Weekend"
+name = "rtiow"
 version = "0.1.0"
 edition = "2024"
-license = "MIT"
-authors = ["Kensuke Saito"]
-repository = "https://github.com/bonohub13/Raytracing_in_One_Weekend"
 
 [dependencies]
-anyhow = "1.0.100"
-rtiow = { version = "0.1.0", path = "rtiow" }
+ash = { version = "0.38.0", features = ["linked"] }
+ash-window = "0.13.0"
+gpu-allocator = "0.28.0"
+thiserror = "2.0.18"
 winit = "0.30.12"
 
 [target.x86_64-unknown-linux-gnu]

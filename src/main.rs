@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: MIT
 
 mod app;
-mod core;
-mod frame_limiter;
 
 use anyhow::Result;
-use winit::event_loop::EventLoop;
+use winit::event_loop::{ControlFlow, EventLoop};
 
 fn main() -> Result<()> {
-    let mut app = app::PathTracer::default();
     let event_loop = EventLoop::new()?;
+    let mut app = app::RtApp::default();
 
-    event_loop.run_app(&mut app)?;
-
-    Ok(())
+    event_loop.set_control_flow(ControlFlow::Poll);
+    if let Err(err) = event_loop.run_app(&mut app) {
+        Err(err.into())
+    } else {
+        Ok(())
+    }
 }
