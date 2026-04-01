@@ -29,7 +29,7 @@ impl RtApp {
 
 impl ApplicationHandler for RtApp {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        if self.window.is_none() {
+        if self.window.is_none() && self.state.is_none() {
             self.window = if let Some(monitor) = event_loop.primary_monitor() {
                 let attr = winit::window::WindowAttributes::default()
                     .with_title(Self::WINDOW_TITLE)
@@ -77,7 +77,13 @@ impl ApplicationHandler for RtApp {
         _window_id: winit::window::WindowId,
         window_event: winit::event::WindowEvent,
     ) {
-        if let Some(_window) = self.window.as_ref() {
+        if (self.window.is_some() && self.state.is_none())
+            || (self.window.is_none() && self.state.is_some())
+        {
+            event_loop.exit();
+        }
+
+        if let (Some(_window), Some(_state)) = (self.window.as_ref(), self.state.as_ref()) {
             match window_event {
                 WindowEvent::CloseRequested => event_loop.exit(),
                 WindowEvent::KeyboardInput {

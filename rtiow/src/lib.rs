@@ -1,14 +1,19 @@
 // Copyright 2026 Kensuke Saito
 // SPDX-License-Identifier: MIT
 
+pub(crate) mod debug;
+pub(crate) mod device;
 pub(crate) mod instance;
 pub(crate) mod state;
+pub(crate) mod surface;
 pub mod util;
 
-pub use instance::Instance;
-pub(crate) use instance::InstanceDesc;
+pub(crate) use debug::*;
+pub(crate) use device::*;
+pub(crate) use instance::*;
 pub use state::*;
 use std::error::Error;
+pub(crate) use surface::*;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RtError {
@@ -25,8 +30,28 @@ pub enum RtError {
     // Vulkan related errors
     #[error("Failed to enumerate instance extension properties. ({0})")]
     EnumerateInstanceExtensionProperties(Box<dyn Error>),
+    #[error("Failed to enumerate instance layer properties. ({0})")]
+    EnumerateInstanceLayerProperties(Box<dyn Error>),
+    #[error("Validation layers requested, but not available")]
+    ValidationLayersNotSupported,
     #[error("Failed to create instance. ({0})")]
     CreateInstance(Box<dyn Error>),
+    #[error("Debug loader isn't initialized.")]
+    DebugLoaderUninitialized,
+    #[error("Failed to create debug utils messenger. ({0})")]
+    CreateDebugUtilsMessenger(Box<dyn Error>),
+    #[error("Failed to create surface. ({0})")]
+    CreateSurface(Box<dyn Error>),
+    #[error("Failed to get physical device surface support. ({0})")]
+    GetPhysicalDeviceSurfaceSupport(Box<dyn Error>),
+    #[error("Failed to enumerate physical devices. ({0})")]
+    EnumeratePhysicalDevices(Box<dyn Error>),
+    #[error("Failed to find suitable physical devices.")]
+    FindSuitableDevice,
+    #[error("Failed to create logical device. ({0})")]
+    CreateDevice(Box<dyn Error>),
+    #[error("Device failed to wait idle. ({0})")]
+    DeviceWaitIdle(Box<dyn Error>),
 }
 
 pub type RtErr<T> = Result<T, RtError>;
