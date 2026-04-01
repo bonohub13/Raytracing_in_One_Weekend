@@ -1,7 +1,9 @@
 // Copyright 2026 Kensuke Saito
 // SPDX-License-Identifier: MIT
 
-use crate::{DebugUtilsMessenger, RtErr, RtError, util};
+#[cfg(debug_assertions)]
+use crate::DebugUtilsMessenger;
+use crate::{RtErr, RtError, util};
 use ash::{ext::debug_utils, khr::surface, vk};
 use std::{ffi::CStr, sync::Arc};
 use winit::{raw_window_handle::HasDisplayHandle, window::Window};
@@ -23,6 +25,7 @@ pub struct InstanceDesc<'desc> {
 impl Instance {
     const ENGINE_NAME: &CStr = c"Rtiow";
     const ENGINE_VERSION: &str = env!("CARGO_PKG_VERSION");
+    #[cfg(debug_assertions)]
     const VALIDATION_LAYERS: [&CStr; 1] = [c"VK_LAYER_KHRONOS_validation"];
 
     pub(crate) fn new(desc: &InstanceDesc) -> RtErr<Self> {

@@ -38,6 +38,21 @@ impl Device {
     }
 
     #[inline]
+    pub(crate) fn device(&self) -> &ash::Device {
+        &self.device
+    }
+
+    #[inline]
+    pub(crate) fn graphics_queue(&self) -> vk::Queue {
+        self.graphics_queue
+    }
+
+    #[inline]
+    pub(crate) fn present_queue(&self) -> vk::Queue {
+        self.present_queue
+    }
+
+    #[inline]
     pub(crate) fn device_wait_idle(&self) -> RtErr<()> {
         unsafe { self.device.device_wait_idle() }.map_err(|err| RtError::DeviceWaitIdle(err.into()))
     }

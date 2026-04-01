@@ -1,18 +1,22 @@
 // Copyright 2026 Kensuke Saito
 // SPDX-License-Identifier: MIT
 
-use crate::{Instance, RtErr, RtError};
-use ash::vk::{self, DebugUtilsMessengerEXT};
-use std::{
-    ffi::{c_void, CStr},
-    sync::Arc,
-};
+use crate::Instance;
+#[cfg(debug_assertions)]
+use crate::{RtErr, RtError};
+#[cfg(debug_assertions)]
+use ash::vk;
+use ash::vk::DebugUtilsMessengerEXT;
+#[cfg(debug_assertions)]
+use std::ffi::{c_void, CStr};
+use std::sync::Arc;
 
 pub struct DebugUtilsMessenger {
     instance: Arc<Instance>,
     messenger: DebugUtilsMessengerEXT,
 }
 
+#[cfg(debug_assertions)]
 impl DebugUtilsMessenger {
     pub(crate) fn new(instance: Arc<Instance>) -> RtErr<Self> {
         let messenger = Self::create_debug_utils_messenger(instance.clone())?;
