@@ -4,7 +4,11 @@
 #[cfg(debug_assertions)]
 use crate::DebugUtilsMessenger;
 use crate::{RtErr, RtError, util};
-use ash::{ext::debug_utils, khr::surface, vk};
+use ash::{
+    ext::debug_utils,
+    khr::{get_surface_capabilities2, surface},
+    vk,
+};
 use std::{ffi::CStr, sync::Arc};
 use winit::{raw_window_handle::HasDisplayHandle, window::Window};
 
@@ -13,6 +17,7 @@ pub struct Instance {
     instance: ash::Instance,
     debug_loader: Option<debug_utils::Instance>,
     surface_loader: surface::Instance,
+    surface_capabilities: get_surface_capabilities2::Instance,
 }
 
 #[derive(Debug)]
@@ -27,6 +32,10 @@ impl Instance {
     const ENGINE_VERSION: &str = env!("CARGO_PKG_VERSION");
     #[cfg(debug_assertions)]
     const VALIDATION_LAYERS: [&CStr; 1] = [c"VK_LAYER_KHRONOS_validation"];
+    #[cfg(debug_assertions)]
+    const EXTENSION_NAME: [&CStr; 2] = [debug_utils::NAME, get_surface_capabilities2::NAME];
+    #[cfg(not(debug_assertions))]
+    const EXTENSION_NAME: [&CStr; 1] = [get_surface_capabilities2::NAME];
 
     pub(crate) fn new(desc: &InstanceDesc) -> RtErr<Self> {
         let entry = ash::Entry::linked();
@@ -36,12 +45,14 @@ impl Instance {
         #[cfg(not(debug_assertions))]
         let debug_loader = None;
         let surface_loader = surface::Instance::new(&entry, &instance);
+        let surface_capabilities = get_surface_capabilities2::Instance::new(&entry, &instance);
 
         Ok(Self {
             entry,
             instance,
             debug_loader,
             surface_loader,
+            surface_capabilities,
         })
     }
 
@@ -63,6 +74,11 @@ impl Instance {
     #[inline]
     pub fn surface_loader(&self) -> &surface::Instance {
         &self.surface_loader
+    }
+
+    #[inline]
+    pub fn surface_capabilities(&self) -> &get_surface_capabilities2::Instance {
+        &self.surface_capabilities
     }
 
     fn create_instance(desc: &InstanceDesc, entry: &ash::Entry) -> RtErr<ash::Instance> {
@@ -90,7 +106,7 @@ impl Instance {
             .engine_name(Self::ENGINE_NAME)
             .engine_version(util::parse_version_from_str(Self::ENGINE_VERSION)?)
             .api_version(vk::API_VERSION_1_3);
-        let extensions: Vec<_> = Self::get_required_extension(desc)?
+        let extensions: Vec<_> = Self::get_required_extension(entry, desc)?
             .iter()
             .map(|ext| ext.as_ptr())
             .collect();
@@ -122,25 +138,39 @@ impl Instance {
             .map_err(|err| RtError::EnumerateInstanceExtensionProperties(err.into()))
     }
 
-    fn get_required_extension<'ext>(desc: &InstanceDesc) -> RtErr<Vec<&'ext CStr>> {
+    fn get_required_extension<'ext>(
+        entry: &ash::Entry,
+        desc: &InstanceDesc,
+    ) -> RtErr<Vec<&'ext CStr>> {
         let display_handle = desc
             .window
             .display_handle()
             .map_err(|err| RtError::DisplayHandle(err.into()))?
             .as_raw();
+        let available_extension_properties = Self::enumerate_instance_extension_properties(entry)?;
+        let available_extensions: Vec<_> = available_extension_properties
+            .iter()
+            .map(|property| unsafe { CStr::from_ptr(property.extension_name.as_ptr()) })
+            .collect();
         let extensions = ash_window::enumerate_required_extensions(display_handle)
             .map_err(|err| RtError::EnumerateRequiredExtensions(err.into()))?;
-        #[allow(unused_mut)]
-        let mut extensions: Vec<_> = extensions
+        if !Self::EXTENSION_NAME
             .iter()
-            .copied()
-            .map(|ext| unsafe { CStr::from_ptr(ext) })
-            .collect();
+            .any(|extension| !available_extensions.contains(extension))
+        {
+            #[allow(unused_mut)]
+            let mut extensions: Vec<_> = extensions
+                .iter()
+                .copied()
+                .map(|ext| unsafe { CStr::from_ptr(ext) })
+                .collect();
 
-        #[cfg(debug_assertions)]
-        extensions.push(debug_utils::NAME);
+            extensions.extend_from_slice(&Self::EXTENSION_NAME);
 
-        Ok(extensions)
+            Ok(extensions)
+        } else {
+            Err(RtError::ExtensionNotSupported)
+        }
     }
 
     #[cfg(debug_assertions)]

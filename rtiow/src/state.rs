@@ -1,12 +1,13 @@
 // Copyright 2026 Kensuke Saito
 // SPDX-License-Identifier: MIT
 
-use crate::{DebugUtilsMessenger, Device, Instance, InstanceDesc, RtErr, Surface};
+use crate::{DebugUtilsMessenger, Device, Instance, InstanceDesc, RtErr, Surface, Swapchain};
 use std::{ffi::CStr, sync::Arc};
 use winit::window::Window;
 
 pub struct VkState {
-    _device: Device,
+    _swapchain: Swapchain,
+    _device: Arc<Device>,
     _surface: Surface,
     _debug_messenger: Option<DebugUtilsMessenger>,
     _instance: Arc<Instance>,
@@ -31,13 +32,15 @@ impl VkState {
         #[cfg(not(debug_assertions))]
         let debug_messenger = None;
         let surface = Surface::new(desc.window.clone(), instance.clone())?;
-        let device = Device::new(instance.clone(), &surface)?;
+        let device = Arc::new(Device::new(instance.clone(), &surface)?);
+        let swapchain = Swapchain::new(desc.window.clone(), &surface, device.clone())?;
 
         Ok(Self {
             _instance: instance,
             _debug_messenger: debug_messenger,
             _surface: surface,
             _device: device,
+            _swapchain: swapchain,
         })
     }
 }

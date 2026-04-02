@@ -6,14 +6,12 @@ pub(crate) mod device;
 pub(crate) mod instance;
 pub(crate) mod state;
 pub(crate) mod surface;
+pub(crate) mod swapchain;
 pub mod util;
 
-pub(crate) use debug::*;
-pub(crate) use device::*;
-pub(crate) use instance::*;
-pub use state::*;
+pub use crate::state::*;
+pub(crate) use crate::{debug::*, device::*, instance::*, surface::*, swapchain::*};
 use std::error::Error;
-pub(crate) use surface::*;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RtError {
@@ -34,6 +32,8 @@ pub enum RtError {
     EnumerateInstanceLayerProperties(Box<dyn Error>),
     #[error("Validation layers requested, but not available")]
     ValidationLayersNotSupported,
+    #[error("Extensions requested, but not available")]
+    ExtensionNotSupported,
     #[error("Failed to create instance. ({0})")]
     CreateInstance(Box<dyn Error>),
     #[error("Debug loader isn't initialized.")]
@@ -44,14 +44,24 @@ pub enum RtError {
     CreateSurface(Box<dyn Error>),
     #[error("Failed to get physical device surface support. ({0})")]
     GetPhysicalDeviceSurfaceSupport(Box<dyn Error>),
+    #[error("Failed to get physical device surface capabilities. ({0})")]
+    GetPhysicalDeviceSurfaceCapabilities(Box<dyn Error>),
+    #[error("Failed to get physical device surface formats. ({0})")]
+    GetPhysicalDeviceSurfaceFormats(Box<dyn Error>),
+    #[error("Failed to get physical device surface present modes. ({0})")]
+    GetPhysicalDeviceSurfacePresentModes(Box<dyn Error>),
     #[error("Failed to enumerate physical devices. ({0})")]
     EnumeratePhysicalDevices(Box<dyn Error>),
+    #[error("Failed to enumerate device extension properties. ({0})")]
+    EnumerateDeviceExtensionProperties(Box<dyn Error>),
     #[error("Failed to find suitable physical devices.")]
     FindSuitableDevice,
     #[error("Failed to create logical device. ({0})")]
     CreateDevice(Box<dyn Error>),
     #[error("Device failed to wait idle. ({0})")]
     DeviceWaitIdle(Box<dyn Error>),
+    #[error("Failed to create swapchain. ({0})")]
+    CreateSwapchain(Box<dyn Error>),
 }
 
 pub type RtErr<T> = Result<T, RtError>;

@@ -2,33 +2,38 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{Instance, RtErr, RtError, Surface};
-use ash::vk;
-use std::sync::Arc;
+use ash::{khr::swapchain, vk};
+use std::{collections::HashSet, ffi::CStr, sync::Arc};
 
 pub struct Device {
     physical_device: vk::PhysicalDevice,
     device: ash::Device,
     graphics_queue: vk::Queue,
     present_queue: vk::Queue,
+    swapchain_loader: swapchain::Device,
 }
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct QueueFamilyIndices {
-    graphics_family: Option<u32>,
-    present_family: Option<u32>,
+    pub(crate) graphics_family: Option<u32>,
+    pub(crate) present_family: Option<u32>,
 }
 
 impl Device {
+    const DEVICE_EXTENSIONS: [&CStr; 1] = [swapchain::NAME];
+
     pub(crate) fn new(instance: Arc<Instance>, surface: &Surface) -> RtErr<Self> {
         let physical_device = Self::query_physical_device(instance.clone(), surface)?;
         let (device, graphics_queue, present_queue) =
-            Self::create_device(instance, surface, physical_device)?;
+            Self::create_device(instance.clone(), surface, physical_device)?;
+        let swapchain_loader = swapchain::Device::new(instance.instance(), &device);
 
         Ok(Self {
             physical_device,
             device,
             graphics_queue,
             present_queue,
+            swapchain_loader,
         })
     }
 
@@ -50,6 +55,11 @@ impl Device {
     #[inline]
     pub(crate) fn present_queue(&self) -> vk::Queue {
         self.present_queue
+    }
+
+    #[inline]
+    pub(crate) fn swapchain_loader(&self) -> &swapchain::Device {
+        &self.swapchain_loader
     }
 
     #[inline]
@@ -88,13 +98,14 @@ impl Device {
     ) -> RtErr<(ash::Device, vk::Queue, vk::Queue)> {
         const QUEUE_PRIORITIES: [f32; 1] = [1f32];
 
-        let indices = QueueFamilyIndices::find_queue_families(instance.clone(), surface, device)?;
+        let indices = surface.find_queue_families(device)?;
 
         if let (Some(graphics_family), Some(present_family)) =
             (indices.graphics_family, indices.present_family)
         {
             let instance = instance.instance();
-            let queue_create_infos = if graphics_family == present_family {
+            let is_unique_queue_families = graphics_family == present_family;
+            let queue_create_infos = if is_unique_queue_families {
                 vec![vk::DeviceQueueCreateInfo::default()
                     .queue_family_index(graphics_family)
                     .queue_priorities(&QUEUE_PRIORITIES)]
@@ -115,12 +126,17 @@ impl Device {
 
                 features.features
             };
+            let extension_names: Vec<_> = Self::DEVICE_EXTENSIONS
+                .iter()
+                .map(|extension| extension.as_ptr())
+                .collect();
             let create_info = vk::DeviceCreateInfo::default()
                 .queue_create_infos(&queue_create_infos)
-                .enabled_features(&device_features);
+                .enabled_features(&device_features)
+                .enabled_extension_names(&extension_names);
             let device = unsafe { instance.create_device(device, &create_info, None) }
                 .map_err(|err| RtError::CreateDevice(err.into()))?;
-            let (graphics_queue, present_queue) = if graphics_family == present_family {
+            let (graphics_queue, present_queue) = if is_unique_queue_families {
                 let queue_info = vk::DeviceQueueInfo2::default()
                     .queue_family_index(graphics_family)
                     .queue_index(0);
@@ -151,9 +167,35 @@ impl Device {
         surface: &Surface,
         device: vk::PhysicalDevice,
     ) -> RtErr<bool> {
-        let indices = QueueFamilyIndices::find_queue_families(instance, surface, device)?;
+        let indices = surface.find_queue_families(device)?;
+        let extensions_supported = Self::check_device_extension_support(instance, device)?;
+        let swapchain_support = if extensions_supported {
+            let swapchain_support = surface.query_swapchain_support(device)?;
 
-        Ok(indices.is_complete())
+            !swapchain_support.formats.is_empty() && !swapchain_support.present_modes.is_empty()
+        } else {
+            false
+        };
+
+        Ok(indices.is_complete() && swapchain_support)
+    }
+
+    fn check_device_extension_support(
+        instance: Arc<Instance>,
+        device: vk::PhysicalDevice,
+    ) -> RtErr<bool> {
+        let instance = instance.instance();
+        let available_extensions =
+            unsafe { instance.enumerate_device_extension_properties(device) }
+                .map_err(|err| RtError::EnumerateDeviceExtensionProperties(err.into()))?;
+        let available_extensions: Vec<_> = available_extensions
+            .iter()
+            .map(|extension| unsafe { CStr::from_ptr(extension.extension_name.as_ptr()) })
+            .collect();
+
+        Ok(!Self::DEVICE_EXTENSIONS
+            .iter()
+            .any(|extension| !available_extensions.contains(extension)))
     }
 
     fn rate_device_suitability(instance: Arc<Instance>, device: vk::PhysicalDevice) -> u32 {
@@ -191,45 +233,17 @@ impl Device {
 }
 
 impl QueueFamilyIndices {
-    fn find_queue_families(
-        instance: Arc<Instance>,
-        surface: &Surface,
-        device: vk::PhysicalDevice,
-    ) -> RtErr<Self> {
-        let instance = instance.instance();
-        let mut indices = Self::default();
-        let queue_families = {
-            let queue_family_len =
-                unsafe { instance.get_physical_device_queue_family_properties2_len(device) };
-            let mut queue_families = vec![vk::QueueFamilyProperties2::default(); queue_family_len];
-
-            unsafe {
-                instance.get_physical_device_queue_family_properties2(device, &mut queue_families)
-            };
-
-            queue_families
-        };
-
-        for (i, queue_family) in queue_families.iter().enumerate() {
-            let current_family_index = i as u32;
-            if queue_family
-                .queue_family_properties
-                .queue_flags
-                .contains(vk::QueueFlags::GRAPHICS)
-            {
-                indices.graphics_family = Some(current_family_index)
-            }
-
-            if surface.get_physical_device_surface_support(device, current_family_index)? {
-                indices.present_family = Some(current_family_index)
-            }
-
-            if indices.is_complete() {
-                break;
-            }
+    pub(crate) fn unique_queue_families(&self) -> RtErr<Vec<u32>> {
+        if !self.is_complete() {
+            return Err(RtError::FindSuitableDevice);
         }
 
-        Ok(indices)
+        let queue_families: HashSet<u32> = [self.graphics_family, self.present_family]
+            .into_iter()
+            .flatten()
+            .collect();
+
+        Ok(queue_families.into_iter().collect())
     }
 
     #[inline]
