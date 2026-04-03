@@ -18,6 +18,8 @@ pub enum RtError {
     // Generic Rust operation error
     #[error("Failed to parse &str into u32. ({0})")]
     StrToU32Conv(Box<str>),
+    #[error("Failed to upgrade Weak pointer into Arc.")]
+    ArcWeakUpgrade,
     // Display Handle/Window Handle errors
     #[error("Failed to get display handle from window. ({0})")]
     DisplayHandle(Box<dyn Error>),

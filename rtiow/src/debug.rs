@@ -1,40 +1,44 @@
 // Copyright 2026 Kensuke Saito
 // SPDX-License-Identifier: MIT
 
+#[cfg(debug_assertions)]
 use crate::Instance;
 #[cfg(debug_assertions)]
 use crate::{RtErr, RtError};
 #[cfg(debug_assertions)]
 use ash::vk;
-use ash::vk::DebugUtilsMessengerEXT;
+use ash::{ext::debug_utils, vk::DebugUtilsMessengerEXT};
 #[cfg(debug_assertions)]
 use std::ffi::{c_void, CStr};
-use std::sync::Arc;
 
 pub struct DebugUtilsMessenger {
-    instance: Arc<Instance>,
-    messenger: DebugUtilsMessengerEXT,
+    loader: debug_utils::Instance,
+    handle: DebugUtilsMessengerEXT,
+}
+
+impl DebugUtilsMessenger {
+    pub(crate) unsafe fn destroy(&self) {
+        unsafe { self.loader.destroy_debug_utils_messenger(self.handle, None) }
+    }
 }
 
 #[cfg(debug_assertions)]
 impl DebugUtilsMessenger {
-    pub(crate) fn new(instance: Arc<Instance>) -> RtErr<Self> {
-        let messenger = Self::create_debug_utils_messenger(instance.clone())?;
+    pub(crate) fn new(instance: &Instance) -> RtErr<Self> {
+        let loader = debug_utils::Instance::new(instance.entry(), instance.instance());
+        let handle = Self::create_debug_utils_messenger(&loader)?;
 
-        Ok(Self {
-            messenger,
-            instance,
-        })
+        Ok(Self { loader, handle })
     }
 
     #[inline]
-    pub(crate) fn loader(&self) -> Option<&ash::ext::debug_utils::Instance> {
-        self.instance.debug_loader()
+    pub(crate) fn loader(&self) -> &debug_utils::Instance {
+        &self.loader
     }
 
     #[inline]
     pub(crate) fn messenger(&self) -> &vk::DebugUtilsMessengerEXT {
-        &self.messenger
+        &self.handle
     }
 
     pub(crate) fn create_info<'info>() -> vk::DebugUtilsMessengerCreateInfoEXT<'info> {
@@ -52,15 +56,13 @@ impl DebugUtilsMessenger {
             .pfn_user_callback(Some(Self::debug_callback))
     }
 
-    fn create_debug_utils_messenger(instance: Arc<Instance>) -> RtErr<vk::DebugUtilsMessengerEXT> {
-        if let Some(debug_loader) = instance.debug_loader().as_ref() {
-            let create_info = Self::create_info();
+    fn create_debug_utils_messenger(
+        loader: &debug_utils::Instance,
+    ) -> RtErr<vk::DebugUtilsMessengerEXT> {
+        let create_info = Self::create_info();
 
-            unsafe { debug_loader.create_debug_utils_messenger(&create_info, None) }
-                .map_err(|err| RtError::CreateDebugUtilsMessenger(err.into()))
-        } else {
-            Err(RtError::DebugLoaderUninitialized)
-        }
+        unsafe { loader.create_debug_utils_messenger(&create_info, None) }
+            .map_err(|err| RtError::CreateDebugUtilsMessenger(err.into()))
     }
 
     unsafe extern "system" fn debug_callback(
@@ -109,13 +111,5 @@ impl DebugUtilsMessenger {
         eprintln!("[{msg_type} | {msg_severity}] {message:?}");
 
         vk::FALSE
-    }
-}
-
-impl Drop for DebugUtilsMessenger {
-    fn drop(&mut self) {
-        if let Some(debug_loader) = self.instance.debug_loader() {
-            unsafe { debug_loader.destroy_debug_utils_messenger(self.messenger, None) }
-        }
     }
 }

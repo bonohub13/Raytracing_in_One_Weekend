@@ -1,11 +1,11 @@
-use crate::{Device, RtErr, RtError, Surface};
-use ash::vk;
+use crate::{Device, Instance, RtErr, RtError, Surface, SwapchainSupportDetails};
+use ash::{khr::swapchain, vk};
 use std::sync::Arc;
 use winit::window::Window;
 
 pub struct Swapchain {
-    device: Arc<Device>,
-    swapchain: vk::SwapchainKHR,
+    loader: swapchain::Device,
+    handle: vk::SwapchainKHR,
     surface_capabilities: vk::SurfaceCapabilitiesKHR,
     surface_format: vk::SurfaceFormatKHR,
     present_mode: vk::PresentModeKHR,
@@ -13,25 +13,30 @@ pub struct Swapchain {
 }
 
 impl Swapchain {
-    pub(crate) fn new(window: Arc<Window>, surface: &Surface, device: Arc<Device>) -> RtErr<Self> {
-        let swapchain_support =
-            surface.query_swapchain_support(device.clone().physical_device())?;
+    pub(crate) fn new(
+        window: Arc<Window>,
+        instance: &Instance,
+        surface: &Surface,
+        device: &Device,
+    ) -> RtErr<Self> {
+        let swapchain_support = surface.query_swapchain_support(device.physical_device())?;
         let surface_capabilities = swapchain_support.capabilities;
         let surface_format = swapchain_support.choose_swap_surface_format();
         let present_mode = swapchain_support.choose_swap_present_mode();
-        let extent = swapchain_support.choose_swap_extent(window);
-        let swapchain = Self::create_swapchain(
+        let extent = swapchain_support.choose_swap_extent(window.clone());
+        let loader = swapchain::Device::new(instance.instance(), device.device());
+        let handle = Self::create_swapchain(
+            window,
+            instance,
             surface,
-            device.clone(),
-            &surface_capabilities,
-            &surface_format,
-            present_mode,
-            extent,
+            device,
+            &loader,
+            &swapchain_support,
         )?;
 
         Ok(Self {
-            device,
-            swapchain,
+            loader,
+            handle,
             surface_capabilities,
             surface_format,
             present_mode,
@@ -41,10 +46,21 @@ impl Swapchain {
 
     #[inline]
     pub(crate) fn swapchain(&self) -> vk::SwapchainKHR {
-        self.swapchain
+        self.handle
     }
 
-    pub(crate) fn recreate_swapchain(&mut self, surface: &Surface) -> RtErr<Self> {
+    pub(crate) unsafe fn destroy(&self) {
+        unsafe {
+            self.loader.destroy_swapchain(self.handle, None);
+        }
+    }
+
+    pub(crate) fn recreate_swapchain(
+        &mut self,
+        instance: &Instance,
+        surface: &Surface,
+        device: &Device,
+    ) -> RtErr<Self> {
         let image_count = {
             let image_count = self.surface_capabilities.min_image_count + 1;
 
@@ -57,7 +73,7 @@ impl Swapchain {
             }
         };
         let queue_family_indices = surface
-            .find_queue_families(self.device.physical_device())?
+            .find_queue_families(instance, device.physical_device())?
             .unique_queue_families()?;
         let create_info = vk::SwapchainCreateInfoKHR::default()
             .surface(surface.surface())
@@ -76,17 +92,13 @@ impl Swapchain {
             .pre_transform(self.surface_capabilities.current_transform)
             .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
             .present_mode(self.present_mode)
-            .old_swapchain(self.swapchain);
-        let swapchain = unsafe {
-            self.device
-                .swapchain_loader()
-                .create_swapchain(&create_info, None)
-        }
-        .map_err(|err| RtError::CreateSwapchain(err.into()))?;
+            .old_swapchain(self.handle);
+        let handle = unsafe { self.loader.create_swapchain(&create_info, None) }
+            .map_err(|err| RtError::CreateSwapchain(err.into()))?;
 
         Ok(Self {
-            device: self.device.clone(),
-            swapchain,
+            loader: self.loader.clone(),
+            handle,
             surface_capabilities: self.surface_capabilities,
             surface_format: self.surface_format,
             present_mode: self.present_mode,
@@ -95,13 +107,17 @@ impl Swapchain {
     }
 
     fn create_swapchain(
+        window: Arc<Window>,
+        instance: &Instance,
         surface: &Surface,
-        device: Arc<Device>,
-        surface_capabilities: &vk::SurfaceCapabilitiesKHR,
-        surface_format: &vk::SurfaceFormatKHR,
-        present_mode: vk::PresentModeKHR,
-        extent: vk::Extent2D,
+        device: &Device,
+        loader: &swapchain::Device,
+        swapchain_support: &SwapchainSupportDetails,
     ) -> RtErr<vk::SwapchainKHR> {
+        let surface_capabilities = swapchain_support.capabilities;
+        let surface_format = swapchain_support.choose_swap_surface_format();
+        let present_mode = swapchain_support.choose_swap_present_mode();
+        let extent = swapchain_support.choose_swap_extent(window);
         let image_count = {
             let image_count = surface_capabilities.min_image_count + 1;
 
@@ -114,7 +130,7 @@ impl Swapchain {
             }
         };
         let queue_family_indices = surface
-            .find_queue_families(device.physical_device())?
+            .find_queue_families(instance, device.physical_device())?
             .unique_queue_families()?;
         let create_info = vk::SwapchainCreateInfoKHR::default()
             .surface(surface.surface())
@@ -135,21 +151,7 @@ impl Swapchain {
             .present_mode(present_mode)
             .old_swapchain(vk::SwapchainKHR::null());
 
-        unsafe {
-            device
-                .swapchain_loader()
-                .create_swapchain(&create_info, None)
-        }
-        .map_err(|err| RtError::CreateSwapchain(err.into()))
-    }
-}
-
-impl Drop for Swapchain {
-    fn drop(&mut self) {
-        unsafe {
-            self.device
-                .swapchain_loader()
-                .destroy_swapchain(self.swapchain, None);
-        }
+        unsafe { loader.create_swapchain(&create_info, None) }
+            .map_err(|err| RtError::CreateSwapchain(err.into()))
     }
 }

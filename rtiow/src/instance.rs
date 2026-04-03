@@ -4,20 +4,15 @@
 #[cfg(debug_assertions)]
 use crate::DebugUtilsMessenger;
 use crate::{RtErr, RtError, util};
-use ash::{
-    ext::debug_utils,
-    khr::{get_surface_capabilities2, surface},
-    vk,
-};
+#[cfg(debug_assertions)]
+use ash::ext::debug_utils;
+use ash::{khr::get_surface_capabilities2, vk};
 use std::{ffi::CStr, sync::Arc};
 use winit::{raw_window_handle::HasDisplayHandle, window::Window};
 
 pub struct Instance {
     entry: ash::Entry,
     instance: ash::Instance,
-    debug_loader: Option<debug_utils::Instance>,
-    surface_loader: surface::Instance,
-    surface_capabilities: get_surface_capabilities2::Instance,
 }
 
 #[derive(Debug)]
@@ -30,7 +25,6 @@ pub struct InstanceDesc<'desc> {
 impl Instance {
     const ENGINE_NAME: &CStr = c"Rtiow";
     const ENGINE_VERSION: &str = env!("CARGO_PKG_VERSION");
-    #[cfg(debug_assertions)]
     const VALIDATION_LAYERS: [&CStr; 1] = [c"VK_LAYER_KHRONOS_validation"];
     #[cfg(debug_assertions)]
     const EXTENSION_NAME: [&CStr; 2] = [debug_utils::NAME, get_surface_capabilities2::NAME];
@@ -40,20 +34,8 @@ impl Instance {
     pub(crate) fn new(desc: &InstanceDesc) -> RtErr<Self> {
         let entry = ash::Entry::linked();
         let instance = Self::create_instance(desc, &entry)?;
-        #[cfg(debug_assertions)]
-        let debug_loader = Some(debug_utils::Instance::new(&entry, &instance));
-        #[cfg(not(debug_assertions))]
-        let debug_loader = None;
-        let surface_loader = surface::Instance::new(&entry, &instance);
-        let surface_capabilities = get_surface_capabilities2::Instance::new(&entry, &instance);
 
-        Ok(Self {
-            entry,
-            instance,
-            debug_loader,
-            surface_loader,
-            surface_capabilities,
-        })
+        Ok(Self { entry, instance })
     }
 
     #[inline]
@@ -66,19 +48,10 @@ impl Instance {
         &self.instance
     }
 
-    #[inline]
-    pub fn debug_loader(&self) -> Option<&debug_utils::Instance> {
-        self.debug_loader.as_ref()
-    }
-
-    #[inline]
-    pub fn surface_loader(&self) -> &surface::Instance {
-        &self.surface_loader
-    }
-
-    #[inline]
-    pub fn surface_capabilities(&self) -> &get_surface_capabilities2::Instance {
-        &self.surface_capabilities
+    pub(crate) unsafe fn destroy(&self) {
+        unsafe {
+            self.instance.destroy_instance(None);
+        }
     }
 
     fn create_instance(desc: &InstanceDesc, entry: &ash::Entry) -> RtErr<ash::Instance> {
@@ -110,15 +83,14 @@ impl Instance {
             .iter()
             .map(|ext| ext.as_ptr())
             .collect();
-        let create_info = vk::InstanceCreateInfo::default()
-            .application_info(&app_info)
-            .enabled_extension_names(&extensions);
-
-        #[cfg(debug_assertions)]
         let vaildation_layers: Vec<_> = Self::VALIDATION_LAYERS
             .iter()
             .map(|layer| layer.as_ptr())
             .collect();
+        let create_info = vk::InstanceCreateInfo::default()
+            .application_info(&app_info)
+            .enabled_extension_names(&extensions);
+
         #[cfg(debug_assertions)]
         let mut debug_binding = DebugUtilsMessenger::create_info();
         #[cfg(debug_assertions)]
@@ -130,7 +102,6 @@ impl Instance {
             .map_err(|err| RtError::CreateInstance(err.into()))
     }
 
-    #[cfg(debug_assertions)]
     fn enumerate_instance_extension_properties(
         entry: &ash::Entry,
     ) -> RtErr<Vec<vk::ExtensionProperties>> {
@@ -186,13 +157,5 @@ impl Instance {
             .find(|layer| !available_layers.contains(layer));
 
         Ok(layers_not_found.is_none())
-    }
-}
-
-impl Drop for Instance {
-    fn drop(&mut self) {
-        unsafe {
-            self.instance.destroy_instance(None);
-        }
     }
 }

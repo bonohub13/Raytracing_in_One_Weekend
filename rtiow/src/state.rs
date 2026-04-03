@@ -6,11 +6,11 @@ use std::{ffi::CStr, sync::Arc};
 use winit::window::Window;
 
 pub struct VkState {
-    _swapchain: Swapchain,
-    _device: Arc<Device>,
-    _surface: Surface,
-    _debug_messenger: Option<DebugUtilsMessenger>,
-    _instance: Arc<Instance>,
+    instance: Instance,
+    debug_messenger: Option<DebugUtilsMessenger>,
+    surface: Surface,
+    device: Device,
+    swapchain: Swapchain,
 }
 
 #[derive(Debug)]
@@ -22,25 +22,45 @@ pub struct VkStateDesc<'desc> {
 
 impl VkState {
     pub fn new(desc: &VkStateDesc) -> RtErr<Self> {
-        let instance = Arc::new(Instance::new(&InstanceDesc {
+        let instance = Instance::new(&InstanceDesc {
             window: desc.window.clone(),
             app_name: desc.app_name,
             app_version: desc.app_version,
-        })?);
+        })?;
         #[cfg(debug_assertions)]
-        let debug_messenger = Some(DebugUtilsMessenger::new(instance.clone())?);
+        let debug_messenger = Some(DebugUtilsMessenger::new(&instance)?);
         #[cfg(not(debug_assertions))]
         let debug_messenger = None;
-        let surface = Surface::new(desc.window.clone(), instance.clone())?;
-        let device = Arc::new(Device::new(instance.clone(), &surface)?);
-        let swapchain = Swapchain::new(desc.window.clone(), &surface, device.clone())?;
+        let surface = Surface::new(desc.window.clone(), &instance)?;
+        let device = Device::new(&instance, &surface)?;
+        let swapchain = Swapchain::new(desc.window.clone(), &instance, &surface, &device)?;
 
         Ok(Self {
-            _instance: instance,
-            _debug_messenger: debug_messenger,
-            _surface: surface,
-            _device: device,
-            _swapchain: swapchain,
+            instance,
+            debug_messenger,
+            surface,
+            device,
+            swapchain,
         })
+    }
+}
+
+impl Drop for VkState {
+    fn drop(&mut self) {
+        while let Err(err) = self.device.device_wait_idle() {
+            eprintln!("{err}");
+        }
+
+        unsafe {
+            self.swapchain.destroy();
+            self.device.destroy();
+            self.surface.destroy();
+        }
+        if let Some(debug_messenger) = self.debug_messenger.take() {
+            unsafe { debug_messenger.destroy() }
+        }
+        unsafe {
+            self.instance.destroy();
+        }
     }
 }

@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{Instance, QueueFamilyIndices, RtErr, RtError};
-use ash::vk::{self, SurfaceKHR};
+use ash::{
+    khr::{get_surface_capabilities2, surface},
+    vk::{self, SurfaceKHR},
+};
 use std::sync::Arc;
 use winit::{
     raw_window_handle::{HasDisplayHandle, HasWindowHandle},
@@ -10,8 +13,9 @@ use winit::{
 };
 
 pub struct Surface {
-    instance: Arc<Instance>,
-    surface: SurfaceKHR,
+    loader: surface::Instance,
+    capabilities: get_surface_capabilities2::Instance,
+    handle: SurfaceKHR,
 }
 
 #[derive(Debug, Clone)]
@@ -22,22 +26,36 @@ pub struct SwapchainSupportDetails {
 }
 
 impl Surface {
-    pub(crate) fn new(window: Arc<Window>, instance: Arc<Instance>) -> RtErr<Self> {
-        let surface = Self::create_surface(window, instance.clone())?;
+    pub(crate) fn new(window: Arc<Window>, instance: &Instance) -> RtErr<Self> {
+        let loader = surface::Instance::new(instance.entry(), instance.instance());
+        let capabilities =
+            get_surface_capabilities2::Instance::new(instance.entry(), instance.instance());
+        let handle = Self::create_surface(window, instance)?;
 
-        Ok(Self { surface, instance })
+        Ok(Self {
+            loader,
+            capabilities,
+            handle,
+        })
     }
 
     #[inline]
     pub(crate) fn surface(&self) -> vk::SurfaceKHR {
-        self.surface
+        self.handle
+    }
+
+    pub(crate) unsafe fn destroy(&self) {
+        unsafe {
+            self.loader.destroy_surface(self.handle, None);
+        }
     }
 
     pub(crate) fn find_queue_families(
         &self,
+        instance: &Instance,
         device: vk::PhysicalDevice,
     ) -> RtErr<QueueFamilyIndices> {
-        let instance = self.instance.instance();
+        let instance = instance.instance();
         let mut indices = QueueFamilyIndices::default();
         let queue_families = {
             let queue_family_len =
@@ -94,9 +112,8 @@ impl Surface {
         queue_family_index: u32,
     ) -> RtErr<bool> {
         unsafe {
-            self.instance
-                .surface_loader()
-                .get_physical_device_surface_support(device, queue_family_index, self.surface)
+            self.loader
+                .get_physical_device_surface_support(device, queue_family_index, self.handle)
         }
         .map_err(|err| RtError::GetPhysicalDeviceSurfaceSupport(err.into()))
     }
@@ -105,13 +122,15 @@ impl Surface {
         &self,
         device: vk::PhysicalDevice,
     ) -> RtErr<vk::SurfaceCapabilitiesKHR> {
-        let surface_info = vk::PhysicalDeviceSurfaceInfo2KHR::default().surface(self.surface);
+        let surface_info = vk::PhysicalDeviceSurfaceInfo2KHR::default().surface(self.handle);
         let mut capabilites = vk::SurfaceCapabilities2KHR::default();
 
         unsafe {
-            self.instance
-                .surface_capabilities()
-                .get_physical_device_surface_capabilities2(device, &surface_info, &mut capabilites)
+            self.capabilities.get_physical_device_surface_capabilities2(
+                device,
+                &surface_info,
+                &mut capabilites,
+            )
         }
         .map_err(|err| RtError::GetPhysicalDeviceSurfaceCapabilities(err.into()))?;
 
@@ -122,15 +141,20 @@ impl Surface {
         &self,
         device: vk::PhysicalDevice,
     ) -> RtErr<Vec<vk::SurfaceFormatKHR>> {
-        let instance = self.instance.surface_capabilities();
-        let surface_info = vk::PhysicalDeviceSurfaceInfo2KHR::default().surface(self.surface);
-        let format_count =
-            unsafe { instance.get_physical_device_surface_formats2_len(device, &surface_info) }
-                .map_err(|err| RtError::GetPhysicalDeviceSurfaceFormats(err.into()))?;
+        let surface_info = vk::PhysicalDeviceSurfaceInfo2KHR::default().surface(self.handle);
+        let format_count = unsafe {
+            self.capabilities
+                .get_physical_device_surface_formats2_len(device, &surface_info)
+        }
+        .map_err(|err| RtError::GetPhysicalDeviceSurfaceFormats(err.into()))?;
         let mut formats = vec![vk::SurfaceFormat2KHR::default(); format_count];
 
         unsafe {
-            instance.get_physical_device_surface_formats2(device, &surface_info, &mut formats)
+            self.capabilities.get_physical_device_surface_formats2(
+                device,
+                &surface_info,
+                &mut formats,
+            )
         }
         .map_err(|err| RtError::GetPhysicalDeviceSurfaceFormats(err.into()))?;
 
@@ -142,14 +166,13 @@ impl Surface {
         device: vk::PhysicalDevice,
     ) -> RtErr<Vec<vk::PresentModeKHR>> {
         unsafe {
-            self.instance
-                .surface_loader()
-                .get_physical_device_surface_present_modes(device, self.surface)
+            self.loader
+                .get_physical_device_surface_present_modes(device, self.handle)
         }
         .map_err(|err| RtError::GetPhysicalDeviceSurfacePresentModes(err.into()))
     }
 
-    fn create_surface(window: Arc<Window>, instance: Arc<Instance>) -> RtErr<SurfaceKHR> {
+    fn create_surface(window: Arc<Window>, instance: &Instance) -> RtErr<SurfaceKHR> {
         let display_handle = window
             .display_handle()
             .map_err(|err| RtError::DisplayHandle(err.into()))?
@@ -208,16 +231,6 @@ impl SwapchainSupportDetails {
                     self.capabilities.max_image_extent.height,
                 ),
             }
-        }
-    }
-}
-
-impl Drop for Surface {
-    fn drop(&mut self) {
-        unsafe {
-            self.instance
-                .surface_loader()
-                .destroy_surface(self.surface, None);
         }
     }
 }

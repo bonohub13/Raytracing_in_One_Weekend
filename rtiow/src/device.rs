@@ -3,14 +3,13 @@
 
 use crate::{Instance, RtErr, RtError, Surface};
 use ash::{khr::swapchain, vk};
-use std::{collections::HashSet, ffi::CStr, sync::Arc};
+use std::{collections::HashSet, ffi::CStr};
 
 pub struct Device {
     physical_device: vk::PhysicalDevice,
     device: ash::Device,
     graphics_queue: vk::Queue,
     present_queue: vk::Queue,
-    swapchain_loader: swapchain::Device,
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -22,18 +21,16 @@ pub struct QueueFamilyIndices {
 impl Device {
     const DEVICE_EXTENSIONS: [&CStr; 1] = [swapchain::NAME];
 
-    pub(crate) fn new(instance: Arc<Instance>, surface: &Surface) -> RtErr<Self> {
-        let physical_device = Self::query_physical_device(instance.clone(), surface)?;
+    pub(crate) fn new(instance: &Instance, surface: &Surface) -> RtErr<Self> {
+        let physical_device = Self::query_physical_device(instance, surface)?;
         let (device, graphics_queue, present_queue) =
-            Self::create_device(instance.clone(), surface, physical_device)?;
-        let swapchain_loader = swapchain::Device::new(instance.instance(), &device);
+            Self::create_device(instance, surface, physical_device)?;
 
         Ok(Self {
             physical_device,
             device,
             graphics_queue,
             present_queue,
-            swapchain_loader,
         })
     }
 
@@ -58,23 +55,19 @@ impl Device {
     }
 
     #[inline]
-    pub(crate) fn swapchain_loader(&self) -> &swapchain::Device {
-        &self.swapchain_loader
-    }
-
-    #[inline]
     pub(crate) fn device_wait_idle(&self) -> RtErr<()> {
         unsafe { self.device.device_wait_idle() }.map_err(|err| RtError::DeviceWaitIdle(err.into()))
     }
 
-    fn query_physical_device(
-        instance: Arc<Instance>,
-        surface: &Surface,
-    ) -> RtErr<vk::PhysicalDevice> {
-        let rate_device_suitability =
-            |device| Self::rate_device_suitability(instance.clone(), device);
-        let is_suitable_device =
-            |device| Self::is_suitable_device(instance.clone(), surface, device);
+    pub(crate) unsafe fn destroy(&self) {
+        unsafe {
+            self.device.destroy_device(None);
+        }
+    }
+
+    fn query_physical_device(instance: &Instance, surface: &Surface) -> RtErr<vk::PhysicalDevice> {
+        let rate_device_suitability = |device| Self::rate_device_suitability(instance, device);
+        let is_suitable_device = |device| Self::is_suitable_device(instance, surface, device);
         let mut devices = unsafe { instance.instance().enumerate_physical_devices() }
             .map_err(|err| RtError::EnumeratePhysicalDevices(err.into()))?;
 
@@ -92,13 +85,13 @@ impl Device {
     }
 
     fn create_device(
-        instance: Arc<Instance>,
+        instance: &Instance,
         surface: &Surface,
         device: vk::PhysicalDevice,
     ) -> RtErr<(ash::Device, vk::Queue, vk::Queue)> {
         const QUEUE_PRIORITIES: [f32; 1] = [1f32];
 
-        let indices = surface.find_queue_families(device)?;
+        let indices = surface.find_queue_families(instance, device)?;
 
         if let (Some(graphics_family), Some(present_family)) =
             (indices.graphics_family, indices.present_family)
@@ -163,11 +156,11 @@ impl Device {
     }
 
     fn is_suitable_device(
-        instance: Arc<Instance>,
+        instance: &Instance,
         surface: &Surface,
         device: vk::PhysicalDevice,
     ) -> RtErr<bool> {
-        let indices = surface.find_queue_families(device)?;
+        let indices = surface.find_queue_families(instance, device)?;
         let extensions_supported = Self::check_device_extension_support(instance, device)?;
         let swapchain_support = if extensions_supported {
             let swapchain_support = surface.query_swapchain_support(device)?;
@@ -181,7 +174,7 @@ impl Device {
     }
 
     fn check_device_extension_support(
-        instance: Arc<Instance>,
+        instance: &Instance,
         device: vk::PhysicalDevice,
     ) -> RtErr<bool> {
         let instance = instance.instance();
@@ -198,7 +191,7 @@ impl Device {
             .any(|extension| !available_extensions.contains(extension)))
     }
 
-    fn rate_device_suitability(instance: Arc<Instance>, device: vk::PhysicalDevice) -> u32 {
+    fn rate_device_suitability(instance: &Instance, device: vk::PhysicalDevice) -> u32 {
         let instance = instance.instance();
         let device_properties = {
             let mut properties = vk::PhysicalDeviceProperties2::default();
@@ -249,17 +242,5 @@ impl QueueFamilyIndices {
     #[inline]
     pub(crate) fn is_complete(&self) -> bool {
         self.graphics_family.is_some() && self.present_family.is_some()
-    }
-}
-
-impl Drop for Device {
-    fn drop(&mut self) {
-        while let Err(err) = self.device_wait_idle() {
-            eprintln!("{err}");
-        }
-
-        unsafe {
-            self.device.destroy_device(None);
-        }
     }
 }

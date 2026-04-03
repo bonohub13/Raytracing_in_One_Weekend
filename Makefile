@@ -25,6 +25,10 @@ all: build build-shaders
 build: fmt clippy
 	$(CARGO) build --target=x86_64-unknown-linux-gnu --release
 
+release-debug: fmt
+	$(CARGO) check
+	$(CARGO) build --target=x86_64-unknown-linux-gnu --profile release-debug
+
 debug: fmt
 	$(CARGO) check
 	$(CARGO) build --target=x86_64-unknown-linux-gnu
@@ -61,6 +65,9 @@ docker-license:
 
 docker-build:
 	@TAG="linux" CMD="make build" make docker-exec
+
+docker-release-debug:
+	@TAG="linux" CMD="make release-debug" make docker-exec
 
 docker-debug:
 	@TAG="linux" CMD="make debug" make docker-exec
