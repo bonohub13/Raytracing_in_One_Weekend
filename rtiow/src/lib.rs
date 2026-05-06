@@ -4,13 +4,14 @@
 pub(crate) mod debug;
 pub(crate) mod device;
 pub(crate) mod instance;
+mod pipeline;
 pub(crate) mod state;
 pub(crate) mod surface;
 pub(crate) mod swapchain;
 pub mod util;
 
-pub use crate::state::*;
 pub(crate) use crate::{debug::*, device::*, instance::*, surface::*, swapchain::*};
+pub use crate::{pipeline::*, state::*};
 use std::error::Error;
 
 #[derive(Debug, thiserror::Error)]
@@ -20,6 +21,8 @@ pub enum RtError {
     StrToU32Conv(Box<str>),
     #[error("Failed to upgrade Weak pointer into Arc.")]
     ArcWeakUpgrade,
+    #[error("Failed to read from file. ({0})")]
+    ReadFile(Box<dyn Error>),
     // Display Handle/Window Handle errors
     #[error("Failed to get display handle from window. ({0})")]
     DisplayHandle(Box<dyn Error>),
@@ -64,6 +67,18 @@ pub enum RtError {
     DeviceWaitIdle(Box<dyn Error>),
     #[error("Failed to create swapchain. ({0})")]
     CreateSwapchain(Box<dyn Error>),
+    #[error("Failed to acquire next image. ({0})")]
+    AcquireNextImage(Box<dyn Error>),
+    #[error("Failed to create images. ({0})")]
+    CreateImages(Box<dyn Error>),
+    #[error("Failed to create image view. ({0})")]
+    CreateImageView(Box<dyn Error>),
+    #[error("Failed to create shader module. ({0})")]
+    CreateShaderModule(Box<dyn Error>),
+    #[error("Failed to create pipeline layout. ({0})")]
+    CreatePipelineLayout(Box<dyn Error>),
+    #[error("Failed to create pipeline. ({0})")]
+    CreatePipeline(Box<dyn Error>),
 }
 
 pub type RtErr<T> = Result<T, RtError>;

@@ -6,10 +6,10 @@ use ash::{khr::swapchain, vk};
 use std::{collections::HashSet, ffi::CStr};
 
 pub struct Device {
-    physical_device: vk::PhysicalDevice,
-    device: ash::Device,
     graphics_queue: vk::Queue,
     present_queue: vk::Queue,
+    device: ash::Device,
+    physical_device: vk::PhysicalDevice,
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -59,12 +59,6 @@ impl Device {
         unsafe { self.device.device_wait_idle() }.map_err(|err| RtError::DeviceWaitIdle(err.into()))
     }
 
-    pub(crate) unsafe fn destroy(&self) {
-        unsafe {
-            self.device.destroy_device(None);
-        }
-    }
-
     fn query_physical_device(instance: &Instance, surface: &Surface) -> RtErr<vk::PhysicalDevice> {
         let rate_device_suitability = |device| Self::rate_device_suitability(instance, device);
         let is_suitable_device = |device| Self::is_suitable_device(instance, surface, device);
@@ -112,21 +106,27 @@ impl Device {
                         .queue_priorities(&QUEUE_PRIORITIES),
                 ]
             };
-            let device_features = {
-                let mut features = vk::PhysicalDeviceFeatures2::default();
 
-                unsafe { instance.get_physical_device_features2(device, &mut features) };
+            // Enable specific device features
+            let mut shader_draw_parameters =
+                vk::PhysicalDeviceShaderDrawParametersFeatures::default()
+                    .shader_draw_parameters(true);
+            let mut dynamic_rendering =
+                vk::PhysicalDeviceDynamicRenderingFeatures::default().dynamic_rendering(true);
+            let mut device_features = vk::PhysicalDeviceFeatures2::default()
+                .push_next(&mut shader_draw_parameters)
+                .push_next(&mut dynamic_rendering);
 
-                features.features
-            };
+            unsafe { instance.get_physical_device_features2(device, &mut device_features) };
+
             let extension_names: Vec<_> = Self::DEVICE_EXTENSIONS
                 .iter()
                 .map(|extension| extension.as_ptr())
                 .collect();
             let create_info = vk::DeviceCreateInfo::default()
                 .queue_create_infos(&queue_create_infos)
-                .enabled_features(&device_features)
-                .enabled_extension_names(&extension_names);
+                .enabled_extension_names(&extension_names)
+                .push_next(&mut device_features);
             let device = unsafe { instance.create_device(device, &create_info, None) }
                 .map_err(|err| RtError::CreateDevice(err.into()))?;
             let (graphics_queue, present_queue) = if is_unique_queue_families {
@@ -202,17 +202,20 @@ impl Device {
                 properties.properties
             }
         };
-        let device_features = {
-            let mut features = vk::PhysicalDeviceFeatures2::default();
+        let mut shader_draw_parameters = vk::PhysicalDeviceShaderDrawParametersFeatures::default();
+        let mut dynamic_rendering = vk::PhysicalDeviceDynamicRenderingFeatures::default();
+        let mut device_features = vk::PhysicalDeviceFeatures2::default()
+            .push_next(&mut shader_draw_parameters)
+            .push_next(&mut dynamic_rendering);
 
-            unsafe {
-                instance.get_physical_device_features2(device, &mut features);
-            }
+        unsafe {
+            instance.get_physical_device_features2(device, &mut device_features);
+        }
 
-            features.features
-        };
-
-        if device_features.geometry_shader == 0 {
+        if device_features.features.geometry_shader == 0
+            || shader_draw_parameters.shader_draw_parameters == 0
+            || dynamic_rendering.dynamic_rendering == 0
+        {
             0
         } else {
             device_properties.limits.max_image_dimension2_d
@@ -221,6 +224,14 @@ impl Device {
                 } else {
                     0u32
                 }
+        }
+    }
+}
+
+impl Drop for Device {
+    fn drop(&mut self) {
+        unsafe {
+            self.device.destroy_device(None);
         }
     }
 }

@@ -1073,6 +1073,7 @@ version = "0.1.0"
 dependencies = [
  "ash",
  "ash-window",
+ "bytemuck",
  "gpu-allocator",
  "thiserror 2.0.18",
  "winit",

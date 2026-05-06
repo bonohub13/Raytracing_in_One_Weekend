@@ -12,20 +12,14 @@ use ash::{ext::debug_utils, vk::DebugUtilsMessengerEXT};
 use std::ffi::{c_void, CStr};
 
 pub struct DebugUtilsMessenger {
-    loader: debug_utils::Instance,
     handle: DebugUtilsMessengerEXT,
-}
-
-impl DebugUtilsMessenger {
-    pub(crate) unsafe fn destroy(&self) {
-        unsafe { self.loader.destroy_debug_utils_messenger(self.handle, None) }
-    }
+    loader: debug_utils::Instance,
 }
 
 #[cfg(debug_assertions)]
 impl DebugUtilsMessenger {
-    pub(crate) fn new(instance: &Instance) -> RtErr<Self> {
-        let loader = debug_utils::Instance::new(instance.entry(), instance.instance());
+    pub(crate) fn new(entry: &ash::Entry, instance: &Instance) -> RtErr<Self> {
+        let loader = debug_utils::Instance::new(entry, instance.instance());
         let handle = Self::create_debug_utils_messenger(&loader)?;
 
         Ok(Self { loader, handle })
@@ -111,5 +105,13 @@ impl DebugUtilsMessenger {
         eprintln!("[{msg_type} | {msg_severity}] {message:?}");
 
         vk::FALSE
+    }
+}
+
+impl Drop for DebugUtilsMessenger {
+    fn drop(&mut self) {
+        unsafe {
+            self.loader.destroy_debug_utils_messenger(self.handle, None);
+        }
     }
 }

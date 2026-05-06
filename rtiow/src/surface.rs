@@ -13,9 +13,9 @@ use winit::{
 };
 
 pub struct Surface {
+    handle: SurfaceKHR,
     loader: surface::Instance,
     capabilities: get_surface_capabilities2::Instance,
-    handle: SurfaceKHR,
 }
 
 #[derive(Debug, Clone)]
@@ -26,11 +26,10 @@ pub struct SwapchainSupportDetails {
 }
 
 impl Surface {
-    pub(crate) fn new(window: Arc<Window>, instance: &Instance) -> RtErr<Self> {
-        let loader = surface::Instance::new(instance.entry(), instance.instance());
-        let capabilities =
-            get_surface_capabilities2::Instance::new(instance.entry(), instance.instance());
-        let handle = Self::create_surface(window, instance)?;
+    pub(crate) fn new(window: Arc<Window>, entry: &ash::Entry, instance: &Instance) -> RtErr<Self> {
+        let loader = surface::Instance::new(entry, instance.instance());
+        let capabilities = get_surface_capabilities2::Instance::new(entry, instance.instance());
+        let handle = Self::create_surface(window, entry, instance)?;
 
         Ok(Self {
             loader,
@@ -42,12 +41,6 @@ impl Surface {
     #[inline]
     pub(crate) fn surface(&self) -> vk::SurfaceKHR {
         self.handle
-    }
-
-    pub(crate) unsafe fn destroy(&self) {
-        unsafe {
-            self.loader.destroy_surface(self.handle, None);
-        }
     }
 
     pub(crate) fn find_queue_families(
@@ -172,7 +165,11 @@ impl Surface {
         .map_err(|err| RtError::GetPhysicalDeviceSurfacePresentModes(err.into()))
     }
 
-    fn create_surface(window: Arc<Window>, instance: &Instance) -> RtErr<SurfaceKHR> {
+    fn create_surface(
+        window: Arc<Window>,
+        entry: &ash::Entry,
+        instance: &Instance,
+    ) -> RtErr<SurfaceKHR> {
         let display_handle = window
             .display_handle()
             .map_err(|err| RtError::DisplayHandle(err.into()))?
@@ -184,7 +181,7 @@ impl Surface {
 
         unsafe {
             ash_window::create_surface(
-                instance.entry(),
+                entry,
                 instance.instance(),
                 display_handle,
                 window_handle,
@@ -231,6 +228,14 @@ impl SwapchainSupportDetails {
                     self.capabilities.max_image_extent.height,
                 ),
             }
+        }
+    }
+}
+
+impl Drop for Surface {
+    fn drop(&mut self) {
+        unsafe {
+            self.loader.destroy_surface(self.handle, None);
         }
     }
 }

@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 ash = { version = "0.38.0", features = ["linked"] }
 ash-window = "0.13.0"
+bytemuck = "1.25.0"
 gpu-allocator = "0.28.0"
 thiserror = "2.0.18"
 winit = "0.30.12"

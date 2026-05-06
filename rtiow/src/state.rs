@@ -6,11 +6,12 @@ use std::{ffi::CStr, sync::Arc};
 use winit::window::Window;
 
 pub struct VkState {
-    instance: Instance,
-    debug_messenger: Option<DebugUtilsMessenger>,
-    surface: Surface,
-    device: Device,
-    swapchain: Swapchain,
+    pub(crate) swapchain: Swapchain,
+    pub(crate) device: Arc<Device>,
+    pub(crate) surface: Surface,
+    pub(crate) debug_messenger: Option<DebugUtilsMessenger>,
+    pub(crate) instance: Instance,
+    entry: ash::Entry,
 }
 
 #[derive(Debug)]
@@ -22,20 +23,23 @@ pub struct VkStateDesc<'desc> {
 
 impl VkState {
     pub fn new(desc: &VkStateDesc) -> RtErr<Self> {
+        let entry = ash::Entry::linked();
         let instance = Instance::new(&InstanceDesc {
             window: desc.window.clone(),
+            entry: &entry,
             app_name: desc.app_name,
             app_version: desc.app_version,
         })?;
         #[cfg(debug_assertions)]
-        let debug_messenger = Some(DebugUtilsMessenger::new(&instance)?);
+        let debug_messenger = Some(DebugUtilsMessenger::new(&entry, &instance)?);
         #[cfg(not(debug_assertions))]
         let debug_messenger = None;
-        let surface = Surface::new(desc.window.clone(), &instance)?;
-        let device = Device::new(&instance, &surface)?;
-        let swapchain = Swapchain::new(desc.window.clone(), &instance, &surface, &device)?;
+        let surface = Surface::new(desc.window.clone(), &entry, &instance)?;
+        let device = Arc::new(Device::new(&instance, &surface)?);
+        let swapchain = Swapchain::new(desc.window.clone(), &instance, &surface, device.clone())?;
 
         Ok(Self {
+            entry,
             instance,
             debug_messenger,
             surface,
@@ -43,24 +47,8 @@ impl VkState {
             swapchain,
         })
     }
-}
 
-impl Drop for VkState {
-    fn drop(&mut self) {
-        while let Err(err) = self.device.device_wait_idle() {
-            eprintln!("{err}");
-        }
-
-        unsafe {
-            self.swapchain.destroy();
-            self.device.destroy();
-            self.surface.destroy();
-        }
-        if let Some(debug_messenger) = self.debug_messenger.take() {
-            unsafe { debug_messenger.destroy() }
-        }
-        unsafe {
-            self.instance.destroy();
-        }
+    pub fn device_wait_idle(&self) -> RtErr<()> {
+        self.device.device_wait_idle()
     }
 }

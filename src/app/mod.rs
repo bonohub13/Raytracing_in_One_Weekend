@@ -1,7 +1,7 @@
 // Copyright 2026 Kensuke Saito
 // SPDX-License-Identifier: MIT
 
-use rtiow::VkState;
+use rtiow::{GraphicsPipeline, PipelineLayout, VkState};
 use std::{ffi::CStr, sync::Arc};
 use winit::{
     application::ApplicationHandler, event::WindowEvent, keyboard::KeyCode, window::Window,
@@ -9,8 +9,10 @@ use winit::{
 
 #[derive(Default)]
 pub struct RtApp {
-    window: Option<Arc<Window>>,
+    graphics_pipeline: Option<GraphicsPipeline>,
+    pipeline_layout: Option<PipelineLayout>,
     state: Option<VkState>,
+    window: Option<Arc<Window>>,
 }
 
 impl RtApp {
@@ -18,10 +20,19 @@ impl RtApp {
     const WINDOW_TITLE_CSTR: &CStr = c"Ray Tracing in One Weekend";
     const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-    fn handle_keyboard(event_loop: &winit::event_loop::ActiveEventLoop, key: KeyCode) {
+    fn handle_keyboard(
+        event_loop: &winit::event_loop::ActiveEventLoop,
+        key: KeyCode,
+        state: &VkState,
+    ) {
         #[allow(clippy::single_match)]
         match key {
-            KeyCode::Escape => event_loop.exit(),
+            KeyCode::Escape => {
+                event_loop.exit();
+                while let Err(err) = state.device_wait_idle() {
+                    eprintln!("{err}");
+                }
+            }
             _ => (),
         }
     }
@@ -29,7 +40,7 @@ impl RtApp {
 
 impl ApplicationHandler for RtApp {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        if self.window.is_none() && self.state.is_none() {
+        if self.window.is_none() && self.state.is_none() && self.graphics_pipeline.is_none() {
             self.window = if let Some(monitor) = event_loop.primary_monitor() {
                 let attr = winit::window::WindowAttributes::default()
                     .with_title(Self::WINDOW_TITLE)
@@ -68,6 +79,28 @@ impl ApplicationHandler for RtApp {
                     }
                 }
             }
+
+            if let Some(state) = self.state.as_ref() {
+                self.pipeline_layout = match PipelineLayout::new(state) {
+                    Ok(layout) => Some(layout),
+                    Err(err) => {
+                        eprintln!("{err}");
+                        None
+                    }
+                }
+            }
+
+            if let (Some(state), Some(layout)) =
+                (self.state.as_ref(), self.pipeline_layout.as_ref())
+            {
+                self.graphics_pipeline = match GraphicsPipeline::new(state, layout) {
+                    Ok(pipeline) => Some(pipeline),
+                    Err(err) => {
+                        eprintln!("{err}");
+                        None
+                    }
+                }
+            }
         }
     }
 
@@ -83,9 +116,14 @@ impl ApplicationHandler for RtApp {
             event_loop.exit();
         }
 
-        if let (Some(_window), Some(_state)) = (self.window.as_ref(), self.state.as_ref()) {
+        if let (Some(_window), Some(state)) = (self.window.as_ref(), self.state.as_mut()) {
             match window_event {
-                WindowEvent::CloseRequested => event_loop.exit(),
+                WindowEvent::CloseRequested => {
+                    event_loop.exit();
+                    while let Err(err) = state.device_wait_idle() {
+                        eprintln!("{err}");
+                    }
+                }
                 WindowEvent::KeyboardInput {
                     event:
                         winit::event::KeyEvent {
@@ -94,7 +132,7 @@ impl ApplicationHandler for RtApp {
                             ..
                         },
                     ..
-                } => Self::handle_keyboard(event_loop, key),
+                } => Self::handle_keyboard(event_loop, key, state),
                 WindowEvent::Resized(_physical_size) => {}
                 WindowEvent::RedrawRequested => {}
                 _ => (),

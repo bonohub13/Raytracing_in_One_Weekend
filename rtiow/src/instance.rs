@@ -11,13 +11,12 @@ use std::{ffi::CStr, sync::Arc};
 use winit::{raw_window_handle::HasDisplayHandle, window::Window};
 
 pub struct Instance {
-    entry: ash::Entry,
     instance: ash::Instance,
 }
 
-#[derive(Debug)]
 pub struct InstanceDesc<'desc> {
     pub window: Arc<Window>,
+    pub entry: &'desc ash::Entry,
     pub app_name: &'desc CStr,
     pub app_version: u32,
 }
@@ -32,26 +31,14 @@ impl Instance {
     const EXTENSION_NAME: [&CStr; 1] = [get_surface_capabilities2::NAME];
 
     pub(crate) fn new(desc: &InstanceDesc) -> RtErr<Self> {
-        let entry = ash::Entry::linked();
-        let instance = Self::create_instance(desc, &entry)?;
+        let instance = Self::create_instance(desc, desc.entry)?;
 
-        Ok(Self { entry, instance })
-    }
-
-    #[inline]
-    pub(crate) fn entry(&self) -> &ash::Entry {
-        &self.entry
+        Ok(Self { instance })
     }
 
     #[inline]
     pub(crate) fn instance(&self) -> &ash::Instance {
         &self.instance
-    }
-
-    pub(crate) unsafe fn destroy(&self) {
-        unsafe {
-            self.instance.destroy_instance(None);
-        }
     }
 
     fn create_instance(desc: &InstanceDesc, entry: &ash::Entry) -> RtErr<ash::Instance> {
