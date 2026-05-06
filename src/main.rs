@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 mod app;
+mod renderer;
 
 use anyhow::Result;
 use winit::event_loop::{ControlFlow, EventLoop};

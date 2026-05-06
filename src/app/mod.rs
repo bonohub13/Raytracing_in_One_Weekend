@@ -1,7 +1,8 @@
 // Copyright 2026 Kensuke Saito
 // SPDX-License-Identifier: MIT
 
-use rtiow::{GraphicsPipeline, PipelineLayout, VkState};
+use crate::renderer::Renderer;
+use rtiow::VkState;
 use std::{ffi::CStr, sync::Arc};
 use winit::{
     application::ApplicationHandler, event::WindowEvent, keyboard::KeyCode, window::Window,
@@ -9,8 +10,7 @@ use winit::{
 
 #[derive(Default)]
 pub struct RtApp {
-    graphics_pipeline: Option<GraphicsPipeline>,
-    pipeline_layout: Option<PipelineLayout>,
+    renderer: Option<Renderer>,
     state: Option<VkState>,
     window: Option<Arc<Window>>,
 }
@@ -40,7 +40,7 @@ impl RtApp {
 
 impl ApplicationHandler for RtApp {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        if self.window.is_none() && self.state.is_none() && self.graphics_pipeline.is_none() {
+        if self.window.is_none() && self.state.is_none() && self.renderer.is_none() {
             self.window = if let Some(monitor) = event_loop.primary_monitor() {
                 let attr = winit::window::WindowAttributes::default()
                     .with_title(Self::WINDOW_TITLE)
@@ -81,20 +81,8 @@ impl ApplicationHandler for RtApp {
             }
 
             if let Some(state) = self.state.as_ref() {
-                self.pipeline_layout = match PipelineLayout::new(state) {
-                    Ok(layout) => Some(layout),
-                    Err(err) => {
-                        eprintln!("{err}");
-                        None
-                    }
-                }
-            }
-
-            if let (Some(state), Some(layout)) =
-                (self.state.as_ref(), self.pipeline_layout.as_ref())
-            {
-                self.graphics_pipeline = match GraphicsPipeline::new(state, layout) {
-                    Ok(pipeline) => Some(pipeline),
+                self.renderer = match Renderer::new(state) {
+                    Ok(renderer) => Some(renderer),
                     Err(err) => {
                         eprintln!("{err}");
                         None
