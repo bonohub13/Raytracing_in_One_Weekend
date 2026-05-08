@@ -116,18 +116,18 @@ impl Surface {
         device: vk::PhysicalDevice,
     ) -> RtErr<vk::SurfaceCapabilitiesKHR> {
         let surface_info = vk::PhysicalDeviceSurfaceInfo2KHR::default().surface(self.handle);
-        let mut capabilites = vk::SurfaceCapabilities2KHR::default();
+        let mut capabilities = vk::SurfaceCapabilities2KHR::default();
 
         unsafe {
             self.capabilities.get_physical_device_surface_capabilities2(
                 device,
                 &surface_info,
-                &mut capabilites,
+                &mut capabilities,
             )
         }
-        .map_err(|err| RtError::GetPhysicalDeviceSurfaceCapabilities(err.into()))?;
+        .map_err(|err| RtError::GetPhysicalDeviceSurfaceCapabilities(Some(err.into())))?;
 
-        Ok(capabilites.surface_capabilities)
+        Ok(capabilities.surface_capabilities)
     }
 
     fn get_physical_device_surface_formats(

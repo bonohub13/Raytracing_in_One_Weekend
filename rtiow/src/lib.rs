@@ -1,17 +1,18 @@
-// Copyright 2026 Kensuke Saito
+// Copyright 2026 Kensuke Saitolibrs
 // SPDX-License-Identifier: MIT
 
 pub(crate) mod debug;
 pub(crate) mod device;
 pub(crate) mod instance;
 mod pipeline;
+mod resource;
 pub(crate) mod state;
 pub(crate) mod surface;
 pub(crate) mod swapchain;
 pub mod util;
 
-pub(crate) use crate::{debug::*, device::*, instance::*, surface::*, swapchain::*};
-pub use crate::{pipeline::*, state::*};
+pub(crate) use crate::{debug::*, device::*, instance::*, surface::*};
+pub use crate::{pipeline::*, resource::*, state::*, swapchain::*};
 use std::error::Error;
 
 #[derive(Debug, thiserror::Error)]
@@ -49,8 +50,8 @@ pub enum RtError {
     CreateSurface(Box<dyn Error>),
     #[error("Failed to get physical device surface support. ({0})")]
     GetPhysicalDeviceSurfaceSupport(Box<dyn Error>),
-    #[error("Failed to get physical device surface capabilities. ({0})")]
-    GetPhysicalDeviceSurfaceCapabilities(Box<dyn Error>),
+    #[error("Failed to get physical device surface capabilities. ({0:?})")]
+    GetPhysicalDeviceSurfaceCapabilities(Option<Box<dyn Error>>),
     #[error("Failed to get physical device surface formats. ({0})")]
     GetPhysicalDeviceSurfaceFormats(Box<dyn Error>),
     #[error("Failed to get physical device surface present modes. ({0})")]
@@ -65,20 +66,54 @@ pub enum RtError {
     CreateDevice(Box<dyn Error>),
     #[error("Device failed to wait idle. ({0})")]
     DeviceWaitIdle(Box<dyn Error>),
+    #[error("Queue failed to wait idle. ({0})")]
+    QueueWaitIdle(Box<dyn Error>),
     #[error("Failed to create swapchain. ({0})")]
     CreateSwapchain(Box<dyn Error>),
     #[error("Failed to acquire next image. ({0})")]
     AcquireNextImage(Box<dyn Error>),
+    #[error("Failed to present queue. ({0})")]
+    QueuePresent(Box<dyn Error>),
     #[error("Failed to create images. ({0})")]
     CreateImages(Box<dyn Error>),
+    #[error("Failed to allocate memory. ({0})")]
+    AllocateMemory(Box<dyn Error>),
+    #[error("Failed to bind image to memory. ({0})")]
+    BindImageMemory(Box<dyn Error>),
     #[error("Failed to create image view. ({0})")]
     CreateImageView(Box<dyn Error>),
     #[error("Failed to create shader module. ({0})")]
     CreateShaderModule(Box<dyn Error>),
+    #[error("Failed to create descriptor set layout. ({0})")]
+    CreateDescriptorSetLayout(Box<dyn Error>),
+    #[error("Failed to create descriptor pool. ({0})")]
+    CreateDescriptorPool(Box<dyn Error>),
+    #[error("Failed to allocate descriptor sets. ({0})")]
+    AllocateDescriptorSets(Box<dyn Error>),
     #[error("Failed to create pipeline layout. ({0})")]
     CreatePipelineLayout(Box<dyn Error>),
     #[error("Failed to create pipeline. ({0})")]
     CreatePipeline(Box<dyn Error>),
+    #[error("Failed to create command pool. ({0})")]
+    CreateCommandPool(Box<dyn Error>),
+    #[error("Failed to allocate command buffers. ({0})")]
+    AllocateCommandBuffers(Box<dyn Error>),
+    #[error("Failed to begin command buffer. ({0})")]
+    BeginCommandBuffer(Box<dyn Error>),
+    #[error("Failed to end command buffer. ({0})")]
+    EndCommandBuffer(Box<dyn Error>),
+    #[error("Failed to reset command buffer. ({0})")]
+    ResetCommandBuffer(Box<dyn Error>),
+    #[error("Failed to create semaphore. ({0})")]
+    CreateSemaphore(Box<dyn Error>),
+    #[error("Failed to create fence. ({0})")]
+    CreateFence(Box<dyn Error>),
+    #[error("Failed to wait for fence(s). ({0})")]
+    WaitForFences(Box<dyn Error>),
+    #[error("Failed to reset fence(s). ({0})")]
+    ResetFences(Box<dyn Error>),
+    #[error("Failed to submit queue. ({0})")]
+    QueueSubmit(Box<dyn Error>),
 }
 
 pub type RtErr<T> = Result<T, RtError>;

@@ -6,7 +6,7 @@ use crate::DebugUtilsMessenger;
 use crate::{RtErr, RtError, util};
 #[cfg(debug_assertions)]
 use ash::ext::debug_utils;
-use ash::{khr::get_surface_capabilities2, vk};
+use ash::{ext::surface_maintenance1, khr::get_surface_capabilities2, vk};
 use std::{ffi::CStr, sync::Arc};
 use winit::{raw_window_handle::HasDisplayHandle, window::Window};
 
@@ -26,9 +26,14 @@ impl Instance {
     const ENGINE_VERSION: &str = env!("CARGO_PKG_VERSION");
     const VALIDATION_LAYERS: [&CStr; 1] = [c"VK_LAYER_KHRONOS_validation"];
     #[cfg(debug_assertions)]
-    const EXTENSION_NAME: [&CStr; 2] = [debug_utils::NAME, get_surface_capabilities2::NAME];
+    const EXTENSION_NAME: [&CStr; 3] = [
+        debug_utils::NAME,
+        get_surface_capabilities2::NAME,
+        surface_maintenance1::NAME,
+    ];
     #[cfg(not(debug_assertions))]
-    const EXTENSION_NAME: [&CStr; 1] = [get_surface_capabilities2::NAME];
+    const EXTENSION_NAME: [&CStr; 2] =
+        [get_surface_capabilities2::NAME, surface_maintenance1::NAME];
 
     pub(crate) fn new(desc: &InstanceDesc) -> RtErr<Self> {
         let instance = Self::create_instance(desc, desc.entry)?;

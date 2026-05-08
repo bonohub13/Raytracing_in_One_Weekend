@@ -1,7 +1,7 @@
 // Copyright 2026 Kensuke Saito
 // SPDX-License-Identifier: MIT
 
-use crate::renderer::Renderer;
+use crate::{frame_limiter::FrameLimiter, renderer::Renderer};
 use rtiow::VkState;
 use std::{ffi::CStr, sync::Arc};
 use winit::{
@@ -13,6 +13,7 @@ pub struct RtApp {
     renderer: Option<Renderer>,
     state: Option<VkState>,
     window: Option<Arc<Window>>,
+    frame_limiter: Option<FrameLimiter>,
 }
 
 impl RtApp {
@@ -40,7 +41,12 @@ impl RtApp {
 
 impl ApplicationHandler for RtApp {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        if self.window.is_none() && self.state.is_none() && self.renderer.is_none() {
+        if self.frame_limiter.is_none()
+            && self.window.is_none()
+            && self.state.is_none()
+            && self.renderer.is_none()
+        {
+            self.frame_limiter = Some(FrameLimiter::new(Some(60)));
             self.window = if let Some(monitor) = event_loop.primary_monitor() {
                 let attr = winit::window::WindowAttributes::default()
                     .with_title(Self::WINDOW_TITLE)
@@ -80,8 +86,8 @@ impl ApplicationHandler for RtApp {
                 }
             }
 
-            if let Some(state) = self.state.as_ref() {
-                self.renderer = match Renderer::new(state) {
+            if let (Some(window), Some(state)) = (self.window.clone(), self.state.as_ref()) {
+                self.renderer = match Renderer::new(window, state) {
                     Ok(renderer) => Some(renderer),
                     Err(err) => {
                         eprintln!("{err}");
@@ -104,7 +110,12 @@ impl ApplicationHandler for RtApp {
             event_loop.exit();
         }
 
-        if let (Some(_window), Some(state)) = (self.window.as_ref(), self.state.as_mut()) {
+        if let (Some(frame_limiter), Some(window), Some(state), Some(renderer)) = (
+            self.frame_limiter.as_mut(),
+            self.window.clone(),
+            self.state.as_mut(),
+            self.renderer.as_mut(),
+        ) {
             match window_event {
                 WindowEvent::CloseRequested => {
                     event_loop.exit();
@@ -121,8 +132,18 @@ impl ApplicationHandler for RtApp {
                         },
                     ..
                 } => Self::handle_keyboard(event_loop, key, state),
-                WindowEvent::Resized(_physical_size) => {}
-                WindowEvent::RedrawRequested => {}
+                WindowEvent::Resized(physical_size) => {
+                    if let Err(err) = renderer.resize(window, state, physical_size) {
+                        eprintln!("{err}");
+                    }
+                }
+                WindowEvent::RedrawRequested => {
+                    if let Err(err) = renderer.draw_frame(window, state) {
+                        eprintln!("{err}");
+                    }
+
+                    frame_limiter.wait_frame();
+                }
                 _ => (),
             }
         }

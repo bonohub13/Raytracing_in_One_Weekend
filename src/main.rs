@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 mod app;
+mod frame_limiter;
 mod renderer;
 
 use anyhow::Result;
