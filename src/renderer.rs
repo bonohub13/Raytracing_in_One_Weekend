@@ -1,3 +1,6 @@
+// Copyright 2026 Kensuke Saito
+// SPDX-License-Identifier: MIT
+
 use rtiow::{Encoder, GraphicsPipeline, PipelineLayout, RtErr, Swapchain, SyncObject, VkState};
 use std::sync::Arc;
 use winit::window::Window;

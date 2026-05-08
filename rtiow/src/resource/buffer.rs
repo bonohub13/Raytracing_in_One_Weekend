@@ -1,4 +1,7 @@
-use crate::{Device, VkState};
+// Copyright 2026 Kensuke Saito
+// SPDX-License-Identifier: MIT
+
+use crate::Device;
 use ash::vk;
 use std::{marker::PhantomData, sync::Arc};
 

@@ -1,3 +1,6 @@
+// Copyright 2026 Kensuke Saito
+// SPDX-License-Identifier: MIT
+
 use crate::{
     AllocatedImage, Device, Encoder, RtErr, RtError, SwapchainSupportDetails, SyncObject, VkState,
 };

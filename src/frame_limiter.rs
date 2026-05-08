@@ -1,3 +1,6 @@
+// Copyright 2026 Kensuke Saito
+// SPDX-License-Identifier: MIT
+
 use std::time::{Duration, Instant};
 
 #[derive(Debug)]

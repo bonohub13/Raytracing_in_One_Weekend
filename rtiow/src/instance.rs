@@ -75,14 +75,15 @@ impl Instance {
             .iter()
             .map(|ext| ext.as_ptr())
             .collect();
-        let vaildation_layers: Vec<_> = Self::VALIDATION_LAYERS
-            .iter()
-            .map(|layer| layer.as_ptr())
-            .collect();
         let create_info = vk::InstanceCreateInfo::default()
             .application_info(&app_info)
             .enabled_extension_names(&extensions);
 
+        #[cfg(debug_assertions)]
+        let vaildation_layers: Vec<_> = Self::VALIDATION_LAYERS
+            .iter()
+            .map(|layer| layer.as_ptr())
+            .collect();
         #[cfg(debug_assertions)]
         let mut debug_binding = DebugUtilsMessenger::create_info();
         #[cfg(debug_assertions)]

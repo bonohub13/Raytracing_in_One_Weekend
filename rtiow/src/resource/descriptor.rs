@@ -1,4 +1,7 @@
-use crate::{Buffer, Device, RtErr, RtError, VkState};
+// Copyright 2026 Kensuke Saito
+// SPDX-License-Identifier: MIT
+
+use crate::{Device, RtErr, RtError, VkState};
 use ash::vk;
 use std::sync::Arc;
 
