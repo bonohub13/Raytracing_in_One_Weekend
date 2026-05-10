@@ -10,6 +10,7 @@ pub struct Device {
     present_queue: vk::Queue,
     device: ash::Device,
     physical_device: vk::PhysicalDevice,
+    properties: vk::PhysicalDeviceProperties,
     memory_properties: vk::PhysicalDeviceMemoryProperties,
 }
 
@@ -26,6 +27,7 @@ impl Device {
         let physical_device = Self::query_physical_device(instance, surface)?;
         let (device, graphics_queue, present_queue) =
             Self::create_device(instance, surface, physical_device)?;
+        let properties = Self::query_device_properties(instance, physical_device);
         let memory_properties = Self::query_memory_properties(instance, physical_device);
 
         Ok(Self {
@@ -33,6 +35,7 @@ impl Device {
             device,
             graphics_queue,
             present_queue,
+            properties,
             memory_properties,
         })
     }
@@ -55,6 +58,11 @@ impl Device {
     #[inline]
     pub(crate) fn present_queue(&self) -> vk::Queue {
         self.present_queue
+    }
+
+    #[inline]
+    pub(crate) fn properties(&self) -> &vk::PhysicalDeviceProperties {
+        &self.properties
     }
 
     #[inline]
@@ -116,6 +124,7 @@ impl Device {
             };
 
             // Enable specific device features
+            let core_features = vk::PhysicalDeviceFeatures::default().sample_rate_shading(true);
             let mut shader_draw_parameters =
                 vk::PhysicalDeviceShaderDrawParametersFeatures::default()
                     .shader_draw_parameters(true);
@@ -124,6 +133,7 @@ impl Device {
             let mut synchronization2 =
                 vk::PhysicalDeviceSynchronization2Features::default().synchronization2(true);
             let mut device_features = vk::PhysicalDeviceFeatures2::default()
+                .features(core_features)
                 .push_next(&mut shader_draw_parameters)
                 .push_next(&mut dynamic_rendering)
                 .push_next(&mut synchronization2);
@@ -164,6 +174,21 @@ impl Device {
         } else {
             Err(RtError::FindSuitableDevice)
         }
+    }
+
+    fn query_device_properties(
+        instance: &Instance,
+        physical_device: vk::PhysicalDevice,
+    ) -> vk::PhysicalDeviceProperties {
+        let mut properties = vk::PhysicalDeviceProperties2::default();
+
+        unsafe {
+            instance
+                .instance()
+                .get_physical_device_properties2(physical_device, &mut properties)
+        };
+
+        properties.properties
     }
 
     fn query_memory_properties(
@@ -241,6 +266,7 @@ impl Device {
         }
 
         if device_features.features.geometry_shader == 0
+            || device_features.features.sample_rate_shading == 0
             || shader_draw_parameters.shader_draw_parameters == 0
             || dynamic_rendering.dynamic_rendering == 0
             || synchronization2.synchronization2 == 0

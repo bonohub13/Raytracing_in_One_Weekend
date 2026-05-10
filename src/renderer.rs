@@ -43,6 +43,7 @@ impl Renderer {
         state: &VkState,
         physical_size: winit::dpi::PhysicalSize<u32>,
     ) -> RtErr<()> {
+        self.sync.wait_for_fences(self.current_frame)?;
         self.swapchain
             .resize(window, state, &self.encoder, physical_size)
     }

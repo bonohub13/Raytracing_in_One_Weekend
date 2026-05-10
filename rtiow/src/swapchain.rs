@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-    AllocatedImage, Device, Encoder, RtErr, RtError, SwapchainSupportDetails, SyncObject, VkState,
+    AllocatedImage, Device, Encoder, ImageType, RtErr, RtError, SwapchainSupportDetails,
+    SyncObject, VkState,
 };
 use ash::{khr::swapchain, vk};
 use std::{mem::ManuallyDrop, sync::Arc};
@@ -21,11 +22,13 @@ pub struct Swapchain {
     swapchain_images: Vec<vk::Image>,
     handle: vk::SwapchainKHR,
     loader: swapchain::Device,
+    color_image: ManuallyDrop<AllocatedImage>,
     depth_image: ManuallyDrop<AllocatedImage>,
     surface_capabilities: vk::SurfaceCapabilitiesKHR,
     surface_format: vk::SurfaceFormatKHR,
     present_mode: vk::PresentModeKHR,
     extent: vk::Extent2D,
+    pub(crate) samples_count: vk::SampleCountFlags,
     device: Arc<Device>,
 }
 
@@ -37,9 +40,20 @@ impl Swapchain {
         let surface_capabilities = swapchain_support.capabilities;
         let surface_format = swapchain_support.choose_swap_surface_format();
         let present_mode = swapchain_support.choose_swap_present_mode();
+        let samples_count = Self::max_usable_sample_count(state.device.clone());
         let extent = swapchain_support.choose_swap_extent(window.clone());
-        let depth_image =
-            ManuallyDrop::new(AllocatedImage::create_depth_image(state, encoder, &extent)?);
+        let color_image = ManuallyDrop::new(AllocatedImage::new(
+            state,
+            encoder,
+            samples_count,
+            ImageType::Color(&extent, surface_format.format),
+        )?);
+        let depth_image = ManuallyDrop::new(AllocatedImage::new(
+            state,
+            encoder,
+            samples_count,
+            ImageType::Depth(&extent),
+        )?);
         let loader = swapchain::Device::new(state.instance.instance(), state.device.device());
         let handle = Self::create_swapchain(window, state, &loader, &swapchain_support)?;
         let swapchain_images = Self::create_images(&loader, handle)?;
@@ -50,10 +64,12 @@ impl Swapchain {
         )?;
 
         Ok(Self {
+            samples_count,
             surface_capabilities,
             surface_format,
             present_mode,
             extent,
+            color_image,
             depth_image,
             loader,
             handle,
@@ -192,7 +208,11 @@ impl Swapchain {
         encoder: &Encoder,
         physical_size: Option<winit::dpi::PhysicalSize<u32>>,
     ) -> RtErr<()> {
-        self.device.device_wait_idle()?;
+        static mut MAX_SIZE: vk::Extent2D = vk::Extent2D {
+            width: 0,
+            height: 0,
+        };
+
         let image_count = {
             let image_count = self.surface_capabilities.min_image_count + 1;
 
@@ -207,6 +227,7 @@ impl Swapchain {
         let swapchain_support = state
             .surface
             .query_swapchain_support(self.device.physical_device())?;
+        let old_extent = self.extent;
         self.surface_capabilities = swapchain_support.capabilities;
         self.surface_format = swapchain_support.choose_swap_surface_format();
         self.present_mode = swapchain_support.choose_swap_present_mode();
@@ -237,6 +258,12 @@ impl Swapchain {
         } else {
             swapchain_support.choose_swap_extent(window.clone())
         };
+        if unsafe { MAX_SIZE.width * MAX_SIZE.height } == 0 {
+            unsafe {
+                MAX_SIZE.width = old_extent.width;
+                MAX_SIZE.height = old_extent.height;
+            }
+        }
         let queue_family_indices = state
             .surface
             .find_queue_families(&state.instance, self.device.physical_device())?
@@ -264,11 +291,26 @@ impl Swapchain {
 
         unsafe { self.destroy() };
 
-        self.depth_image = ManuallyDrop::new(AllocatedImage::create_depth_image(
-            state,
-            encoder,
-            &self.extent,
-        )?);
+        if (self.extent.width * self.extent.height) > unsafe { MAX_SIZE.width * MAX_SIZE.height } {
+            unsafe {
+                MAX_SIZE.width = self.extent.width;
+                MAX_SIZE.height = self.extent.height;
+                ManuallyDrop::drop(&mut self.color_image);
+                ManuallyDrop::drop(&mut self.depth_image);
+            }
+            self.color_image = ManuallyDrop::new(AllocatedImage::new(
+                state,
+                encoder,
+                self.samples_count,
+                ImageType::Color(&self.extent, self.surface_format.format),
+            )?);
+            self.depth_image = ManuallyDrop::new(AllocatedImage::new(
+                state,
+                encoder,
+                self.samples_count,
+                ImageType::Depth(&self.extent),
+            )?);
+        }
         self.handle = handle;
         self.swapchain_images = Self::create_images(&self.loader, self.handle)?;
         self.swapchain_image_views = Self::create_image_views(
@@ -291,10 +333,13 @@ impl Swapchain {
         };
 
         vk::RenderingAttachmentInfo::default()
-            .image_view(self.swapchain_image_views[image_index])
-            .image_layout(vk::ImageLayout::ATTACHMENT_OPTIMAL)
+            .image_view(self.color_image.image_view())
+            .image_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
             .load_op(vk::AttachmentLoadOp::CLEAR)
-            .store_op(vk::AttachmentStoreOp::STORE)
+            .store_op(vk::AttachmentStoreOp::DONT_CARE)
+            .resolve_mode(vk::ResolveModeFlags::AVERAGE)
+            .resolve_image_view(self.swapchain_image_views[image_index])
+            .resolve_image_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
             .clear_value(CLEAR_VALUE)
     }
 
@@ -322,7 +367,6 @@ impl Swapchain {
             });
         unsafe {
             self.loader.destroy_swapchain(self.handle, None);
-            ManuallyDrop::drop(&mut self.depth_image);
         }
     }
 
@@ -417,10 +461,36 @@ impl Swapchain {
             })
             .collect()
     }
+
+    fn max_usable_sample_count(device: Arc<Device>) -> vk::SampleCountFlags {
+        static MAX_SAMPLE_COUNTS: [vk::SampleCountFlags; 6] = [
+            vk::SampleCountFlags::TYPE_64,
+            vk::SampleCountFlags::TYPE_32,
+            vk::SampleCountFlags::TYPE_16,
+            vk::SampleCountFlags::TYPE_8,
+            vk::SampleCountFlags::TYPE_4,
+            vk::SampleCountFlags::TYPE_2,
+        ];
+
+        *MAX_SAMPLE_COUNTS
+            .iter()
+            .find(|sample| {
+                device
+                    .properties()
+                    .limits
+                    .framebuffer_color_sample_counts
+                    .contains(**sample)
+            })
+            .unwrap_or(&vk::SampleCountFlags::TYPE_1)
+    }
 }
 
 impl Drop for Swapchain {
     fn drop(&mut self) {
-        unsafe { self.destroy() }
+        unsafe {
+            self.destroy();
+            ManuallyDrop::drop(&mut self.color_image);
+            ManuallyDrop::drop(&mut self.depth_image);
+        }
     }
 }

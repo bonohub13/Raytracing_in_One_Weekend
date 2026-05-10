@@ -28,7 +28,7 @@ impl GraphicsPipeline {
         let pipeline = Self::create_pipeline(
             state.device.clone(),
             layout,
-            swapchain.extent(),
+            swapchain,
             &vert_shader,
             &frag_shader,
         )?;
@@ -130,7 +130,7 @@ impl GraphicsPipeline {
     fn create_pipeline(
         device: Arc<Device>,
         pipeline_layout: &PipelineLayout,
-        extent: &vk::Extent2D,
+        swapchain: &Swapchain,
         vert_shader: &ShaderModule,
         frag_shader: &ShaderModule,
     ) -> RtErr<vk::Pipeline> {
@@ -144,8 +144,8 @@ impl GraphicsPipeline {
         let input_assembly = vk::PipelineInputAssemblyStateCreateInfo::default()
             .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
             .primitive_restart_enable(false);
-        let viewport = Self::viewport(extent);
-        let scissor = Self::scissor(extent);
+        let viewport = Self::viewport(swapchain.extent());
+        let scissor = Self::scissor(swapchain.extent());
         let viewport_state = vk::PipelineViewportStateCreateInfo::default()
             .viewports(std::slice::from_ref(&viewport))
             .scissors(std::slice::from_ref(&scissor));
@@ -158,8 +158,9 @@ impl GraphicsPipeline {
             .front_face(vk::FrontFace::COUNTER_CLOCKWISE)
             .depth_bias_enable(false);
         let multisampling = vk::PipelineMultisampleStateCreateInfo::default()
-            .sample_shading_enable(false)
-            .rasterization_samples(vk::SampleCountFlags::TYPE_1);
+            .sample_shading_enable(true)
+            .min_sample_shading(0.2)
+            .rasterization_samples(swapchain.samples_count);
         let color_blend_attachment = vk::PipelineColorBlendAttachmentState::default()
             .color_write_mask(vk::ColorComponentFlags::RGBA)
             .blend_enable(true)

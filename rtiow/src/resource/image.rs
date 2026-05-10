@@ -5,6 +5,12 @@ use crate::{Device, Encoder, RtErr, RtError, VkState};
 use ash::vk;
 use std::sync::Arc;
 
+#[derive(Clone, Copy)]
+pub enum ImageType<'item> {
+    Depth(&'item vk::Extent2D),
+    Color(&'item vk::Extent2D, vk::Format),
+}
+
 pub struct AllocatedImage {
     image_view: vk::ImageView,
     memory: vk::DeviceMemory,
@@ -13,9 +19,34 @@ pub struct AllocatedImage {
 }
 
 impl AllocatedImage {
-    pub(crate) fn create_depth_image(
+    pub fn new(
         state: &VkState,
         encoder: &Encoder,
+        samples: vk::SampleCountFlags,
+        ty: ImageType,
+    ) -> RtErr<Self> {
+        match ty {
+            ImageType::Depth(extent) => Self::create_depth_image(state, encoder, samples, extent),
+            ImageType::Color(extent, format) => {
+                Self::create_color_image(state, encoder, samples, extent, format)
+            }
+        }
+    }
+
+    #[inline]
+    pub fn image(&self) -> vk::Image {
+        self.image
+    }
+
+    #[inline]
+    pub fn image_view(&self) -> vk::ImageView {
+        self.image_view
+    }
+
+    fn create_depth_image(
+        state: &VkState,
+        encoder: &Encoder,
+        samples: vk::SampleCountFlags,
         extent: &vk::Extent2D,
     ) -> RtErr<Self> {
         let depth_format = Self::find_depth_format(state);
@@ -29,14 +60,14 @@ impl AllocatedImage {
             })
             .mip_levels(1)
             .array_layers(1)
-            .samples(vk::SampleCountFlags::TYPE_1)
+            .samples(samples)
             .tiling(vk::ImageTiling::OPTIMAL)
             .usage(vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT)
             .sharing_mode(vk::SharingMode::EXCLUSIVE);
         let image = Self::create_image(state, &create_info)?;
         let memory = Self::allocate_memory(state, image)?;
         let image_view = Self::create_image_view(
-            state,
+            state.device.clone(),
             depth_format,
             image,
             &vk::ImageSubresourceRange {
@@ -83,14 +114,77 @@ impl AllocatedImage {
         })
     }
 
-    #[inline]
-    pub fn image(&self) -> vk::Image {
-        self.image
-    }
+    fn create_color_image(
+        state: &VkState,
+        encoder: &Encoder,
+        samples: vk::SampleCountFlags,
+        extent: &vk::Extent2D,
+        format: vk::Format,
+    ) -> RtErr<Self> {
+        let create_info = vk::ImageCreateInfo::default()
+            .image_type(vk::ImageType::TYPE_2D)
+            .format(format)
+            .extent(vk::Extent3D {
+                width: extent.width,
+                height: extent.height,
+                depth: 1,
+            })
+            .mip_levels(1)
+            .array_layers(1)
+            .samples(samples)
+            .tiling(vk::ImageTiling::OPTIMAL)
+            .usage(
+                vk::ImageUsageFlags::TRANSIENT_ATTACHMENT | vk::ImageUsageFlags::COLOR_ATTACHMENT,
+            )
+            .sharing_mode(vk::SharingMode::EXCLUSIVE);
+        let image = Self::create_image(state, &create_info)?;
+        let memory = Self::allocate_memory(state, image)?;
+        let image_view = Self::create_image_view(
+            state.device.clone(),
+            format,
+            image,
+            &vk::ImageSubresourceRange {
+                aspect_mask: vk::ImageAspectFlags::COLOR,
+                base_mip_level: 0,
+                level_count: 1,
+                base_array_layer: 0,
+                layer_count: 1,
+            },
+        )?;
 
-    #[inline]
-    pub fn image_view(&self) -> vk::ImageView {
-        self.image_view
+        encoder.submit_single_command_buffer(|command_buffer| {
+            let memory_barrier = vk::ImageMemoryBarrier2::default()
+                .old_layout(vk::ImageLayout::UNDEFINED)
+                .src_stage_mask(vk::PipelineStageFlags2::TOP_OF_PIPE)
+                .src_access_mask(vk::AccessFlags2::NONE)
+                .new_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+                .dst_stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
+                .dst_access_mask(vk::AccessFlags2::COLOR_ATTACHMENT_WRITE)
+                .image(image)
+                .subresource_range(vk::ImageSubresourceRange {
+                    aspect_mask: vk::ImageAspectFlags::COLOR,
+                    base_mip_level: 0,
+                    level_count: 1,
+                    base_array_layer: 0,
+                    layer_count: 1,
+                });
+            let dependency_info = vk::DependencyInfo::default()
+                .image_memory_barriers(std::slice::from_ref(&memory_barrier));
+
+            unsafe {
+                state
+                    .device
+                    .device()
+                    .cmd_pipeline_barrier2(command_buffer, &dependency_info);
+            }
+        })?;
+
+        Ok(Self {
+            image,
+            memory,
+            image_view,
+            device: state.device.clone(),
+        })
     }
 
     fn find_depth_format(state: &VkState) -> vk::Format {
@@ -188,7 +282,7 @@ impl AllocatedImage {
     }
 
     fn create_image_view(
-        state: &VkState,
+        device: Arc<Device>,
         format: vk::Format,
         image: vk::Image,
         subresource_range: &vk::ImageSubresourceRange,
@@ -199,7 +293,7 @@ impl AllocatedImage {
             .format(format)
             .subresource_range(*subresource_range);
 
-        unsafe { state.device.device().create_image_view(&create_info, None) }
+        unsafe { device.device().create_image_view(&create_info, None) }
             .map_err(|err| RtError::CreateImageView(err.into()))
     }
 
