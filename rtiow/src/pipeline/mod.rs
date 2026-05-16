@@ -12,21 +12,27 @@ pub(crate) use shader::*;
 pub use sync::*;
 
 use crate::{Descriptor, Device, RtErr, RtError, VkState};
-use ash::vk;
+use ash::{ext::vertex_input_dynamic_state, vk};
 use std::sync::Arc;
 
 pub struct PipelineLayout {
     pub(crate) layout: vk::PipelineLayout,
+    pub(crate) vertex_input_loader: vertex_input_dynamic_state::Device,
     device: Arc<Device>,
 }
 
 impl PipelineLayout {
     pub fn new(state: &VkState, descriptors: &[Descriptor]) -> RtErr<Self> {
         let layout = Self::create_pipeline_layout(state.device.clone(), descriptors)?;
+        let vertex_input_loader = vertex_input_dynamic_state::Device::new(
+            state.instance.instance(),
+            state.device.device(),
+        );
 
         Ok(Self {
             layout,
             device: state.device.clone(),
+            vertex_input_loader,
         })
     }
 

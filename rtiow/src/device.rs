@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{Instance, RtErr, RtError, Surface};
-use ash::{khr::swapchain, vk};
+use ash::{ext::vertex_input_dynamic_state, khr::swapchain, vk};
 use std::{collections::HashSet, ffi::CStr};
 
 pub struct Device {
@@ -21,7 +21,7 @@ pub struct QueueFamilyIndices {
 }
 
 impl Device {
-    const DEVICE_EXTENSIONS: [&CStr; 1] = [swapchain::NAME];
+    const DEVICE_EXTENSIONS: [&CStr; 2] = [swapchain::NAME, vertex_input_dynamic_state::NAME];
 
     pub(crate) fn new(instance: &Instance, surface: &Surface) -> RtErr<Self> {
         let physical_device = Self::query_physical_device(instance, surface)?;
@@ -128,6 +128,8 @@ impl Device {
             let mut shader_draw_parameters =
                 vk::PhysicalDeviceShaderDrawParametersFeatures::default()
                     .shader_draw_parameters(true);
+            let mut dynamic_state = vk::PhysicalDeviceVertexInputDynamicStateFeaturesEXT::default()
+                .vertex_input_dynamic_state(true);
             let mut dynamic_rendering =
                 vk::PhysicalDeviceDynamicRenderingFeatures::default().dynamic_rendering(true);
             let mut synchronization2 =
@@ -135,6 +137,7 @@ impl Device {
             let mut device_features = vk::PhysicalDeviceFeatures2::default()
                 .features(core_features)
                 .push_next(&mut shader_draw_parameters)
+                .push_next(&mut dynamic_state)
                 .push_next(&mut dynamic_rendering)
                 .push_next(&mut synchronization2);
 
@@ -254,10 +257,12 @@ impl Device {
             }
         };
         let mut shader_draw_parameters = vk::PhysicalDeviceShaderDrawParametersFeatures::default();
+        let mut dynamic_state = vk::PhysicalDeviceVertexInputDynamicStateFeaturesEXT::default();
         let mut dynamic_rendering = vk::PhysicalDeviceDynamicRenderingFeatures::default();
         let mut synchronization2 = vk::PhysicalDeviceSynchronization2Features::default();
         let mut device_features = vk::PhysicalDeviceFeatures2::default()
             .push_next(&mut shader_draw_parameters)
+            .push_next(&mut dynamic_state)
             .push_next(&mut dynamic_rendering)
             .push_next(&mut synchronization2);
 
@@ -268,6 +273,7 @@ impl Device {
         if device_features.features.geometry_shader == 0
             || device_features.features.sample_rate_shading == 0
             || shader_draw_parameters.shader_draw_parameters == 0
+            || dynamic_state.vertex_input_dynamic_state == 0
             || dynamic_rendering.dynamic_rendering == 0
             || synchronization2.synchronization2 == 0
         {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-    Device, RtErr, RtError, Swapchain, VkState,
+    Device, RtErr, RtError, Swapchain, Vertex, VkState,
     pipeline::{PipelineLayout, ShaderModule},
 };
 use ash::vk;
@@ -10,24 +10,27 @@ use std::{ffi::CStr, path::Path, sync::Arc};
 
 pub struct GraphicsPipeline {
     pipeline: vk::Pipeline,
-    layout: vk::PipelineLayout,
+    layout: Arc<PipelineLayout>,
     device: Arc<Device>,
 }
 
 impl GraphicsPipeline {
     const VERT_SHADER_PATH: &str = "shaders/spv/vertex.spv";
     const FRAG_SHADER_PATH: &str = "shaders/spv/fragment.spv";
-    const DYNAMIC_STATES: [vk::DynamicState; 2] =
-        [vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR];
+    const DYNAMIC_STATES: [vk::DynamicState; 3] = [
+        vk::DynamicState::VERTEX_INPUT_EXT,
+        vk::DynamicState::VIEWPORT,
+        vk::DynamicState::SCISSOR,
+    ];
 
-    pub fn new(state: &VkState, swapchain: &Swapchain, layout: &PipelineLayout) -> RtErr<Self> {
+    pub fn new(state: &VkState, swapchain: &Swapchain, layout: Arc<PipelineLayout>) -> RtErr<Self> {
         let vert_shader =
             ShaderModule::new(state.device.clone(), Path::new(Self::VERT_SHADER_PATH))?;
         let frag_shader =
             ShaderModule::new(state.device.clone(), Path::new(Self::FRAG_SHADER_PATH))?;
         let pipeline = Self::create_pipeline(
             state.device.clone(),
-            layout,
+            layout.clone(),
             swapchain,
             &vert_shader,
             &frag_shader,
@@ -35,7 +38,7 @@ impl GraphicsPipeline {
 
         Ok(Self {
             pipeline,
-            layout: layout.layout,
+            layout,
             device: state.device.clone(),
         })
     }
@@ -66,6 +69,23 @@ impl GraphicsPipeline {
                 command_buffer,
                 0,
                 std::slice::from_ref(&Self::scissor(extent)),
+            )
+        }
+    }
+
+    pub fn bind_set_input_ext(&self, command_buffer: vk::CommandBuffer) {
+        let vertex_binding_descriptions = [*std::sync::LazyLock::new(|| {
+            Vertex::dynamic_binding::<'static>()
+        })];
+        let vertex_attr_descriptions = [*std::sync::LazyLock::new(|| {
+            Vertex::dynamic_attribute::<'static>()
+        })];
+
+        unsafe {
+            self.layout.vertex_input_loader.cmd_set_vertex_input(
+                command_buffer,
+                &vertex_binding_descriptions,
+                &vertex_attr_descriptions,
             )
         }
     }
@@ -129,7 +149,7 @@ impl GraphicsPipeline {
 
     fn create_pipeline(
         device: Arc<Device>,
-        pipeline_layout: &PipelineLayout,
+        pipeline_layout: Arc<PipelineLayout>,
         swapchain: &Swapchain,
         vert_shader: &ShaderModule,
         frag_shader: &ShaderModule,

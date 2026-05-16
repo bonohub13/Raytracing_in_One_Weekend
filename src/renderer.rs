@@ -7,7 +7,7 @@ use winit::window::Window;
 
 pub struct Renderer {
     graphics_pipeline: GraphicsPipeline,
-    pipeline_layout: PipelineLayout,
+    pipeline_layout: Arc<PipelineLayout>,
     swapchain: Swapchain,
     sync: SyncObject,
     encoder: Encoder,
@@ -23,8 +23,8 @@ impl Renderer {
         let encoder = Encoder::new(state, max_frames_in_flight)?;
         let sync = SyncObject::new(state, max_frames_in_flight)?;
         let swapchain = Swapchain::new(window, &encoder, state)?;
-        let pipeline_layout = PipelineLayout::new(state, &[])?;
-        let graphics_pipeline = GraphicsPipeline::new(state, &swapchain, &pipeline_layout)?;
+        let pipeline_layout = Arc::new(PipelineLayout::new(state, &[])?);
+        let graphics_pipeline = GraphicsPipeline::new(state, &swapchain, pipeline_layout.clone())?;
 
         Ok(Self {
             swapchain,
@@ -74,6 +74,7 @@ impl Renderer {
                             .set_viewport(command_buffer, self.swapchain.extent());
                         self.graphics_pipeline
                             .set_scissor(command_buffer, self.swapchain.extent());
+                        self.graphics_pipeline.bind_set_input_ext(command_buffer);
                         self.graphics_pipeline.draw(command_buffer, 3, 1, 0, 0);
                     },
                 );

@@ -5,6 +5,16 @@ use crate::Device;
 use ash::vk;
 use std::{marker::PhantomData, sync::Arc};
 
+pub enum BufferType<'data, T>
+where
+    T: Sized + Clone,
+{
+    Vertex(&'data [T], Option<&'data [u16]>),
+    Aabb(&'data [T]),
+    Tlas(&'data [T]),
+}
+
+#[derive(Clone)]
 pub struct Buffer<T>
 where
     T: Sized,
