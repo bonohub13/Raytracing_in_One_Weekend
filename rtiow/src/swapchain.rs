@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-    AllocatedImage, Device, Encoder, ImageType, RtErr, RtError, SwapchainSupportDetails,
+    AllocatedImage, Allocator, Device, Encoder, ImageType, RtErr, RtError, SwapchainSupportDetails,
     SyncObject, VkState,
 };
 use ash::{khr::swapchain, vk};
-use std::{mem::ManuallyDrop, sync::Arc};
+use std::{
+    mem::ManuallyDrop,
+    sync::{Arc, Mutex},
+};
 use winit::window::Window;
 
 static SUBRESOURCE_RANGE: vk::ImageSubresourceRange = vk::ImageSubresourceRange {
@@ -30,10 +33,16 @@ pub struct Swapchain {
     extent: vk::Extent2D,
     pub(crate) samples_count: vk::SampleCountFlags,
     device: Arc<Device>,
+    allocator: Arc<Mutex<Allocator>>,
 }
 
 impl Swapchain {
-    pub fn new(window: Arc<Window>, encoder: &Encoder, state: &VkState) -> RtErr<Self> {
+    pub fn new(
+        window: Arc<Window>,
+        encoder: &Encoder,
+        state: &VkState,
+        allocator: Arc<Mutex<Allocator>>,
+    ) -> RtErr<Self> {
         let swapchain_support = state
             .surface
             .query_swapchain_support(state.device.physical_device())?;
@@ -44,12 +53,14 @@ impl Swapchain {
         let extent = swapchain_support.choose_swap_extent(window.clone());
         let color_image = ManuallyDrop::new(AllocatedImage::new(
             state,
+            allocator.clone(),
             encoder,
             samples_count,
             ImageType::Color(&extent, surface_format.format),
         )?);
         let depth_image = ManuallyDrop::new(AllocatedImage::new(
             state,
+            allocator.clone(),
             encoder,
             samples_count,
             ImageType::Depth(&extent),
@@ -76,6 +87,7 @@ impl Swapchain {
             swapchain_images,
             swapchain_image_views,
             device: state.device.clone(),
+            allocator,
         })
     }
 
@@ -300,12 +312,14 @@ impl Swapchain {
             }
             self.color_image = ManuallyDrop::new(AllocatedImage::new(
                 state,
+                self.allocator.clone(),
                 encoder,
                 self.samples_count,
                 ImageType::Color(&self.extent, self.surface_format.format),
             )?);
             self.depth_image = ManuallyDrop::new(AllocatedImage::new(
                 state,
+                self.allocator.clone(),
                 encoder,
                 self.samples_count,
                 ImageType::Depth(&self.extent),

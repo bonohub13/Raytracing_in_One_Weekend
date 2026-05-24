@@ -134,12 +134,16 @@ impl Device {
                 vk::PhysicalDeviceDynamicRenderingFeatures::default().dynamic_rendering(true);
             let mut synchronization2 =
                 vk::PhysicalDeviceSynchronization2Features::default().synchronization2(true);
+            let mut buffer_device_address =
+                vk::PhysicalDeviceBufferDeviceAddressFeatures::default()
+                    .buffer_device_address(true);
             let mut device_features = vk::PhysicalDeviceFeatures2::default()
                 .features(core_features)
                 .push_next(&mut shader_draw_parameters)
                 .push_next(&mut dynamic_state)
                 .push_next(&mut dynamic_rendering)
-                .push_next(&mut synchronization2);
+                .push_next(&mut synchronization2)
+                .push_next(&mut buffer_device_address);
 
             unsafe { instance.get_physical_device_features2(device, &mut device_features) };
 
@@ -260,11 +264,13 @@ impl Device {
         let mut dynamic_state = vk::PhysicalDeviceVertexInputDynamicStateFeaturesEXT::default();
         let mut dynamic_rendering = vk::PhysicalDeviceDynamicRenderingFeatures::default();
         let mut synchronization2 = vk::PhysicalDeviceSynchronization2Features::default();
+        let mut buffer_device_address = vk::PhysicalDeviceBufferDeviceAddressFeatures::default();
         let mut device_features = vk::PhysicalDeviceFeatures2::default()
             .push_next(&mut shader_draw_parameters)
             .push_next(&mut dynamic_state)
             .push_next(&mut dynamic_rendering)
-            .push_next(&mut synchronization2);
+            .push_next(&mut synchronization2)
+            .push_next(&mut buffer_device_address);
 
         unsafe {
             instance.get_physical_device_features2(device, &mut device_features);
@@ -276,6 +282,7 @@ impl Device {
             || dynamic_state.vertex_input_dynamic_state == 0
             || dynamic_rendering.dynamic_rendering == 0
             || synchronization2.synchronization2 == 0
+            || buffer_device_address.buffer_device_address == 0
         {
             0
         } else {

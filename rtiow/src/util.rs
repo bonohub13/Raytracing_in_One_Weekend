@@ -18,3 +18,19 @@ pub fn parse_version_from_str(version: &str) -> RtErr<u32> {
         Err(RtError::StrToU32Conv(version.into()))
     }
 }
+
+macro_rules! align_up {
+    ($value:expr, $alignment:expr) => {{
+        let value = $value;
+        let alignment = $alignment;
+        let alignment_mask = alignment - 1;
+
+        if alignment == 0 {
+            value
+        } else {
+            (value + alignment_mask) & !alignment_mask
+        }
+    }};
+}
+
+pub(crate) use align_up;

@@ -1,16 +1,30 @@
 use ash::vk;
-use glam::Vec3A;
+use glam::Vec3;
 
 #[derive(Debug, Clone, Copy)]
-pub struct Vertex {
-    position: Vec3A,
+pub struct Vertex(pub(crate) Vec3);
+
+pub trait StagingData {
+    fn size(&self) -> vk::DeviceSize;
+    fn copy_regions<'a>(&'a self) -> Vec<vk::BufferCopy2<'a>>;
+    fn copy_barrier<'a>(&self) -> vk::MemoryBarrier2<'a>;
+    fn write(&self, dst_slice: &mut [u8]);
 }
 
 impl Vertex {
     pub const fn new(position: &[f32; 3]) -> Self {
-        Self {
-            position: glam::vec3a(position[0], position[1], position[2]),
-        }
+        Self(glam::vec3(position[0], position[1], position[2]))
+    }
+
+    pub fn bytes(vertices: &[Self]) -> Vec<u8> {
+        bytemuck::cast_slice(
+            vertices
+                .iter()
+                .map(|vertex| vertex.0)
+                .collect::<Vec<_>>()
+                .as_slice(),
+        )
+        .to_vec()
     }
 
     #[inline]

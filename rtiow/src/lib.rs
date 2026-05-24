@@ -24,6 +24,8 @@ pub enum RtError {
     ArcWeakUpgrade,
     #[error("Failed to read from file. ({0})")]
     ReadFile(Box<dyn Error>),
+    #[error("Mutex was poisened by a panicked thread")]
+    LockMutex,
     // Display Handle/Window Handle errors
     #[error("Failed to get display handle from window. ({0})")]
     DisplayHandle(Box<dyn Error>),
@@ -74,15 +76,27 @@ pub enum RtError {
     AcquireNextImage(Box<dyn Error>),
     #[error("Failed to present queue. ({0})")]
     QueuePresent(Box<dyn Error>),
-    #[error("Failed to create images. ({0})")]
-    CreateImages(Box<dyn Error>),
+    #[error("Failed to initialize GPU allocator")]
+    InitAllocator(Box<dyn Error>),
     #[error("Failed to allocate memory. ({0})")]
     AllocateMemory(Box<dyn Error>),
+    #[error("Failed to free allocation. ({0})")]
+    FreeAllocation(Box<dyn Error>),
+    #[error("Allocation doesn't exist")]
+    NoAllocation,
+    #[error("Buffer is not visible to host")]
+    BufferNonHostVisible,
+    #[error("Failed to create images. ({0})")]
+    CreateImages(Box<dyn Error>),
     #[error("Failed to bind image to memory. ({0})")]
     BindImageMemory(Box<dyn Error>),
     #[error("Failed to create image view. ({0})")]
     CreateImageView(Box<dyn Error>),
     #[error("Failed to create shader module. ({0})")]
+    CreateBuffer(Box<dyn Error>),
+    #[error("Failed to bind buffer to memory. ({0})")]
+    BindBufferMemory(Box<dyn Error>),
+    #[error("Failed to create buffer. ({0})")]
     CreateShaderModule(Box<dyn Error>),
     #[error("Failed to create descriptor set layout. ({0})")]
     CreateDescriptorSetLayout(Box<dyn Error>),
@@ -114,6 +128,10 @@ pub enum RtError {
     ResetFences(Box<dyn Error>),
     #[error("Failed to submit queue. ({0})")]
     QueueSubmit(Box<dyn Error>),
+    #[error("Invalid buffer type")]
+    InvalidBufferType,
+    #[error("Failed to create acceleration structure. ({0})")]
+    CreateAccelerationStructure(Box<dyn Error>),
 }
 
 pub type RtErr<T> = Result<T, RtError>;

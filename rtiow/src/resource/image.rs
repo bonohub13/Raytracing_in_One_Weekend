@@ -1,9 +1,10 @@
 // Copyright 2026 Kensuke Saito
 // SPDX-License-Identifier: MIT
 
-use crate::{Device, Encoder, RtErr, RtError, VkState};
+use crate::{Allocator, Device, Encoder, RtErr, RtError, VkState};
 use ash::vk;
-use std::sync::Arc;
+use gpu_allocator::vulkan::{self as vk_alloc, Allocation};
+use std::sync::{Arc, Mutex};
 
 #[derive(Clone, Copy)]
 pub enum ImageType<'item> {
@@ -13,22 +14,26 @@ pub enum ImageType<'item> {
 
 pub struct AllocatedImage {
     image_view: vk::ImageView,
-    memory: vk::DeviceMemory,
+    allocation: Option<Allocation>,
     image: vk::Image,
     device: Arc<Device>,
+    allocator: Arc<Mutex<Allocator>>,
 }
 
 impl AllocatedImage {
     pub fn new(
         state: &VkState,
+        allocator: Arc<Mutex<Allocator>>,
         encoder: &Encoder,
         samples: vk::SampleCountFlags,
         ty: ImageType,
     ) -> RtErr<Self> {
         match ty {
-            ImageType::Depth(extent) => Self::create_depth_image(state, encoder, samples, extent),
+            ImageType::Depth(extent) => {
+                Self::create_depth_image(state, allocator, encoder, samples, extent)
+            }
             ImageType::Color(extent, format) => {
-                Self::create_color_image(state, encoder, samples, extent, format)
+                Self::create_color_image(state, allocator, encoder, samples, extent, format)
             }
         }
     }
@@ -45,6 +50,7 @@ impl AllocatedImage {
 
     fn create_depth_image(
         state: &VkState,
+        allocator: Arc<Mutex<Allocator>>,
         encoder: &Encoder,
         samples: vk::SampleCountFlags,
         extent: &vk::Extent2D,
@@ -65,7 +71,7 @@ impl AllocatedImage {
             .usage(vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT)
             .sharing_mode(vk::SharingMode::EXCLUSIVE);
         let image = Self::create_image(state, &create_info)?;
-        let memory = Self::allocate_memory(state, image)?;
+        let allocation = Self::allocate_memory(state, allocator.clone(), image)?;
         let image_view = Self::create_image_view(
             state.device.clone(),
             depth_format,
@@ -108,14 +114,16 @@ impl AllocatedImage {
 
         Ok(Self {
             image,
-            memory,
+            allocation,
             image_view,
             device: state.device.clone(),
+            allocator,
         })
     }
 
     fn create_color_image(
         state: &VkState,
+        allocator: Arc<Mutex<Allocator>>,
         encoder: &Encoder,
         samples: vk::SampleCountFlags,
         extent: &vk::Extent2D,
@@ -138,7 +146,7 @@ impl AllocatedImage {
             )
             .sharing_mode(vk::SharingMode::EXCLUSIVE);
         let image = Self::create_image(state, &create_info)?;
-        let memory = Self::allocate_memory(state, image)?;
+        let allocation = Self::allocate_memory(state, allocator.clone(), image)?;
         let image_view = Self::create_image_view(
             state.device.clone(),
             format,
@@ -181,9 +189,10 @@ impl AllocatedImage {
 
         Ok(Self {
             image,
-            memory,
+            allocation,
             image_view,
             device: state.device.clone(),
+            allocator,
         })
     }
 
@@ -198,10 +207,6 @@ impl AllocatedImage {
             vk::ImageTiling::OPTIMAL,
             vk::FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT,
         )
-    }
-
-    fn has_stencil_component(format: vk::Format) -> bool {
-        format == vk::Format::D32_SFLOAT_S8_UINT || format == vk::Format::D24_UNORM_S8_UINT
     }
 
     fn find_supported_format(
@@ -250,7 +255,13 @@ impl AllocatedImage {
             .map_err(|err| RtError::CreateImages(err.into()))
     }
 
-    fn allocate_memory(state: &VkState, image: vk::Image) -> RtErr<vk::DeviceMemory> {
+    fn allocate_memory(
+        state: &VkState,
+        allocator: Arc<Mutex<Allocator>>,
+        image: vk::Image,
+    ) -> RtErr<Option<Allocation>> {
+        const IMAGE_MEMORY_NAME: &str = "Image bound memory";
+
         let device = state.device.device();
         let info = vk::ImageMemoryRequirementsInfo2::default().image(image);
         let requirements = {
@@ -260,25 +271,26 @@ impl AllocatedImage {
 
             requirements.memory_requirements
         };
-        let type_index = Self::find_memory_type(
-            requirements.memory_type_bits,
-            vk::MemoryPropertyFlags::DEVICE_LOCAL,
-            state.device.memory_properties(),
-        );
-        let alloc_info = vk::MemoryAllocateInfo::default()
-            .allocation_size(requirements.size)
-            .memory_type_index(type_index);
-        let memory = unsafe { device.allocate_memory(&alloc_info, None) }
+        let mut guard = allocator.lock().map_err(|_| RtError::LockMutex)?;
+        let allocation = guard
+            .allocator
+            .allocate(&vk_alloc::AllocationCreateDesc {
+                name: IMAGE_MEMORY_NAME,
+                requirements,
+                location: gpu_allocator::MemoryLocation::GpuOnly,
+                linear: true,
+                allocation_scheme: vk_alloc::AllocationScheme::GpuAllocatorManaged,
+            })
             .map_err(|err| RtError::AllocateMemory(err.into()))?;
         let bind_info = vk::BindImageMemoryInfo::default()
             .image(image)
-            .memory(memory)
-            .memory_offset(0);
+            .memory(unsafe { allocation.memory() })
+            .memory_offset(allocation.offset());
 
         unsafe { device.bind_image_memory2(std::slice::from_ref(&bind_info)) }
             .map_err(|err| RtError::BindImageMemory(err.into()))?;
 
-        Ok(memory)
+        Ok(Some(allocation))
     }
 
     fn create_image_view(
@@ -296,21 +308,6 @@ impl AllocatedImage {
         unsafe { device.device().create_image_view(&create_info, None) }
             .map_err(|err| RtError::CreateImageView(err.into()))
     }
-
-    fn find_memory_type(
-        type_filter: u32,
-        properties: vk::MemoryPropertyFlags,
-        mem_properties: &vk::PhysicalDeviceMemoryProperties,
-    ) -> u32 {
-        (0..mem_properties.memory_type_count)
-            .find(|i| {
-                (type_filter & (1 << *i)) != 0
-                    && mem_properties.memory_types[*i as usize]
-                        .property_flags
-                        .contains(properties)
-            })
-            .expect("Failed to find suitable memory type")
-    }
 }
 
 impl Drop for AllocatedImage {
@@ -319,7 +316,14 @@ impl Drop for AllocatedImage {
 
         unsafe {
             device.destroy_image(self.image, None);
-            device.free_memory(self.memory, None);
+        }
+        if let Some(allocation) = self.allocation.take()
+            && let Ok(mut guard) = self.allocator.lock()
+            && let Err(err) = guard.free(allocation)
+        {
+            eprintln!("{err}")
+        }
+        unsafe {
             device.destroy_image_view(self.image_view, None);
         }
     }

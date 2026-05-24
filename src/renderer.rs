@@ -1,14 +1,17 @@
 // Copyright 2026 Kensuke Saito
 // SPDX-License-Identifier: MIT
 
-use rtiow::{Encoder, GraphicsPipeline, PipelineLayout, RtErr, Swapchain, SyncObject, VkState};
-use std::sync::Arc;
+use rtiow::{
+    Allocator, Encoder, GraphicsPipeline, PipelineLayout, RtErr, Swapchain, SyncObject, VkState,
+};
+use std::sync::{Arc, Mutex};
 use winit::window::Window;
 
 pub struct Renderer {
     graphics_pipeline: GraphicsPipeline,
     pipeline_layout: Arc<PipelineLayout>,
     swapchain: Swapchain,
+    allocator: Arc<Mutex<Allocator>>,
     sync: SyncObject,
     encoder: Encoder,
     image_index: usize,
@@ -22,14 +25,16 @@ impl Renderer {
         let max_frames_in_flight = Self::MAX_FRAMES_IN_FLIGHT as u32;
         let encoder = Encoder::new(state, max_frames_in_flight)?;
         let sync = SyncObject::new(state, max_frames_in_flight)?;
-        let swapchain = Swapchain::new(window, &encoder, state)?;
+        let allocator = Arc::new(Mutex::new(Allocator::new(state)?));
+        let swapchain = Swapchain::new(window, &encoder, state, allocator.clone())?;
         let pipeline_layout = Arc::new(PipelineLayout::new(state, &[])?);
         let graphics_pipeline = GraphicsPipeline::new(state, &swapchain, pipeline_layout.clone())?;
 
         Ok(Self {
-            swapchain,
             encoder,
             sync,
+            allocator,
+            swapchain,
             pipeline_layout,
             graphics_pipeline,
             image_index: 0,
