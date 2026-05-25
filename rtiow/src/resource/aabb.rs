@@ -1,3 +1,6 @@
+// Copyright 2026 Kensuke Saito
+// SPDX-License-Identifier: MIT
+
 use crate::{Buffer, StagingData};
 use ash::vk;
 use glam::Vec3;

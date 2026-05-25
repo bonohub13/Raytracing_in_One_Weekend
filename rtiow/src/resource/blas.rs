@@ -1,3 +1,6 @@
+// Copyright 2026 Kensuke Saito
+// SPDX-License-Identifier: MIT
+
 use crate::{
     Aabb, Allocator, AsLoader, Buffer, BufferType, Encoder, Mesh, RtErr, RtError, StagingData,
     VkState,
