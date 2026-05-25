@@ -86,7 +86,9 @@ impl ApplicationHandler for RtApp {
                 }
             }
 
-            if let (Some(window), Some(state)) = (self.window.clone(), self.state.as_ref()) {
+            if let Some(window) = self.window.clone()
+                && let Some(state) = self.state.as_ref()
+            {
                 self.renderer = match Renderer::new(window, state) {
                     Ok(renderer) => Some(renderer),
                     Err(err) => {
@@ -110,12 +112,11 @@ impl ApplicationHandler for RtApp {
             event_loop.exit();
         }
 
-        if let (Some(frame_limiter), Some(window), Some(state), Some(renderer)) = (
-            self.frame_limiter.as_mut(),
-            self.window.clone(),
-            self.state.as_mut(),
-            self.renderer.as_mut(),
-        ) {
+        if let Some(window) = self.window.clone()
+            && let Some(state) = self.state.as_mut()
+            && let Some(renderer) = self.renderer.as_mut()
+            && let Some(frame_limiter) = self.frame_limiter.as_mut()
+        {
             match window_event {
                 WindowEvent::CloseRequested => {
                     event_loop.exit();

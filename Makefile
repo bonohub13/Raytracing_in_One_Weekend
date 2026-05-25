@@ -49,7 +49,6 @@ build-shaders:
 	@[ -d ${SPIRV_DIR} ] || mkdir -pv ${SPIRV_DIR}
 	@SLANG="${SHADER_DIR}/vertex.slang" ENTRY="main" make build-shader
 	@SLANG="${SHADER_DIR}/fragment.slang" ENTRY="main" make build-shader
-	@SLANG="${SHADER_DIR}/path_tracer.slang" ENTRY="main" make build-shader
 
 build-shader:
 	$(SLANGC) ${SLANG} ${SLANG_FLAG} -entry ${ENTRY} -o $(SLANG:${SHADER_DIR}/%.slang=${SPIRV_DIR}/%.spv)

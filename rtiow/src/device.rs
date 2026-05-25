@@ -103,15 +103,17 @@ impl Device {
 
         let indices = surface.find_queue_families(instance, device)?;
 
-        if let (Some(graphics_family), Some(present_family)) =
-            (indices.graphics_family, indices.present_family)
+        if let Some(graphics_family) = indices.graphics_family
+            && let Some(present_family) = indices.present_family
         {
             let instance = instance.instance();
             let is_unique_queue_families = graphics_family == present_family;
             let queue_create_infos = if is_unique_queue_families {
-                vec![vk::DeviceQueueCreateInfo::default()
-                    .queue_family_index(graphics_family)
-                    .queue_priorities(&QUEUE_PRIORITIES)]
+                vec![
+                    vk::DeviceQueueCreateInfo::default()
+                        .queue_family_index(graphics_family)
+                        .queue_priorities(&QUEUE_PRIORITIES),
+                ]
             } else {
                 vec![
                     vk::DeviceQueueCreateInfo::default()
