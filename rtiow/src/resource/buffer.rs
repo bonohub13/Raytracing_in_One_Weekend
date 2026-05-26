@@ -1,7 +1,9 @@
 // Copyright 2026 Kensuke Saito
 // SPDX-License-Identifier: MIT
 
-use crate::{Aabb, Allocator, Device, Encoder, Mesh, RtErr, RtError, StagingData, VkState};
+use crate::{
+    Aabb, Allocator, Device, Encoder, Mesh, RtErr, RtError, StagingData, VkState, util::align_up,
+};
 use ash::vk;
 use gpu_allocator::vulkan::{self as vk_alloc, Allocation};
 use std::{
@@ -36,6 +38,20 @@ where
     T: Sized + Clone,
 {
     pub fn new(state: &VkState, allocator: Arc<Mutex<Allocator>>, ty: BufferType) -> RtErr<Self> {
+        let as_properties = {
+            let mut properties = vk::PhysicalDeviceAccelerationStructurePropertiesKHR::default();
+            let mut device_properties =
+                vk::PhysicalDeviceProperties2::default().push_next(&mut properties);
+
+            unsafe {
+                state.instance.instance().get_physical_device_properties2(
+                    state.device.physical_device(),
+                    &mut device_properties,
+                )
+            }
+
+            properties
+        };
         match ty {
             BufferType::Vertex(mesh) => {
                 Self::create_vertex_buffer(state.device.clone(), allocator, mesh)
@@ -49,9 +65,12 @@ where
             BufferType::Blas(size) => {
                 Self::create_blas_buffer(state.device.clone(), allocator, size)
             }
-            BufferType::Scratch(size) => {
-                Self::create_scratch_buffer(state.device.clone(), allocator, size)
-            }
+            BufferType::Scratch(size) => Self::create_scratch_buffer(
+                state.device.clone(),
+                allocator,
+                size,
+                as_properties.min_acceleration_structure_scratch_offset_alignment as u64,
+            ),
             #[allow(unused)] // For future patterns, keep this code
             _ => todo!(),
         }
@@ -97,9 +116,7 @@ where
             encoder.submit_single_command_buffer(|command_buffer| unsafe {
                 device.cmd_copy_buffer2(command_buffer, &copy_buffer_info);
                 device.cmd_pipeline_barrier2(command_buffer, &dependency_info);
-            })?;
-
-            todo!()
+            })
         } else {
             Err(RtError::NoAllocation)
         }
@@ -270,9 +287,10 @@ where
         device: Arc<Device>,
         allocator: Arc<Mutex<Allocator>>,
         size: u64,
+        alignment: u64,
     ) -> RtErr<Self> {
         let create_info = vk::BufferCreateInfo::default()
-            .size(size)
+            .size(align_up!(size, alignment))
             .usage(
                 vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS,
             )
@@ -285,7 +303,10 @@ where
             &requirements,
             gpu_allocator::MemoryLocation::GpuOnly,
         )?;
-        let gpu_address = vec![Self::get_buffer_device_address(device.clone(), buffer)];
+        let gpu_address = vec![align_up!(
+            Self::get_buffer_device_address(device.clone(), buffer),
+            alignment
+        )];
 
         Ok(Self {
             buffer,
@@ -334,7 +355,7 @@ where
                 requirements: *requirements,
                 location,
                 linear: true,
-                allocation_scheme: vk_alloc::AllocationScheme::GpuAllocatorManaged,
+                allocation_scheme: vk_alloc::AllocationScheme::DedicatedBuffer(buffer),
             })
             .map_err(|err| RtError::AllocateMemory(err.into()))?;
         let bind_info = vk::BindBufferMemoryInfo::default()

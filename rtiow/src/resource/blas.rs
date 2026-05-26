@@ -8,14 +8,16 @@ use crate::{
 use ash::vk;
 use std::{
     marker::PhantomData,
+    mem::ManuallyDrop,
     sync::{Arc, Mutex},
 };
 
-#[derive(Clone)]
 pub struct Blas<T>
 where
     T: Clone + Sized,
 {
+    handle: vk::AccelerationStructureKHR,
+    buffer: ManuallyDrop<Buffer<T>>,
     as_loader: Arc<AsLoader>,
     _ty: PhantomData<T>,
 }
@@ -65,15 +67,20 @@ where
                 triangles: mesh_data,
             })
             .flags(vk::GeometryFlagsKHR::OPAQUE);
-        let blas_buffer = Self::create_blas_buffer(
+        let (handle, blas_buffer) = Self::create_blas_buffer(
             state,
             allocator,
             encoder,
-            loader,
+            loader.clone(),
             std::slice::from_ref(&blas_mesh_geometry),
         )?;
 
-        todo!()
+        Ok(Self {
+            as_loader: loader,
+            handle,
+            buffer: ManuallyDrop::new(blas_buffer),
+            _ty: PhantomData,
+        })
     }
 
     fn create_aabb_blas(
@@ -89,15 +96,20 @@ where
             .geometry_type(vk::GeometryTypeKHR::AABBS)
             .geometry(vk::AccelerationStructureGeometryDataKHR { aabbs: aabb_data })
             .flags(vk::GeometryFlagsKHR::OPAQUE);
-        let blas_buffer = Self::create_blas_buffer(
+        let (handle, blas_buffer) = Self::create_blas_buffer(
             state,
             allocator,
             encoder,
-            loader,
+            loader.clone(),
             std::slice::from_ref(&blas_aabb_geometry),
         )?;
 
-        todo!()
+        Ok(Self {
+            as_loader: loader,
+            handle,
+            buffer: ManuallyDrop::new(blas_buffer),
+            _ty: PhantomData,
+        })
     }
 
     fn create_blas_buffer(
@@ -106,7 +118,7 @@ where
         encoder: &Encoder,
         as_loader: Arc<AsLoader>,
         geometries: &[vk::AccelerationStructureGeometryKHR],
-    ) -> RtErr<Buffer<T>> {
+    ) -> RtErr<(vk::AccelerationStructureKHR, Buffer<T>)> {
         static MAX_PRIMITIVE_COUNTS: [u32; 1] = [1];
         static BUILD_RANGE_INFOS: [vk::AccelerationStructureBuildRangeInfoKHR; 1] =
             [vk::AccelerationStructureBuildRangeInfoKHR {
@@ -115,6 +127,15 @@ where
                 first_vertex: 0,
                 transform_offset: 0,
             }];
+        static STRUCTURAL_BARRIER: vk::MemoryBarrier2 = vk::MemoryBarrier2 {
+            s_type: vk::StructureType::MEMORY_BARRIER_2,
+            p_next: std::ptr::null(),
+            src_stage_mask: vk::PipelineStageFlags2::ACCELERATION_STRUCTURE_BUILD_KHR,
+            src_access_mask: vk::AccessFlags2::ACCELERATION_STRUCTURE_WRITE_KHR,
+            dst_stage_mask: vk::PipelineStageFlags2::ACCELERATION_STRUCTURE_BUILD_KHR,
+            dst_access_mask: vk::AccessFlags2::ACCELERATION_STRUCTURE_READ_KHR,
+            _marker: PhantomData,
+        };
 
         let build_geometry_info = vk::AccelerationStructureBuildGeometryInfoKHR::default()
             .ty(vk::AccelerationStructureTypeKHR::BOTTOM_LEVEL)
@@ -136,7 +157,7 @@ where
 
             size_info
         };
-        let blas_buffer = Buffer::<()>::new(
+        let blas_buffer = Buffer::<T>::new(
             state,
             allocator.clone(),
             BufferType::Blas(size_info.acceleration_structure_size),
@@ -152,13 +173,8 @@ where
             .scratch_data(vk::DeviceOrHostAddressKHR {
                 device_address: scratch_buffer.gpu_address()[0],
             });
-        let memory_barrier = vk::MemoryBarrier2::default()
-            .src_stage_mask(vk::PipelineStageFlags2::ACCELERATION_STRUCTURE_BUILD_KHR)
-            .src_access_mask(vk::AccessFlags2::ACCELERATION_STRUCTURE_WRITE_KHR)
-            .dst_stage_mask(vk::PipelineStageFlags2::ACCELERATION_STRUCTURE_BUILD_KHR)
-            .dst_access_mask(vk::AccessFlags2::ACCELERATION_STRUCTURE_READ_KHR);
-        let dependency_info =
-            vk::DependencyInfo::default().memory_barriers(std::slice::from_ref(&memory_barrier));
+        let dependency_info = vk::DependencyInfo::default()
+            .memory_barriers(std::slice::from_ref(&STRUCTURAL_BARRIER));
 
         encoder.submit_single_command_buffer(|command_buffer| unsafe {
             as_loader.raw().cmd_build_acceleration_structures(
@@ -172,12 +188,12 @@ where
                 .cmd_pipeline_barrier2(command_buffer, &dependency_info);
         })?;
 
-        todo!()
+        Ok((handle, blas_buffer))
     }
 
     fn create_blas(
         as_loader: Arc<AsLoader>,
-        buffer: &Buffer<()>,
+        buffer: &Buffer<T>,
         size_info: &vk::AccelerationStructureBuildSizesInfoKHR,
     ) -> RtErr<vk::AccelerationStructureKHR> {
         let create_info = vk::AccelerationStructureCreateInfoKHR::default()
@@ -192,5 +208,19 @@ where
                 .create_acceleration_structure(&create_info, None)
         }
         .map_err(|err| RtError::CreateAccelerationStructure(err.into()))
+    }
+}
+
+impl<T> Drop for Blas<T>
+where
+    T: Clone + Sized,
+{
+    fn drop(&mut self) {
+        unsafe {
+            self.as_loader
+                .raw()
+                .destroy_acceleration_structure(self.handle, None);
+            ManuallyDrop::drop(&mut self.buffer);
+        }
     }
 }

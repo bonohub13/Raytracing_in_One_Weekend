@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::VkState;
-use ash::khr::acceleration_structure;
+use ash::{khr::acceleration_structure, vk};
 
 #[derive(Clone)]
 pub struct AsLoader {
@@ -19,5 +19,17 @@ impl AsLoader {
 
     pub(crate) fn raw(&self) -> &acceleration_structure::Device {
         &self.raw
+    }
+
+    pub(crate) fn build_acceleration_structures(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        infos: &[vk::AccelerationStructureBuildGeometryInfoKHR],
+        build_geometry_infos: &[&[vk::AccelerationStructureBuildRangeInfoKHR]],
+    ) {
+        unsafe {
+            self.raw
+                .cmd_build_acceleration_structures(command_buffer, infos, build_geometry_infos)
+        }
     }
 }

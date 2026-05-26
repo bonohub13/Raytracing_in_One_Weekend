@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{Instance, RtErr, RtError, Surface};
-use ash::{ext::vertex_input_dynamic_state, khr::swapchain, vk};
+use ash::{
+    ext::vertex_input_dynamic_state,
+    khr::{acceleration_structure, deferred_host_operations, swapchain},
+    vk,
+};
 use std::{collections::HashSet, ffi::CStr};
 
 pub struct Device {
@@ -21,7 +25,12 @@ pub struct QueueFamilyIndices {
 }
 
 impl Device {
-    const DEVICE_EXTENSIONS: [&CStr; 2] = [swapchain::NAME, vertex_input_dynamic_state::NAME];
+    const DEVICE_EXTENSIONS: [&CStr; 4] = [
+        swapchain::NAME,
+        vertex_input_dynamic_state::NAME,
+        deferred_host_operations::NAME,
+        acceleration_structure::NAME,
+    ];
 
     pub(crate) fn new(instance: &Instance, surface: &Surface) -> RtErr<Self> {
         let physical_device = Self::query_physical_device(instance, surface)?;
@@ -139,13 +148,17 @@ impl Device {
             let mut buffer_device_address =
                 vk::PhysicalDeviceBufferDeviceAddressFeatures::default()
                     .buffer_device_address(true);
+            let mut acceleration_structure =
+                vk::PhysicalDeviceAccelerationStructureFeaturesKHR::default()
+                    .acceleration_structure(true);
             let mut device_features = vk::PhysicalDeviceFeatures2::default()
                 .features(core_features)
                 .push_next(&mut shader_draw_parameters)
                 .push_next(&mut dynamic_state)
                 .push_next(&mut dynamic_rendering)
                 .push_next(&mut synchronization2)
-                .push_next(&mut buffer_device_address);
+                .push_next(&mut buffer_device_address)
+                .push_next(&mut acceleration_structure);
 
             unsafe { instance.get_physical_device_features2(device, &mut device_features) };
 
@@ -267,12 +280,15 @@ impl Device {
         let mut dynamic_rendering = vk::PhysicalDeviceDynamicRenderingFeatures::default();
         let mut synchronization2 = vk::PhysicalDeviceSynchronization2Features::default();
         let mut buffer_device_address = vk::PhysicalDeviceBufferDeviceAddressFeatures::default();
+        let mut acceleration_structure =
+            vk::PhysicalDeviceAccelerationStructureFeaturesKHR::default();
         let mut device_features = vk::PhysicalDeviceFeatures2::default()
             .push_next(&mut shader_draw_parameters)
             .push_next(&mut dynamic_state)
             .push_next(&mut dynamic_rendering)
             .push_next(&mut synchronization2)
-            .push_next(&mut buffer_device_address);
+            .push_next(&mut buffer_device_address)
+            .push_next(&mut acceleration_structure);
 
         unsafe {
             instance.get_physical_device_features2(device, &mut device_features);
@@ -285,6 +301,7 @@ impl Device {
             || dynamic_rendering.dynamic_rendering == 0
             || synchronization2.synchronization2 == 0
             || buffer_device_address.buffer_device_address == 0
+            || acceleration_structure.acceleration_structure == 0
         {
             0
         } else {

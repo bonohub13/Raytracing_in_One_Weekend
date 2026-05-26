@@ -279,7 +279,7 @@ impl AllocatedImage {
                 requirements,
                 location: gpu_allocator::MemoryLocation::GpuOnly,
                 linear: true,
-                allocation_scheme: vk_alloc::AllocationScheme::GpuAllocatorManaged,
+                allocation_scheme: vk_alloc::AllocationScheme::DedicatedImage(image),
             })
             .map_err(|err| RtError::AllocateMemory(err.into()))?;
         let bind_info = vk::BindImageMemoryInfo::default()

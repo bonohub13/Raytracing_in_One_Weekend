@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: MIT
 
 use rtiow::{
-    Allocator, Encoder, GraphicsPipeline, PipelineLayout, RtErr, Swapchain, SyncObject, VkState,
+    Aabb, Allocator, AsLoader, Blas, BufferType, Encoder, GraphicsPipeline, PipelineLayout, RtErr,
+    Sphere, StagingData, Swapchain, SyncObject, VkState,
 };
 use std::sync::{Arc, Mutex};
 use winit::window::Window;
 
 pub struct Renderer {
+    aabb_blas: Blas<Aabb>,
+    as_loader: Arc<AsLoader>,
     graphics_pipeline: GraphicsPipeline,
     pipeline_layout: Arc<PipelineLayout>,
     swapchain: Swapchain,
@@ -29,6 +32,15 @@ impl Renderer {
         let swapchain = Swapchain::new(window, &encoder, state, allocator.clone())?;
         let pipeline_layout = Arc::new(PipelineLayout::new(state, &[])?);
         let graphics_pipeline = GraphicsPipeline::new(state, &swapchain, pipeline_layout.clone())?;
+        let as_loader = Arc::new(AsLoader::new(state));
+        let unit_sphere = Sphere::new(&[0f32, 0f32, 0f32], 1f32);
+        let aabb_blas = Blas::new(
+            state,
+            allocator.clone(),
+            &encoder,
+            as_loader.clone(),
+            BufferType::Aabb(&unit_sphere.aabb_data()),
+        )?;
 
         Ok(Self {
             encoder,
@@ -37,6 +49,8 @@ impl Renderer {
             swapchain,
             pipeline_layout,
             graphics_pipeline,
+            as_loader,
+            aabb_blas,
             image_index: 0,
             current_frame: 0,
         })
