@@ -106,8 +106,10 @@ impl ApplicationHandler for RtApp {
         _window_id: winit::window::WindowId,
         window_event: winit::event::WindowEvent,
     ) {
-        if (self.window.is_some() && self.state.is_none())
-            || (self.window.is_none() && self.state.is_some())
+        if self.window.is_none()
+            || self.state.is_none()
+            || self.renderer.is_none()
+            || self.frame_limiter.is_none()
         {
             event_loop.exit();
         }
