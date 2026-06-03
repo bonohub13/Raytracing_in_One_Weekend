@@ -17,6 +17,7 @@ pub enum BufferType<'data> {
     Aabb(&'data Aabb),
     Staging(u64),
     Blas(u64),
+    Tlas(u64),
     Scratch(u64),
 }
 
@@ -62,8 +63,8 @@ where
             BufferType::Staging(size) => {
                 Self::create_staging_buffer(state.device.clone(), allocator, size)
             }
-            BufferType::Blas(size) => {
-                Self::create_blas_buffer(state.device.clone(), allocator, size)
+            BufferType::Blas(size) | BufferType::Tlas(size) => {
+                Self::create_acceleration_structure_buffer(state.device.clone(), allocator, size)
             }
             BufferType::Scratch(size) => Self::create_scratch_buffer(
                 state.device.clone(),
@@ -250,7 +251,7 @@ where
         })
     }
 
-    fn create_blas_buffer(
+    fn create_acceleration_structure_buffer(
         device: Arc<Device>,
         allocator: Arc<Mutex<Allocator>>,
         size: u64,

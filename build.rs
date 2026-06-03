@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf, process::Command};
+use std::{env, fs, path::PathBuf, process::Command};
 
 const COMPILER: &str = "slangc";
 const SHADERS_DIR: &str = "shaders";
@@ -7,12 +7,18 @@ const SHADERS_SRC_SUFFIX: &str = "slang";
 const SHADERS_DST_SUFFIX: &str = "spv";
 
 fn main() {
+    let profile = env::var("PROFILE").unwrap_or_else(|_| "debug".to_string());
     let shader_paths = query_shader_path();
     let shader_dir = PathBuf::from(SHADERS_DIR);
     let out_dir = shader_dir.join(SHADERS_OUT_SUBDIR);
 
+    if let Err(err) = fs::create_dir_all(&out_dir) {
+        panic!("Failed to create directory: {err}");
+    }
     shader_paths.iter().for_each(|shader_path| {
-        println!("cargo:rerun-if-changed={}", shader_path.to_string_lossy());
+        if profile == "release" {
+            println!("cargo:rerun-if-changed={}", shader_path.to_string_lossy());
+        }
         let dst_path = out_dir.join(
             shader_path
                 .to_string_lossy()

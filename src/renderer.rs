@@ -3,12 +3,13 @@
 
 use rtiow::{
     Aabb, Allocator, AsLoader, Blas, BufferType, Encoder, GraphicsPipeline, PipelineLayout, RtErr,
-    Sphere, StagingData, Swapchain, SyncObject, VkState,
+    Sphere, Swapchain, SyncObject, Tlas, VkState,
 };
 use std::sync::{Arc, Mutex};
 use winit::window::Window;
 
 pub struct Renderer {
+    aabb_tlas: Tlas,
     aabb_blas: Blas<Aabb>,
     as_loader: Arc<AsLoader>,
     graphics_pipeline: GraphicsPipeline,
@@ -41,6 +42,7 @@ impl Renderer {
             as_loader.clone(),
             BufferType::Aabb(&unit_sphere.aabb_data()),
         )?;
+        let aabb_tlas = Tlas::new(state, allocator.clone(), as_loader.clone(), 1)?;
 
         Ok(Self {
             encoder,
@@ -51,6 +53,7 @@ impl Renderer {
             graphics_pipeline,
             as_loader,
             aabb_blas,
+            aabb_tlas,
             image_index: 0,
             current_frame: 0,
         })

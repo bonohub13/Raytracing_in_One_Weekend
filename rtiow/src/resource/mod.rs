@@ -8,6 +8,7 @@ mod buffer;
 mod descriptor;
 mod image;
 mod mesh;
+mod tlas;
 mod vertex;
 
 pub use aabb::*;
@@ -17,13 +18,22 @@ pub use buffer::*;
 pub use descriptor::*;
 pub use image::*;
 pub use mesh::*;
+pub use tlas::*;
 pub use vertex::*;
 
 use crate::{RtErr, RtError, VkState};
+use ash::vk;
 use gpu_allocator::vulkan::{self as vk_alloc, Allocation};
 
 pub struct Allocator {
     pub(crate) allocator: vk_alloc::Allocator,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct AccelerationStructureBuildSizesInfo {
+    pub acceleration_structure_size: u64,
+    pub build_scratch_size: u64,
+    pub update_scratch_size: u64,
 }
 
 impl Allocator {
@@ -45,5 +55,16 @@ impl Allocator {
         self.allocator
             .free(allocation)
             .map_err(|err| RtError::FreeAllocation(err.into()))
+    }
+}
+
+impl AccelerationStructureBuildSizesInfo {
+    #[inline]
+    pub const fn new(size_info: &vk::AccelerationStructureBuildSizesInfoKHR) -> Self {
+        Self {
+            acceleration_structure_size: size_info.acceleration_structure_size,
+            build_scratch_size: size_info.build_scratch_size,
+            update_scratch_size: size_info.update_scratch_size,
+        }
     }
 }
