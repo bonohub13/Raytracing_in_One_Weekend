@@ -83,11 +83,7 @@ impl<'a> RtwImage {
                 bail!("{}", e);
             }
         };
-        let fdata = if let Some(data) = fdata {
-            Some(Box::from(data.as_slice()))
-        } else {
-            None
-        };
+        let fdata = fdata.map(|data| Box::from(data.as_slice()));
 
         Ok(Self {
             _fdata: fdata,

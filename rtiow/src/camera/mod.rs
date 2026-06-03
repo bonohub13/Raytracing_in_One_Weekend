@@ -214,7 +214,7 @@ impl Camera {
         if let Some(rec) = world.hit(r, &Interval::new(0.001, INFINITY)) {
             let color_from_emission = rec.mat.emitted(r, &rec, rec.u, rec.v, &rec.p);
 
-            if let Some((attenuation, mut scattered, mut pdf_value)) = rec.mat.scatter(r, &rec) {
+            if let Some((attenuation, _scattered, _pdf_value)) = rec.mat.scatter(r, &rec) {
                 let on_light = Point3::new(
                     utils::random_in_range(&Interval::new(213.0, 343.0)),
                     554.0,
@@ -236,8 +236,8 @@ impl Camera {
                     return color_from_emission;
                 }
 
-                pdf_value = distance_squared / (light_cosine * light_area);
-                scattered = Ray::new(rec.p, to_light, *r.time());
+                let pdf_value = distance_squared / (light_cosine * light_area);
+                let scattered = Ray::new(rec.p, to_light, *r.time());
 
                 let scattering_pdf = rec.mat.scattering_pdf(r, &rec, &scattered);
                 let color_from_scatter =
