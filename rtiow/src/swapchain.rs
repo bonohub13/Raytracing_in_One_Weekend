@@ -486,16 +486,17 @@ impl Swapchain {
             vk::SampleCountFlags::TYPE_2,
         ];
 
-        *MAX_SAMPLE_COUNTS
+        MAX_SAMPLE_COUNTS
             .iter()
+            .copied()
             .find(|sample| {
                 device
                     .properties()
                     .limits
                     .framebuffer_color_sample_counts
-                    .contains(**sample)
+                    .contains(*sample)
             })
-            .unwrap_or(&vk::SampleCountFlags::TYPE_1)
+            .unwrap_or(vk::SampleCountFlags::TYPE_1)
     }
 }
 

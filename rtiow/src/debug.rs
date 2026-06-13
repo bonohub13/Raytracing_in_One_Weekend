@@ -25,16 +25,6 @@ impl DebugUtilsMessenger {
         Ok(Self { loader, handle })
     }
 
-    #[inline]
-    pub(crate) fn loader(&self) -> &debug_utils::Instance {
-        &self.loader
-    }
-
-    #[inline]
-    pub(crate) fn messenger(&self) -> &vk::DebugUtilsMessengerEXT {
-        &self.handle
-    }
-
     pub(crate) fn create_info<'info>() -> vk::DebugUtilsMessengerCreateInfoEXT<'info> {
         vk::DebugUtilsMessengerCreateInfoEXT::default()
             .message_severity(

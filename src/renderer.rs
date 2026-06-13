@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 use rtiow::{
-    Aabb, Allocator, AsLoader, Blas, BufferType, Encoder, GraphicsPipeline, PipelineLayout, RtErr,
-    Sphere, Swapchain, SyncObject, Tlas, VkState,
+    Aabb, Allocator, AsLoader, Blas, BufferType, Encoder, GraphicsPipeline, PipelineLayout,
+    RayTracingPipeline, RtErr, Sphere, Swapchain, SyncObject, Tlas, VkState,
 };
 use std::sync::{Arc, Mutex};
 use winit::window::Window;
@@ -12,6 +12,7 @@ pub struct Renderer {
     aabb_tlas: Tlas,
     aabb_blas: Blas<Aabb>,
     as_loader: Arc<AsLoader>,
+    ray_tracing_pipeline: RayTracingPipeline,
     graphics_pipeline: GraphicsPipeline,
     pipeline_layout: Arc<PipelineLayout>,
     swapchain: Swapchain,
@@ -33,6 +34,8 @@ impl Renderer {
         let swapchain = Swapchain::new(window, &encoder, state, allocator.clone())?;
         let pipeline_layout = Arc::new(PipelineLayout::new(state, &[])?);
         let graphics_pipeline = GraphicsPipeline::new(state, &swapchain, pipeline_layout.clone())?;
+        let ray_tracing_pipeline =
+            RayTracingPipeline::new(state, pipeline_layout.clone(), allocator.clone())?;
         let as_loader = Arc::new(AsLoader::new(state));
         let unit_sphere = Sphere::new(&[0f32, 0f32, 0f32], 1f32);
         let aabb_blas = Blas::new(
@@ -51,6 +54,7 @@ impl Renderer {
             swapchain,
             pipeline_layout,
             graphics_pipeline,
+            ray_tracing_pipeline,
             as_loader,
             aabb_blas,
             aabb_tlas,

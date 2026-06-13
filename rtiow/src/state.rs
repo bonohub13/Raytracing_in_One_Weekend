@@ -10,7 +10,7 @@ pub struct VkState {
     pub(crate) surface: Surface,
     pub(crate) debug_messenger: Option<DebugUtilsMessenger>,
     pub(crate) instance: Instance,
-    entry: ash::Entry,
+    _entry: ash::Entry,
 }
 
 #[derive(Debug)]
@@ -37,7 +37,7 @@ impl VkState {
         let device = Arc::new(Device::new(&instance, &surface)?);
 
         Ok(Self {
-            entry,
+            _entry: entry,
             instance,
             debug_messenger,
             surface,

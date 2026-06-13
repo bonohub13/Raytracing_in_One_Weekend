@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-    Aabb, Allocator, Device, Encoder, Mesh, RtErr, RtError, StagingData, VkState, util::align_up,
+    Aabb, Allocator, BufferData, Device, Encoder, Mesh, RtErr, RtError, VkState, util::align_up,
 };
 use ash::vk;
 use gpu_allocator::vulkan::{self as vk_alloc, Allocation};
@@ -19,6 +19,9 @@ pub enum BufferType<'data> {
     Blas(u64),
     Tlas(u64),
     Scratch(u64),
+    TlasInstance(usize),
+    #[allow(private_interfaces)]
+    Sbt(u64),
 }
 
 pub struct Buffer<T>
@@ -72,6 +75,10 @@ where
                 size,
                 as_properties.min_acceleration_structure_scratch_offset_alignment as u64,
             ),
+            BufferType::Sbt(size) => Self::create_sbt_buffer(state.device.clone(), allocator, size),
+            BufferType::TlasInstance(instance_count) => {
+                Self::create_tlas_instance_buffer(state.device.clone(), allocator, instance_count)
+            }
             #[allow(unused)] // For future patterns, keep this code
             _ => todo!(),
         }
@@ -83,6 +90,11 @@ where
     }
 
     #[inline]
+    pub fn allocation(&self) -> Option<&vk_alloc::Allocation> {
+        self.allocation.as_ref()
+    }
+
+    #[inline]
     pub(crate) fn gpu_address(&self) -> &[vk::DeviceAddress] {
         &self.gpu_address
     }
@@ -91,7 +103,7 @@ where
         &mut self,
         encoder: &Encoder,
         dst_buffer: &Self,
-        data: &dyn StagingData,
+        data: &dyn BufferData,
     ) -> RtErr<()> {
         if !self.is_host_visible {
             return Err(RtError::BufferNonHostVisible);
@@ -314,6 +326,74 @@ where
             allocation,
             gpu_address,
             is_host_visible: false,
+            device,
+            allocator,
+            _data: PhantomData,
+        })
+    }
+
+    fn create_tlas_instance_buffer(
+        device: Arc<Device>,
+        allocator: Arc<Mutex<Allocator>>,
+        instance_count: usize,
+    ) -> RtErr<Self> {
+        let buffer_size =
+            (size_of::<vk::AccelerationStructureInstanceKHR>() * instance_count) as vk::DeviceSize;
+        let create_info = vk::BufferCreateInfo::default()
+            .size(buffer_size)
+            .usage(
+                vk::BufferUsageFlags::ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_KHR
+                    | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS,
+            )
+            .sharing_mode(vk::SharingMode::EXCLUSIVE);
+        let (buffer, requirements) = Self::create_buffer(device.clone(), &create_info)?;
+        let allocation = Self::allocate_memory(
+            device.clone(),
+            allocator.clone(),
+            buffer,
+            &requirements,
+            gpu_allocator::MemoryLocation::CpuToGpu,
+        )?;
+        let gpu_address = vec![Self::get_buffer_device_address(device.clone(), buffer)];
+
+        Ok(Self {
+            buffer,
+            allocation,
+            gpu_address,
+            is_host_visible: true,
+            device,
+            allocator,
+            _data: PhantomData,
+        })
+    }
+
+    fn create_sbt_buffer(
+        device: Arc<Device>,
+        allocator: Arc<Mutex<Allocator>>,
+        size: u64,
+    ) -> RtErr<Self> {
+        let create_info = vk::BufferCreateInfo::default()
+            .size(size)
+            .usage(
+                vk::BufferUsageFlags::SHADER_BINDING_TABLE_KHR
+                    | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS,
+            )
+            .sharing_mode(vk::SharingMode::EXCLUSIVE);
+        let (buffer, requirements) = Self::create_buffer(device.clone(), &create_info)?;
+        let allocation = Self::allocate_memory(
+            device.clone(),
+            allocator.clone(),
+            buffer,
+            &requirements,
+            gpu_allocator::MemoryLocation::CpuToGpu,
+        )?;
+        let gpu_address = vec![Self::get_buffer_device_address(device.clone(), buffer)];
+
+        Ok(Self {
+            buffer,
+            allocation,
+            gpu_address,
+            is_host_visible: true,
             device,
             allocator,
             _data: PhantomData,

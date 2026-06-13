@@ -1,4 +1,4 @@
 import common.types;
 
-[shader("raygeneration")]
+[shader("intersection")]
 void main() {}

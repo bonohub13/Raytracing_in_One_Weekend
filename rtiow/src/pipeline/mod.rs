@@ -3,21 +3,24 @@
 
 mod encoder;
 mod graphics;
+mod ray_tracing;
 mod shader;
 mod sync;
 
 pub use encoder::*;
 pub use graphics::*;
+pub use ray_tracing::*;
 pub(crate) use shader::*;
 pub use sync::*;
 
 use crate::{Descriptor, Device, RtErr, RtError, VkState};
-use ash::{ext::vertex_input_dynamic_state, vk};
+use ash::{ext::vertex_input_dynamic_state, khr::ray_tracing_pipeline, vk};
 use std::sync::Arc;
 
 pub struct PipelineLayout {
     pub(crate) layout: vk::PipelineLayout,
     pub(crate) vertex_input_loader: vertex_input_dynamic_state::Device,
+    pub(crate) rt_loader: ray_tracing_pipeline::Device,
     device: Arc<Device>,
 }
 
@@ -28,11 +31,14 @@ impl PipelineLayout {
             state.instance.instance(),
             state.device.device(),
         );
+        let rt_loader =
+            ray_tracing_pipeline::Device::new(state.instance.instance(), state.device.device());
 
         Ok(Self {
             layout,
             device: state.device.clone(),
             vertex_input_loader,
+            rt_loader,
         })
     }
 

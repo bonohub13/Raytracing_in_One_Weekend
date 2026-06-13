@@ -4,7 +4,7 @@
 use crate::{Instance, RtErr, RtError, Surface};
 use ash::{
     ext::vertex_input_dynamic_state,
-    khr::{acceleration_structure, deferred_host_operations, swapchain},
+    khr::{acceleration_structure, deferred_host_operations, ray_tracing_pipeline, swapchain},
     vk,
 };
 use std::{collections::HashSet, ffi::CStr};
@@ -15,7 +15,6 @@ pub struct Device {
     device: ash::Device,
     physical_device: vk::PhysicalDevice,
     properties: vk::PhysicalDeviceProperties,
-    memory_properties: vk::PhysicalDeviceMemoryProperties,
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -25,11 +24,12 @@ pub struct QueueFamilyIndices {
 }
 
 impl Device {
-    const DEVICE_EXTENSIONS: [&CStr; 4] = [
+    const DEVICE_EXTENSIONS: [&CStr; 5] = [
         swapchain::NAME,
         vertex_input_dynamic_state::NAME,
         deferred_host_operations::NAME,
         acceleration_structure::NAME,
+        ray_tracing_pipeline::NAME,
     ];
 
     pub(crate) fn new(instance: &Instance, surface: &Surface) -> RtErr<Self> {
@@ -37,7 +37,6 @@ impl Device {
         let (device, graphics_queue, present_queue) =
             Self::create_device(instance, surface, physical_device)?;
         let properties = Self::query_device_properties(instance, physical_device);
-        let memory_properties = Self::query_memory_properties(instance, physical_device);
 
         Ok(Self {
             physical_device,
@@ -45,7 +44,6 @@ impl Device {
             graphics_queue,
             present_queue,
             properties,
-            memory_properties,
         })
     }
 
@@ -75,11 +73,6 @@ impl Device {
     }
 
     #[inline]
-    pub(crate) fn memory_properties(&self) -> &vk::PhysicalDeviceMemoryProperties {
-        &self.memory_properties
-    }
-
-    #[inline]
     pub(crate) fn device_wait_idle(&self) -> RtErr<()> {
         unsafe { self.device.device_wait_idle() }.map_err(|err| RtError::DeviceWaitIdle(err.into()))
     }
@@ -95,9 +88,10 @@ impl Device {
         });
         if let Some(device) = devices
             .iter()
-            .find(|device| is_suitable_device(**device).unwrap_or_default())
+            .copied()
+            .find(|device| is_suitable_device(*device).unwrap_or_default())
         {
-            Ok(*device)
+            Ok(device)
         } else {
             Err(RtError::FindSuitableDevice)
         }
@@ -151,6 +145,9 @@ impl Device {
             let mut acceleration_structure =
                 vk::PhysicalDeviceAccelerationStructureFeaturesKHR::default()
                     .acceleration_structure(true);
+            let mut ray_tracing_pipeline =
+                vk::PhysicalDeviceRayTracingPipelineFeaturesKHR::default()
+                    .ray_tracing_pipeline(true);
             let mut device_features = vk::PhysicalDeviceFeatures2::default()
                 .features(core_features)
                 .push_next(&mut shader_draw_parameters)
@@ -158,7 +155,8 @@ impl Device {
                 .push_next(&mut dynamic_rendering)
                 .push_next(&mut synchronization2)
                 .push_next(&mut buffer_device_address)
-                .push_next(&mut acceleration_structure);
+                .push_next(&mut acceleration_structure)
+                .push_next(&mut ray_tracing_pipeline);
 
             unsafe { instance.get_physical_device_features2(device, &mut device_features) };
 
@@ -211,21 +209,6 @@ impl Device {
         };
 
         properties.properties
-    }
-
-    fn query_memory_properties(
-        instance: &Instance,
-        physical_device: vk::PhysicalDevice,
-    ) -> vk::PhysicalDeviceMemoryProperties {
-        let mut properties = vk::PhysicalDeviceMemoryProperties2::default();
-
-        unsafe {
-            instance
-                .instance()
-                .get_physical_device_memory_properties2(physical_device, &mut properties)
-        };
-
-        properties.memory_properties
     }
 
     fn is_suitable_device(
@@ -282,13 +265,15 @@ impl Device {
         let mut buffer_device_address = vk::PhysicalDeviceBufferDeviceAddressFeatures::default();
         let mut acceleration_structure =
             vk::PhysicalDeviceAccelerationStructureFeaturesKHR::default();
+        let mut ray_tracing_pipeline = vk::PhysicalDeviceRayTracingPipelineFeaturesKHR::default();
         let mut device_features = vk::PhysicalDeviceFeatures2::default()
             .push_next(&mut shader_draw_parameters)
             .push_next(&mut dynamic_state)
             .push_next(&mut dynamic_rendering)
             .push_next(&mut synchronization2)
             .push_next(&mut buffer_device_address)
-            .push_next(&mut acceleration_structure);
+            .push_next(&mut acceleration_structure)
+            .push_next(&mut ray_tracing_pipeline);
 
         unsafe {
             instance.get_physical_device_features2(device, &mut device_features);
@@ -302,6 +287,7 @@ impl Device {
             || synchronization2.synchronization2 == 0
             || buffer_device_address.buffer_device_address == 0
             || acceleration_structure.acceleration_structure == 0
+            || ray_tracing_pipeline.ray_tracing_pipeline == 0
         {
             0
         } else {

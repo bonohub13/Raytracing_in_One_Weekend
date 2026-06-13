@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-    Aabb, Allocator, AsLoader, Buffer, BufferType, Encoder, Mesh, RtErr, RtError, StagingData,
+    Aabb, Allocator, AsLoader, Buffer, BufferData, BufferType, Encoder, Mesh, RtErr, RtError,
     VkState,
 };
 use ash::vk;
@@ -42,6 +42,10 @@ where
             }
             _ => Err(RtError::InvalidBufferType), // Treat as error
         }
+    }
+
+    pub fn device_address(&self) -> vk::DeviceAddress {
+        self.buffer.gpu_address()[0]
     }
 
     fn create_mesh_blas(

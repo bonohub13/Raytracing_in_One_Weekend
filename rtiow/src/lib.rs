@@ -132,6 +132,8 @@ pub enum RtError {
     InvalidBufferType,
     #[error("Failed to create acceleration structure. ({0})")]
     CreateAccelerationStructure(Box<dyn Error>),
+    #[error("Failed to get ray tracing shader group handles. ({0})")]
+    GetRayTracingShaderGroupHandles(Box<dyn Error>),
 }
 
 pub type RtErr<T> = Result<T, RtError>;

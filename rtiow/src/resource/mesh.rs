@@ -1,7 +1,7 @@
 // Copyright 2026 Kensuke Saito
 // SPDX-License-Identifier: MIT
 
-use crate::{Buffer, StagingData, Vertex, util};
+use crate::{Buffer, BufferData, Vertex, util};
 use ash::vk;
 
 #[derive(Debug, Clone)]
@@ -112,7 +112,7 @@ impl Mesh {
     }
 }
 
-impl StagingData for Mesh {
+impl BufferData for Mesh {
     fn size(&self) -> vk::DeviceSize {
         if let Some(index_offset) = self.index_offset()
             && let Some(index_size) = self.index_size()

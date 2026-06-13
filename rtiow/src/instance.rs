@@ -24,6 +24,7 @@ pub struct InstanceDesc<'desc> {
 impl Instance {
     const ENGINE_NAME: &CStr = c"Rtiow";
     const ENGINE_VERSION: &str = env!("CARGO_PKG_VERSION");
+    #[cfg(debug_assertions)]
     const VALIDATION_LAYERS: [&CStr; 1] = [c"VK_LAYER_KHRONOS_validation"];
     #[cfg(debug_assertions)]
     const EXTENSION_NAME: [&CStr; 3] = [

@@ -7,7 +7,7 @@ use glam::Vec3;
 #[derive(Debug, Clone, Copy)]
 pub struct Vertex(pub(crate) Vec3);
 
-pub trait StagingData {
+pub trait BufferData {
     fn size(&self) -> vk::DeviceSize;
     fn copy_regions<'a>(&'a self) -> Vec<vk::BufferCopy2<'a>>;
     fn copy_barrier<'a>(&self) -> vk::MemoryBarrier2<'a>;

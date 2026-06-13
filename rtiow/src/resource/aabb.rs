@@ -1,7 +1,7 @@
 // Copyright 2026 Kensuke Saito
 // SPDX-License-Identifier: MIT
 
-use crate::{Buffer, StagingData};
+use crate::{Buffer, BufferData};
 use ash::vk;
 use glam::Vec3;
 
@@ -62,7 +62,7 @@ impl Sphere {
     }
 }
 
-impl StagingData for Aabb {
+impl BufferData for Aabb {
     fn size(&self) -> vk::DeviceSize {
         size_of_val(&self.0) as vk::DeviceSize
     }
