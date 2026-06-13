@@ -1,3 +1,6 @@
+// Copyright 2026 Kensuke Saito
+// SPDX-License-Identifier: MIT
+
 use crate::{
     Allocator, Device, PipelineLayout, RtErr, RtError, SbtLayout, ShaderBindingTable, ShaderModule,
     VkState,
