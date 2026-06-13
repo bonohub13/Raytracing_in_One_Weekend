@@ -44,6 +44,7 @@ where
         }
     }
 
+    #[inline]
     pub fn device_address(&self) -> vk::DeviceAddress {
         self.buffer.gpu_address()[0]
     }

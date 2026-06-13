@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-    AccelerationStructureBuildSizesInfo, Allocator, AsLoader, Blas, Buffer, BufferType, RtErr,
-    RtError, VkState,
+    AccelerationStructureBuildSizesInfo, Allocator, AsLoader, Blas, Buffer, BufferType, Device,
+    RtErr, RtError, VkState,
 };
 use ash::vk;
 use glam::Mat4;
@@ -18,12 +18,9 @@ pub enum TlasType {
     Aabb,
 }
 
-pub struct TlasInstanceData<'blas, T>
-where
-    T: Clone + Sized,
-{
+pub struct TlasInstanceData {
     data: Mat4,
-    blas: &'blas Blas<T>,
+    blas_address: vk::DeviceAddress,
     ty: TlasType,
     custom_index: u32,
 }
@@ -31,8 +28,9 @@ where
 pub struct Tlas {
     handle: vk::AccelerationStructureKHR,
     buffer: ManuallyDrop<Buffer<()>>,
-    tlas_instance_buffer: ManuallyDrop<Buffer<vk::AccelerationStructureInstanceKHR>>,
+    tlas_instance_buffers: Vec<ManuallyDrop<Buffer<vk::AccelerationStructureInstanceKHR>>>,
     as_loader: Arc<AsLoader>,
+    device: Arc<Device>,
 }
 
 impl TlasType {
@@ -56,20 +54,20 @@ impl TlasType {
     }
 }
 
-impl<'blas, T> TlasInstanceData<'blas, T>
-where
-    T: Clone + Sized,
-{
+impl TlasInstanceData {
     #[inline]
-    pub const fn new(
+    pub fn new<T>(
         col0: &[f32; 3],
         col1: &[f32; 3],
         col2: &[f32; 3],
         col3: &[f32; 4],
-        blas: &'blas Blas<T>,
+        blas: &Blas<T>,
         ty: TlasType,
         custom_index: u32,
-    ) -> Self {
+    ) -> Self
+    where
+        T: Clone + Sized,
+    {
         let col0 = glam::vec4(col0[0], col0[1], col0[2], 0f32);
         let col1 = glam::vec4(col1[0], col1[1], col1[2], 0f32);
         let col2 = glam::vec4(col2[0], col2[1], col2[2], 0f32);
@@ -77,7 +75,7 @@ where
 
         Self {
             data: glam::mat4(col0, col1, col2, col3),
-            blas,
+            blas_address: blas.device_address(),
             ty,
             custom_index,
         }
@@ -90,6 +88,7 @@ impl Tlas {
         allocator: Arc<Mutex<Allocator>>,
         loader: Arc<AsLoader>,
         max_instance_count: u32,
+        in_flight_frames: usize,
     ) -> RtErr<Self> {
         let size_info = Self::query_size_info(
             loader.clone(),
@@ -101,33 +100,37 @@ impl Tlas {
             allocator.clone(),
             BufferType::Tlas(size_info.acceleration_structure_size),
         )?);
-        let tlas_instance_buffer =
-            ManuallyDrop::new(Buffer::<vk::AccelerationStructureInstanceKHR>::new(
-                state,
-                allocator.clone(),
-                BufferType::TlasInstance(max_instance_count as usize),
-            )?);
+        let tlas_instance_buffers: Vec<_> = (0..in_flight_frames)
+            .map(|_| {
+                Ok(ManuallyDrop::new(Buffer::<
+                    vk::AccelerationStructureInstanceKHR,
+                >::new(
+                    state,
+                    allocator.clone(),
+                    BufferType::TlasInstance(max_instance_count as usize),
+                )?))
+            })
+            .collect::<RtErr<_>>()?;
         let handle = Self::create_tlas(loader.clone(), &buffer, &size_info)?;
 
         Ok(Self {
             as_loader: loader,
             buffer,
-            tlas_instance_buffer,
+            tlas_instance_buffers,
             handle,
+            device: state.device.clone(),
         })
     }
 
-    pub fn update<T>(
+    pub fn update(
         &self,
         state: &VkState,
         allocator: Arc<Mutex<Allocator>>,
         command_buffer: vk::CommandBuffer,
-        instances: &[TlasInstanceData<T>],
-    ) -> RtErr<()>
-    where
-        T: Clone + Sized,
-    {
-        if let Some(allocation) = self.tlas_instance_buffer.allocation()
+        instances: &[TlasInstanceData],
+        in_flight_frame: usize,
+    ) -> RtErr<()> {
+        if let Some(allocation) = self.tlas_instance_buffers[in_flight_frame].allocation()
             && let Some(alloc_ptr) = allocation.mapped_ptr()
         {
             let dst_ptr = alloc_ptr.as_ptr() as *mut vk::AccelerationStructureInstanceKHR;
@@ -136,7 +139,8 @@ impl Tlas {
                 vk::AccelerationStructureGeometryInstancesDataKHR::default()
                     .array_of_pointers(false)
                     .data(vk::DeviceOrHostAddressConstKHR {
-                        device_address: self.tlas_instance_buffer.gpu_address()[0],
+                        device_address: self.tlas_instance_buffers[in_flight_frame].gpu_address()
+                            [0],
                     });
             let geometry_info = vk::AccelerationStructureGeometryKHR::default()
                 .geometry_type(vk::GeometryTypeKHR::INSTANCES)
@@ -167,6 +171,11 @@ impl Tlas {
                 allocator,
                 BufferType::Scratch(size_info.update_scratch_size),
             )?;
+            let tlas_barrier = vk::MemoryBarrier2::default()
+                .src_stage_mask(vk::PipelineStageFlags2::ACCELERATION_STRUCTURE_BUILD_KHR)
+                .src_access_mask(vk::AccessFlags2::ACCELERATION_STRUCTURE_WRITE_KHR)
+                .dst_stage_mask(vk::PipelineStageFlags2::RAY_TRACING_SHADER_KHR)
+                .dst_access_mask(vk::AccessFlags2::ACCELERATION_STRUCTURE_READ_KHR);
 
             build_geometry_info = build_geometry_info.scratch_data(vk::DeviceOrHostAddressKHR {
                 device_address: scratch_buffer.gpu_address()[0],
@@ -192,7 +201,7 @@ impl Tlas {
                         .ty
                         .sbt_record_offset_and_flags(),
                     acceleration_structure_reference: vk::AccelerationStructureReferenceKHR {
-                        device_handle: instance.blas.device_address(),
+                        device_handle: instance.blas_address,
                     },
                 };
 
@@ -203,6 +212,13 @@ impl Tlas {
                 std::slice::from_ref(&build_geometry_info),
                 std::slice::from_ref(&std::slice::from_ref(&build_range_info)),
             );
+            unsafe {
+                self.device.device().cmd_pipeline_barrier2(
+                    command_buffer,
+                    &vk::DependencyInfo::default()
+                        .memory_barriers(std::slice::from_ref(&tlas_barrier)),
+                );
+            }
 
             Ok(())
         } else {
@@ -274,7 +290,9 @@ impl Drop for Tlas {
                 .raw()
                 .destroy_acceleration_structure(self.handle, None);
             ManuallyDrop::drop(&mut self.buffer);
-            ManuallyDrop::drop(&mut self.tlas_instance_buffer);
         }
+        self.tlas_instance_buffers
+            .iter_mut()
+            .for_each(|buffer| unsafe { ManuallyDrop::drop(buffer) });
     }
 }
