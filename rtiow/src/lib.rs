@@ -134,6 +134,8 @@ pub enum RtError {
     CreateAccelerationStructure(Box<dyn Error>),
     #[error("Failed to get ray tracing shader group handles. ({0})")]
     GetRayTracingShaderGroupHandles(Box<dyn Error>),
+    #[error("Failed to create sampler. ({0})")]
+    CreateSampler(Box<dyn Error>),
 }
 
 pub type RtErr<T> = Result<T, RtError>;

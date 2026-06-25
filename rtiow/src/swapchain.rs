@@ -55,15 +55,13 @@ impl Swapchain {
             state,
             allocator.clone(),
             encoder,
-            samples_count,
-            ImageType::Color(&extent, surface_format.format),
+            ImageType::Color(samples_count, &extent, surface_format.format),
         )?);
         let depth_image = ManuallyDrop::new(AllocatedImage::new(
             state,
             allocator.clone(),
             encoder,
-            samples_count,
-            ImageType::Depth(&extent),
+            ImageType::Depth(samples_count, &extent),
         )?);
         let loader = swapchain::Device::new(state.instance.instance(), state.device.device());
         let handle = Self::create_swapchain(window, state, &loader, &swapchain_support)?;
@@ -104,6 +102,11 @@ impl Swapchain {
     #[inline]
     pub fn image_views(&self) -> &[vk::ImageView] {
         &self.swapchain_image_views
+    }
+
+    #[inline]
+    pub fn samples_count(&self) -> vk::SampleCountFlags {
+        self.samples_count
     }
 
     pub fn resize(
@@ -171,8 +174,8 @@ impl Swapchain {
         image_index: usize,
     ) {
         let barrier = vk::ImageMemoryBarrier2::default()
-            .src_stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
-            .src_access_mask(vk::AccessFlags2::NONE)
+            .src_stage_mask(vk::PipelineStageFlags2::RAY_TRACING_SHADER_KHR)
+            .src_access_mask(vk::AccessFlags2::SHADER_STORAGE_WRITE)
             .dst_stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
             .dst_access_mask(vk::AccessFlags2::COLOR_ATTACHMENT_WRITE)
             .old_layout(vk::ImageLayout::UNDEFINED)
@@ -314,15 +317,13 @@ impl Swapchain {
                 state,
                 self.allocator.clone(),
                 encoder,
-                self.samples_count,
-                ImageType::Color(&self.extent, self.surface_format.format),
+                ImageType::Color(self.samples_count, &self.extent, self.surface_format.format),
             )?);
             self.depth_image = ManuallyDrop::new(AllocatedImage::new(
                 state,
                 self.allocator.clone(),
                 encoder,
-                self.samples_count,
-                ImageType::Depth(&self.extent),
+                ImageType::Depth(self.samples_count, &self.extent),
             )?);
         }
         self.handle = handle;

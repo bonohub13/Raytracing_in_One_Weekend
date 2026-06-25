@@ -34,3 +34,11 @@ macro_rules! align_up {
 }
 
 pub(crate) use align_up;
+
+macro_rules! lock_mutex {
+    ($mutex:expr) => {{
+        $mutex.lock().map_err(|_| RtError::LockMutex)
+    }};
+}
+
+pub(crate) use lock_mutex;

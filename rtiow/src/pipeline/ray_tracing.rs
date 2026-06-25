@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-    Allocator, Device, PipelineLayout, RtErr, RtError, SbtLayout, ShaderBindingTable, ShaderModule,
-    VkState,
+    Allocator, Descriptor, Device, PipelineLayout, RtErr, RtError, SbtLayout, ShaderBindingTable,
+    ShaderModule, Texture, Tlas, VkState,
 };
 use ash::vk;
 use std::{
@@ -14,8 +14,9 @@ use std::{
 
 pub struct RayTracingPipeline {
     pipeline: vk::Pipeline,
-    layout: Arc<PipelineLayout>,
     shader_binding_table: ManuallyDrop<ShaderBindingTable>,
+    layout: Arc<PipelineLayout>,
+    descriptor: Arc<Descriptor>,
     device: Arc<Device>,
 }
 
@@ -29,6 +30,7 @@ impl RayTracingPipeline {
     pub fn new(
         state: &VkState,
         layout: Arc<PipelineLayout>,
+        descriptor: Arc<Descriptor>,
         allocator: Arc<Mutex<Allocator>>,
     ) -> RtErr<Self> {
         let raygen_shader =
@@ -73,9 +75,31 @@ impl RayTracingPipeline {
             pipeline,
             layout,
             shader_binding_table,
+            descriptor,
             device: state.device.clone(),
         })
     }
+
+    #[inline]
+    pub fn set_layout_bindings() -> [vk::DescriptorSetLayoutBinding<'static>; 2] {
+        [
+            // Binding 0: TLAS
+            vk::DescriptorSetLayoutBinding::default()
+                .binding(0)
+                .descriptor_type(vk::DescriptorType::ACCELERATION_STRUCTURE_KHR)
+                .descriptor_count(1)
+                .stage_flags(
+                    vk::ShaderStageFlags::RAYGEN_KHR | vk::ShaderStageFlags::CLOSEST_HIT_KHR,
+                ),
+            // Binding 1: Ray-Traced Image
+            vk::DescriptorSetLayoutBinding::default()
+                .binding(1)
+                .descriptor_type(vk::DescriptorType::STORAGE_IMAGE)
+                .descriptor_count(1)
+                .stage_flags(vk::ShaderStageFlags::RAYGEN_KHR),
+        ]
+    }
+
     pub fn bind_pipeline(&self, command_buffer: vk::CommandBuffer) {
         unsafe {
             self.device.device().cmd_bind_pipeline(
@@ -84,6 +108,42 @@ impl RayTracingPipeline {
                 self.pipeline,
             )
         }
+    }
+
+    pub fn bind_descriptor_sets(&self, command_buffer: vk::CommandBuffer, current_frame: usize) {
+        self.descriptor.bind_descriptor_sets(
+            command_buffer,
+            vk::PipelineBindPoint::RAY_TRACING_KHR,
+            self.layout.clone(),
+            0,
+            &[],
+            current_frame,
+        );
+    }
+
+    pub fn update_descriptor_sets(&self, tlas: &Tlas, texture: &Texture, current_frame: usize) {
+        let mut tlas_info = tlas.write_info();
+        let image_info = texture.image_info();
+        let desc_writes = [
+            // Binding 0: TLAS
+            vk::WriteDescriptorSet::default()
+                .dst_set(self.descriptor.sets(0)[current_frame])
+                .dst_binding(0)
+                .dst_array_element(0)
+                .descriptor_count(1)
+                .descriptor_type(vk::DescriptorType::ACCELERATION_STRUCTURE_KHR)
+                .push_next(&mut tlas_info),
+            // Binding 1: Storage Image
+            vk::WriteDescriptorSet::default()
+                .dst_set(self.descriptor.sets(1)[current_frame])
+                .dst_binding(1)
+                .dst_array_element(0)
+                .descriptor_count(1)
+                .descriptor_type(vk::DescriptorType::STORAGE_IMAGE)
+                .image_info(std::slice::from_ref(&image_info)),
+        ];
+
+        self.descriptor.update_descriptor_sets(&desc_writes, &[]);
     }
 
     pub fn trace_rays(

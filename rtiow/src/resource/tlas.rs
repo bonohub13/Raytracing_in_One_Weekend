@@ -122,6 +122,12 @@ impl Tlas {
         })
     }
 
+    #[inline]
+    pub fn write_info<'a>(&'a self) -> vk::WriteDescriptorSetAccelerationStructureKHR<'a> {
+        vk::WriteDescriptorSetAccelerationStructureKHR::default()
+            .acceleration_structures(std::slice::from_ref(&self.handle))
+    }
+
     pub fn update(
         &self,
         state: &VkState,

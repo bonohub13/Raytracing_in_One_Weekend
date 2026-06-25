@@ -8,6 +8,7 @@ mod buffer;
 mod descriptor;
 mod image;
 mod mesh;
+mod texture;
 mod tlas;
 mod vertex;
 
@@ -18,6 +19,7 @@ pub use buffer::*;
 pub use descriptor::*;
 pub use image::*;
 pub use mesh::*;
+pub use texture::*;
 pub use tlas::*;
 pub use vertex::*;
 

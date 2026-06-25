@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-    Device, RtErr, RtError, Swapchain, Vertex, VkState,
+    Descriptor, Device, RtErr, RtError, Swapchain, Texture, Vertex, VkState,
     pipeline::{PipelineLayout, ShaderModule},
 };
 use ash::vk;
@@ -11,6 +11,7 @@ use std::{ffi::CStr, path::Path, sync::Arc};
 pub struct GraphicsPipeline {
     pipeline: vk::Pipeline,
     layout: Arc<PipelineLayout>,
+    descriptor: Arc<Descriptor>,
     device: Arc<Device>,
 }
 
@@ -23,7 +24,12 @@ impl GraphicsPipeline {
         vk::DynamicState::SCISSOR,
     ];
 
-    pub fn new(state: &VkState, swapchain: &Swapchain, layout: Arc<PipelineLayout>) -> RtErr<Self> {
+    pub fn new(
+        state: &VkState,
+        swapchain: &Swapchain,
+        layout: Arc<PipelineLayout>,
+        descriptor: Arc<Descriptor>,
+    ) -> RtErr<Self> {
         let vert_shader =
             ShaderModule::new(state.device.clone(), Path::new(Self::VERT_SHADER_PATH))?;
         let frag_shader =
@@ -38,9 +44,22 @@ impl GraphicsPipeline {
 
         Ok(Self {
             pipeline,
+            descriptor,
             layout,
             device: state.device.clone(),
         })
+    }
+
+    #[inline]
+    pub fn set_layout_bindings() -> [vk::DescriptorSetLayoutBinding<'static>; 1] {
+        [
+            // Binding 0: Ray-Traced Image
+            vk::DescriptorSetLayoutBinding::default()
+                .binding(0)
+                .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+                .descriptor_count(1)
+                .stage_flags(vk::ShaderStageFlags::FRAGMENT),
+        ]
     }
 
     pub fn bind_pipeline(&self, command_buffer: vk::CommandBuffer) {
@@ -88,6 +107,32 @@ impl GraphicsPipeline {
                 &vertex_attr_descriptions,
             )
         }
+    }
+
+    pub fn bind_descriptor_sets(&self, command_buffer: vk::CommandBuffer, current_frame: usize) {
+        self.descriptor.bind_descriptor_sets(
+            command_buffer,
+            vk::PipelineBindPoint::GRAPHICS,
+            self.layout.clone(),
+            0,
+            &[],
+            current_frame,
+        );
+    }
+
+    pub fn update_descriptor_set(&self, texture: &Texture, current_frame: usize) {
+        let image_info = texture.image_info();
+        let desc_writes = [
+            // Binding 0: Ray-Traced Image
+            vk::WriteDescriptorSet::default()
+                .dst_set(self.descriptor.sets(0)[current_frame])
+                .dst_array_element(0)
+                .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+                .descriptor_count(1)
+                .image_info(std::slice::from_ref(&image_info)),
+        ];
+
+        self.descriptor.update_descriptor_sets(&desc_writes, &[]);
     }
 
     pub fn draw(

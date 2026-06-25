@@ -64,6 +64,9 @@ docker-build:
 docker-debug:
 	@TAG="linux" CMD="make debug" make docker-exec
 
+docker-clippy:
+	@TAG="linux" CMD="make clippy" make docker-exec
+
 docker-build-shaders:
 	@TAG="shader" CMD="make build-shaders" make docker-exec
 

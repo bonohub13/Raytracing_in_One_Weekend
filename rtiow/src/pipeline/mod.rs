@@ -46,8 +46,9 @@ impl PipelineLayout {
         device: Arc<Device>,
         descriptors: &[Descriptor],
     ) -> RtErr<vk::PipelineLayout> {
-        let set_layouts: Vec<_> = descriptors.iter().map(|desc| desc.set_layout()).collect();
-        let create_info = vk::PipelineLayoutCreateInfo::default().set_layouts(&set_layouts);
+        let set_layouts: Vec<_> = descriptors.iter().map(|desc| desc.set_layouts()).collect();
+        let merged = set_layouts.concat();
+        let create_info = vk::PipelineLayoutCreateInfo::default().set_layouts(&merged);
 
         unsafe { device.device().create_pipeline_layout(&create_info, None) }
             .map_err(|err| RtError::CreatePipelineLayout(err.into()))

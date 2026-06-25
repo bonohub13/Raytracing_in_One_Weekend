@@ -1,15 +1,16 @@
 // Copyright 2026 Kensuke Saito
 // SPDX-License-Identifier: MIT
 
-use crate::{Allocator, Device, Encoder, RtErr, RtError, VkState};
+use crate::{Allocator, Device, Encoder, RtErr, RtError, VkState, util::lock_mutex};
 use ash::vk;
 use gpu_allocator::vulkan::{self as vk_alloc, Allocation};
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone, Copy)]
 pub enum ImageType<'item> {
-    Depth(&'item vk::Extent2D),
-    Color(&'item vk::Extent2D, vk::Format),
+    Depth(vk::SampleCountFlags, &'item vk::Extent2D),
+    Color(vk::SampleCountFlags, &'item vk::Extent2D, vk::Format),
+    Storage(&'item vk::Extent2D),
 }
 
 pub struct AllocatedImage {
@@ -25,16 +26,20 @@ impl AllocatedImage {
         state: &VkState,
         allocator: Arc<Mutex<Allocator>>,
         encoder: &Encoder,
-        samples: vk::SampleCountFlags,
         ty: ImageType,
     ) -> RtErr<Self> {
         match ty {
-            ImageType::Depth(extent) => {
+            ImageType::Depth(samples, extent) => {
                 Self::create_depth_image(state, allocator, encoder, samples, extent)
             }
-            ImageType::Color(extent, format) => {
+            ImageType::Color(samples, extent, format) => {
                 Self::create_color_image(state, allocator, encoder, samples, extent, format)
             }
+            ImageType::Storage(extent) => {
+                Self::create_storage_image(state, allocator, encoder, extent)
+            }
+            #[allow(unused)] // Keep for future implementation(s)
+            _ => todo!(),
         }
     }
 
@@ -129,6 +134,14 @@ impl AllocatedImage {
         extent: &vk::Extent2D,
         format: vk::Format,
     ) -> RtErr<Self> {
+        static SUBRESOURCE_RANGE: vk::ImageSubresourceRange = vk::ImageSubresourceRange {
+            aspect_mask: vk::ImageAspectFlags::COLOR,
+            base_mip_level: 0,
+            level_count: 1,
+            base_array_layer: 0,
+            layer_count: 1,
+        };
+
         let create_info = vk::ImageCreateInfo::default()
             .image_type(vk::ImageType::TYPE_2D)
             .format(format)
@@ -147,18 +160,8 @@ impl AllocatedImage {
             .sharing_mode(vk::SharingMode::EXCLUSIVE);
         let image = Self::create_image(state, &create_info)?;
         let allocation = Self::allocate_memory(state, allocator.clone(), image)?;
-        let image_view = Self::create_image_view(
-            state.device.clone(),
-            format,
-            image,
-            &vk::ImageSubresourceRange {
-                aspect_mask: vk::ImageAspectFlags::COLOR,
-                base_mip_level: 0,
-                level_count: 1,
-                base_array_layer: 0,
-                layer_count: 1,
-            },
-        )?;
+        let image_view =
+            Self::create_image_view(state.device.clone(), format, image, &SUBRESOURCE_RANGE)?;
 
         encoder.submit_single_command_buffer(|command_buffer| {
             let memory_barrier = vk::ImageMemoryBarrier2::default()
@@ -176,6 +179,73 @@ impl AllocatedImage {
                     base_array_layer: 0,
                     layer_count: 1,
                 });
+            let dependency_info = vk::DependencyInfo::default()
+                .image_memory_barriers(std::slice::from_ref(&memory_barrier));
+
+            unsafe {
+                state
+                    .device
+                    .device()
+                    .cmd_pipeline_barrier2(command_buffer, &dependency_info);
+            }
+        })?;
+
+        Ok(Self {
+            image,
+            allocation,
+            image_view,
+            device: state.device.clone(),
+            allocator,
+        })
+    }
+
+    fn create_storage_image(
+        state: &VkState,
+        allocator: Arc<Mutex<Allocator>>,
+        encoder: &Encoder,
+        extent: &vk::Extent2D,
+    ) -> RtErr<Self> {
+        static SUBRESOURCE_RANGE: vk::ImageSubresourceRange = vk::ImageSubresourceRange {
+            aspect_mask: vk::ImageAspectFlags::COLOR,
+            base_mip_level: 0,
+            level_count: 1,
+            base_array_layer: 0,
+            layer_count: 1,
+        };
+        const FORMAT: vk::Format = vk::Format::R16G16B16A16_SFLOAT;
+
+        let create_info = vk::ImageCreateInfo::default()
+            .image_type(vk::ImageType::TYPE_2D)
+            .format(FORMAT)
+            .extent(vk::Extent3D {
+                width: extent.width,
+                height: extent.height,
+                depth: 1,
+            })
+            .mip_levels(1)
+            .array_layers(1)
+            .samples(vk::SampleCountFlags::TYPE_1)
+            .tiling(vk::ImageTiling::OPTIMAL)
+            .usage(vk::ImageUsageFlags::STORAGE | vk::ImageUsageFlags::SAMPLED)
+            .sharing_mode(vk::SharingMode::EXCLUSIVE)
+            .initial_layout(vk::ImageLayout::UNDEFINED);
+        let image = Self::create_image(state, &create_info)?;
+        let allocation = Self::allocate_memory(state, allocator.clone(), image)?;
+        let image_view =
+            Self::create_image_view(state.device.clone(), FORMAT, image, &SUBRESOURCE_RANGE)?;
+
+        encoder.submit_single_command_buffer(|command_buffer| {
+            let memory_barrier = vk::ImageMemoryBarrier2::default()
+                .src_stage_mask(vk::PipelineStageFlags2::NONE)
+                .src_access_mask(vk::AccessFlags2::NONE)
+                .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
+                .old_layout(vk::ImageLayout::UNDEFINED)
+                .dst_stage_mask(vk::PipelineStageFlags2::RAY_TRACING_SHADER_KHR)
+                .dst_access_mask(vk::AccessFlags2::SHADER_STORAGE_WRITE_KHR)
+                .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
+                .new_layout(vk::ImageLayout::GENERAL)
+                .image(image)
+                .subresource_range(SUBRESOURCE_RANGE);
             let dependency_info = vk::DependencyInfo::default()
                 .image_memory_barriers(std::slice::from_ref(&memory_barrier));
 
@@ -271,7 +341,7 @@ impl AllocatedImage {
 
             requirements.memory_requirements
         };
-        let mut guard = allocator.lock().map_err(|_| RtError::LockMutex)?;
+        let mut guard = lock_mutex!(allocator)?;
         let allocation = guard
             .allocator
             .allocate(&vk_alloc::AllocationCreateDesc {

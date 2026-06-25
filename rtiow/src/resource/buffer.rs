@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-    Aabb, Allocator, BufferData, Device, Encoder, Mesh, RtErr, RtError, VkState, util::align_up,
+    Aabb, Allocator, BufferData, Device, Encoder, Mesh, RtErr, RtError, VkState,
+    util::{align_up, lock_mutex},
 };
 use ash::vk;
 use gpu_allocator::vulkan::{self as vk_alloc, Allocation};
@@ -428,7 +429,7 @@ where
     ) -> RtErr<Option<Allocation>> {
         const BUFFER_MEMORY_NAME: &str = "Buffer bound memory";
 
-        let mut guard = allocator.lock().map_err(|_| RtError::LockMutex)?;
+        let mut guard = lock_mutex!(allocator)?;
         let allocation = guard
             .allocator
             .allocate(&vk_alloc::AllocationCreateDesc {
